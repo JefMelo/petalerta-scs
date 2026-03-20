@@ -29,7 +29,7 @@ SCS_COORDS = [-29.7182, -52.4306]
 from streamlit_gsheets import GSheetsConnection
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# --- FUNÇÃO DE LEITURA ---
+# --- FUNÇÃO DE LEITURA DIRETA ---
 def ler_planilha_direto(nome_aba):
     url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={nome_aba}"
     try:
@@ -38,7 +38,7 @@ def ler_planilha_direto(nome_aba):
     except:
         return pd.DataFrame()
 
-# --- INJEÇÃO DE CSS ---
+# --- INJEÇÃO DE CSS (Identidade do Pet e Zoom) ---
 st.markdown("""
 <style>
     .pet-card {
@@ -50,11 +50,13 @@ st.markdown("""
     .pet-card-body { display: flex; gap: 15px; padding: 15px; flex-wrap: wrap; }
     .pet-card-foto { width: 140px; height: 140px; object-fit: cover; border-radius: 10px; border: 1px solid #ddd; }
     .pet-card-info { flex: 1; min-width: 200px; }
-    .pet-card-footer { background: #fafafa; padding: 12px; border-top: 1px solid #eee; }
+    .pet-card-info p { margin: 4px 0; font-size: 1rem; color: #444; }
+    .pet-card-footer { background: #fafafa; padding: 10px 15px; border-top: 1px solid #eee; }
+    .pagina-zoom { text-align: center; padding: 20px; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- FUNÇÕES DE LÓGICA ---
+# --- FUNÇÕES DE APOIO ---
 def verificar_login(user_in, pwd_in):
     df_u = ler_planilha_direto(ABA_USUARIOS)
     if df_u.empty: return None
@@ -80,12 +82,14 @@ def ir_para(p):
     st.session_state.pagina_detalhes = None
     st.rerun()
 
-# --- ZOOM ---
+# --- TELA DE ZOOM ---
 if st.session_state.pagina_detalhes:
+    st.markdown('<div class="pagina-zoom">', unsafe_allow_html=True)
     st.image(f"data:image/jpeg;base64,{st.session_state.pagina_detalhes}", use_container_width=True)
     if st.button("⬅️ VOLTAR AO MURAL", use_container_width=True, type="primary"):
         st.session_state.pagina_detalhes = None
         st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
 
 # --- SIDEBAR ---
@@ -115,13 +119,15 @@ if st.session_state.pagina == 'home':
 
     m = folium.Map(location=SCS_COORDS, zoom_start=14)
     if not df.empty:
-        for _, pet in df[df['Status'] == 'Perdido'].iterrows():
+        for _, pet in df.iterrows():
             try:
-                esp = str(pet['Especie']).lower()
-                icon_c = 'orange' if 'cão' in esp or 'cao' in esp else ('blue' if 'gato' in esp else 'green')
-                folium.Marker([float(pet['Lat']), float(pet['Lng'])], 
-                              popup=f"<b>{pet['Nome_Pet']}</b>", 
-                              icon=folium.Icon(color=icon_c, icon='paw', prefix='fa')).add_to(m)
+                # Filtrar apenas os que contêm "Perdido" na coluna unificada
+                if "Perdido" in str(pet['DataStatus']):
+                    esp = str(pet['Especie']).lower()
+                    icon_c = 'orange' if 'cão' in esp or 'cao' in esp else ('blue' if 'gato' in esp else 'green')
+                    folium.Marker([float(pet['Lat']), float(pet['Lng'])], 
+                                  popup=f"<b>{pet['Nome_Pet']}</b>", 
+                                  icon=folium.Icon(color=icon_c, icon='paw', prefix='fa')).add_to(m)
             except: continue
     st_folium(m, width=700, height=400)
 
@@ -130,38 +136,39 @@ if st.session_state.pagina == 'home':
 
     st.subheader("🔍 Mural de Desaparecidos")
     if not df.empty:
-        for _, pet in df[df['Status'] == 'Perdido'].iterrows():
-            st.markdown(f'''
-                <div class="pet-card">
-                    <div class="pet-card-header"><h3>{pet['Nome_Pet']}</h3></div>
-                    <div class="pet-card-body">
-                        <img src="data:image/jpeg;base64,{pet['Foto']}" class="pet-card-foto">
-                        <div class="pet-card-info">
-                            <p><b>Espécie:</b> {pet['Especie']} | <b>Raça:</b> {pet.get('Raca', '-')}</p>
-                            <p><b>Cor:</b> {pet.get('Cor', '-')}</p>
-                            <p>📝 {pet.get('Caracteristicas', '')}</p>
+        for _, pet in df.iterrows():
+            if "Perdido" in str(pet['DataStatus']):
+                st.markdown(f'''
+                    <div class="pet-card">
+                        <div class="pet-card-header"><h3>{pet['Nome_Pet']}</h3></div>
+                        <div class="pet-card-body">
+                            <img src="data:image/jpeg;base64,{pet['Foto']}" class="pet-card-foto">
+                            <div class="pet-card-info">
+                                <p><b>Espécie:</b> {pet['Especie']} | <b>Raça:</b> {pet.get('Raca', '-')}</p>
+                                <p><b>Cor:</b> {pet.get('Cor', '-')}</p>
+                                <p><b>Características:</b> {pet.get('Caracteristicas', '-')}</p>
+                            </div>
+                        </div>
+                        <div class="pet-card-footer">
+                            <p>📍 <i>Visto por último em: {pet['Local_Desaparecimento']}</i></p>
                         </div>
                     </div>
-                    <div class="pet-card-footer">
-                        <p>📍 <i>Visto por último em: {pet['Local_Desaparecimento']}</i></p>
-                    </div>
-                </div>
-            ''', unsafe_allow_html=True)
-            c1, c2 = st.columns(2)
-            with c1:
-                if st.button("🔍 Ver Foto", key=f"z_{pet['ID']}", use_container_width=True):
-                    st.session_state.pagina_detalhes = pet['Foto']
-                    st.rerun()
-            with c2:
-                if st.session_state.logado:
-                    tel = "".join(filter(str.isdigit, str(pet['Tel_Tutor'])))
-                    st.link_button("🟢 WhatsApp", f"https://wa.me/55{tel}", use_container_width=True)
-            st.write("")
+                ''', unsafe_allow_html=True)
+                c1, c2 = st.columns(2)
+                with c1:
+                    if st.button("🔍 Ver Foto", key=f"z_{pet['ID']}", use_container_width=True):
+                        st.session_state.pagina_detalhes = pet['Foto']
+                        st.rerun()
+                with c2:
+                    if st.session_state.logado:
+                        tel = "".join(filter(str.isdigit, str(pet['Tel_Tutor'])))
+                        st.link_button("🟢 WhatsApp", f"https://wa.me/55{tel}", use_container_width=True)
+                st.write("")
 
-# --- PÁGINA: REGISTRO PET (ORDE DE COLUNAS EXATA DA PLANILHA) ---
+# --- PÁGINA: REGISTRO PET ---
 elif st.session_state.pagina == 'perdi_pet':
     st.header("🚨 Registrar Animal Perdido")
-    st.info("Clique no mapa para marcar o local.")
+    st.warning("Clique no mapa abaixo para marcar o local exato.")
     
     m_reg = folium.Map(location=SCS_COORDS, zoom_start=15)
     if st.session_state.temp_lat:
@@ -176,23 +183,23 @@ elif st.session_state.pagina == 'perdi_pet':
         nome_p = st.text_input("Nome do Pet*")
         esp = st.selectbox("Espécie", ["Cão", "Gato", "Outro"])
         raca = st.text_input("Raça")
-        cor = st.text_input("Cor")
-        caract = st.text_area("Características marcantes")
+        cor = st.text_input("Cor Principal")
+        caract = st.text_area("Características Marcantes")
         bairro = st.text_input("Bairro/Localização aproximada")
-        foto = st.file_uploader("Foto")
+        foto = st.file_uploader("Foto do Pet")
         
-        if st.form_submit_button("🚀 PUBLICAR"):
+        if st.form_submit_button("🚀 PUBLICAR ALERTA"):
             if nome_p and st.session_state.temp_lat:
-                with st.spinner("Comunicando com o Google Sheets..."):
+                with st.spinner("Salvando dados..."):
                     try:
                         foto_b64 = processar_foto(foto)
+                        df_p = ler_planilha_direto(ABA_PETS)
                         u = st.session_state.user
                         
-                        # Criamos o dicionário com as chaves EXATAS da sua planilha
+                        # DICIONÁRIO NA ORDEM EXATA DA SUA PLANILHA
                         dados_para_salvar = {
                             "ID": str(int(datetime.now().timestamp())),
-                            "Data": datetime.now().strftime("%d/%m/%Y"), # Verifique se na planilha é 'Data' ou 'DataStatus'
-                            "Status": "Perdido",
+                            "DataStatus": f"{datetime.now().strftime('%d/%m/%Y')} - Perdido",
                             "Especie": esp,
                             "Nome_Pet": nome_p,
                             "Raca": raca,
@@ -211,23 +218,14 @@ elif st.session_state.pagina == 'perdi_pet':
                             "Endereco_Tutor": u.get('Endereco', '')
                         }
                         
-                        # Lemos os dados atuais
-                        df_p = ler_planilha_direto(ABA_PETS)
-                        novo_df = pd.concat([df_p, pd.DataFrame([dados_para_salvar])], ignore_index=True)
-                        
-                        # Comando de atualização
-                        conn.update(worksheet=ABA_PETS, data=novo_df)
-                        
+                        conn.update(worksheet=ABA_PETS, data=pd.concat([df_p, pd.DataFrame([dados_para_salvar])], ignore_index=True))
                         st.session_state.temp_lat = None
-                        st.success("✅ Pet cadastrado com sucesso!")
-                        st.balloons()
+                        st.success("✅ Publicado!")
                         ir_para('home')
                     except Exception as e:
-                        st.error(f"Erro na API do Google: Verifique se as colunas da planilha 'Dados' estão corretas.")
-                        st.info("Dica: Os nomes das colunas na Planilha devem ser ID, Data, Status, Especie, Nome_Pet...")
-            else:
-                st.error("❌ Erro: Selecione o local no mapa e digite o nome do pet.")
-                
+                        st.error(f"Erro na API do Google Sheets. Verifique o cabeçalho da planilha.")
+            else: st.error("Faltam dados ou local no mapa!")
+
 # --- PÁGINA: CADASTRO USUÁRIO ---
 elif st.session_state.pagina == 'cadastro_user':
     st.header("📝 Criar Conta")
