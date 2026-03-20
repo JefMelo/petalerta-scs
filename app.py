@@ -189,17 +189,16 @@ elif st.session_state.pagina == 'perdi_pet':
         foto = st.file_uploader("Foto do Pet")
         if st.form_submit_button("🚀 PUBLICAR ALERTA"):
             if nome_p and st.session_state.temp_lat:
-                with st.spinner("Sincronizando com a base de dados..."):
+                with st.spinner("Sincronizando..."):
                     try:
-                        # 1. Lemos os dados atuais e descobrimos as colunas REAIS da planilha
+                        # 1. Tenta ler a aba
                         df_p = ler_planilha_direto(ABA_PETS)
-                        colunas_reais = df_p.columns.tolist()
                         
                         foto_b64 = processar_foto(foto)
                         u = st.session_state.user
                         
-                        # 2. Criamos os dados básicos
-                        dados_base = {
+                        # 2. Dados organizados
+                        dados_novos = {
                             "ID": str(int(datetime.now().timestamp())),
                             "DataStatus": f"{datetime.now().strftime('%d/%m/%Y')} - Perdido",
                             "Especie": esp,
@@ -219,27 +218,29 @@ elif st.session_state.pagina == 'perdi_pet':
                             "Email_Tutor": u.get('Email', ''),
                             "Endereco_Tutor": u.get('Endereco', '')
                         }
+
+                        # 3. Tratamento para evitar o erro (1, 0)
+                        if df_p.empty:
+                            # Se por algum motivo a leitura falhar ou vir vazia, 
+                            # criamos o DF apenas com os novos dados
+                            df_final = pd.DataFrame([dados_novos])
+                        else:
+                            # Se já tem dados, concatenamos respeitando as colunas existentes
+                            df_final = pd.concat([df_p, pd.DataFrame([dados_novos])], ignore_index=True)
                         
-                        # 3. Mapeamos apenas o que existe na planilha (Ignora erros de nome)
-                        nova_linha = {}
-                        for col in colunas_reais:
-                            # Se a coluna da planilha existir no nosso dicionário, usamos o valor
-                            # Caso contrário, deixamos vazio para não dar erro de API
-                            nova_linha[col] = dados_base.get(col, "")
-                        
-                        # 4. Atualizamos enviando a estrutura idêntica à planilha
-                        df_final = pd.concat([df_p, pd.DataFrame([nova_linha])], ignore_index=True)
+                        # 4. Gravação forçada
                         conn.update(worksheet=ABA_PETS, data=df_final)
                         
                         st.session_state.temp_lat = None
                         st.success("✅ Pet cadastrado com sucesso!")
+                        st.balloons()
                         ir_para('home')
                         
                     except Exception as e:
-                        st.error(f"Erro técnico: {e}")
-                        st.info("Dica: Verifique se a conta de serviço ainda tem permissão de EDITOR na planilha.")
+                        st.error(f"Erro ao gravar: {e}")
+                        st.info("Certifique-se de que a aba 'Dados' não está totalmente em branco. Ela precisa ter os títulos na primeira linha.")
             else:
-                st.error("❌ Erro: Selecione o local no mapa e dê um nome ao pet.")
+                st.error("❌ Preencha o nome e marque o local no mapa.")
 
 # --- PÁGINA: CADASTRO USUÁRIO ---
 elif st.session_state.pagina == 'cadastro_user':
