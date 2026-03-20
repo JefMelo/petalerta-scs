@@ -14,7 +14,7 @@ st.set_page_config(page_title="PetAlerta SCS", page_icon="🐾", layout="centere
 # --- CONFIGURAÇÕES TÉCNICAS ---
 SHEET_ID = "1RyredbJZsCPQvBxXqYmX1vBZJRgYToffm5agPxDBDRk"
 ABA_USUARIOS = "Usuarios"
-ABA_PETS = "Pets" 
+ABA_PETS = "Pets" # <--- CERTIFIQUE-SE QUE O NOME NA PLANILHA É EXATAMENTE ESTE
 
 # --- INICIALIZAÇÃO DE ESTADOS ---
 if 'pagina' not in st.session_state: st.session_state.pagina = 'home'
@@ -22,7 +22,6 @@ if 'logado' not in st.session_state: st.session_state.logado = False
 if 'user' not in st.session_state: st.session_state.user = {}
 if 'temp_lat' not in st.session_state: st.session_state.temp_lat = None
 if 'temp_lng' not in st.session_state: st.session_state.temp_lng = None
-# ESTADO PARA A PÁGINA DE ZOOM EXCLUSIVA
 if 'pagina_detalhes' not in st.session_state: st.session_state.pagina_detalhes = None
 
 SCS_COORDS = [-29.7182, -52.4306]
@@ -40,56 +39,31 @@ def ler_planilha_direto(nome_aba):
     except:
         return pd.DataFrame()
 
-# --- INJEÇÃO DE CSS (Layout Carteira de Identidade e Página de Zoom) ---
+# --- INJEÇÃO DE CSS (Carteira de Identidade e Zoom) ---
 st.markdown("""
 <style>
-    /* Estilo Carteira de Identidade do Pet */
     .pet-card {
         border: 2px solid #ddd;
         border-radius: 12px;
-        padding: 0px; /* Sem padding interno no container principal */
-        margin-bottom: 20px;
-        background-color: #ffffff;
-        box-shadow: 3px 3px 8px rgba(0,0,0,0.1);
-        display: flex;
-        flex-direction: column;
-        overflow: hidden; /* Garante que o cabeçalho não vaze */
+        margin-bottom: 25px;
+        background-color: #fff;
+        box-shadow: 3px 3px 10px rgba(0,0,0,0.1);
+        overflow: hidden;
     }
     .pet-card-header {
-        background-color: #f0f2f6; /* Cor de fundo sutil para o cabeçalho */
-        padding: 10px 15px;
-        border-bottom: 1px solid #ddd;
+        background-color: #f8f9fa;
+        padding: 12px 18px;
+        border-bottom: 2px solid #eee;
     }
-    .pet-card h3 { margin: 0; font-size: 1.4rem; color: #333; }
+    .pet-card h3 { margin: 0; color: #2c3e50; font-size: 1.5rem; }
+    .pet-card-body { display: flex; gap: 15px; padding: 15px; flex-wrap: wrap; }
+    .pet-card-foto { width: 140px; height: 140px; object-fit: cover; border-radius: 10px; border: 1px solid #ddd; }
+    .pet-card-info { flex: 1; min-width: 200px; }
+    .pet-card-info p { margin: 4px 0; font-size: 1rem; color: #444; }
+    .pet-card-footer { background: #fafafa; padding: 12px; border-top: 1px solid #eee; }
     
-    .pet-card-body { display: flex; gap: 20px; padding: 15px; align-items: flex-start; }
-    .pet-card-foto-container { flex: 0 0 120px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-    .pet-card-foto { width: 120px; height: 120px; object-fit: cover; border-radius: 8px; border: 2px solid #eee; }
-    
-    .pet-card-detalhes { flex: 1; list-style: none; padding: 0; margin: 0; }
-    .pet-card-detalhes li { margin-bottom: 6px; font-size: 0.95rem; color: #555; }
-    .pet-card-detalhes b { color: #333; }
-
-    .pet-card-footer {
-        padding: 10px 15px;
-        border-top: 1px solid #eee;
-        background-color: #fafafa;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-    }
-    .pet-card-local { font-size: 0.9rem; color: #777; font-style: italic; }
-
-    /* Estilo para a Página de Zoom Exclusiva */
-    .pagina-zoom {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        height: 80vh;
-        gap: 30px;
-    }
-    .foto-ampliada { max-width: 95%; max-height: 70vh; border: 4px solid #fff; border-radius: 8px; box-shadow: 0 0 15px rgba(0,0,0,0.3); }
+    .pagina-zoom { text-align: center; padding: 20px; }
+    .foto-grande { max-width: 100%; border-radius: 15px; border: 5px solid #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
 </style>
 """, unsafe_allow_html=True)
 
@@ -108,30 +82,26 @@ def processar_foto(arquivo):
     if arquivo:
         img = Image.open(arquivo)
         if img.mode in ("RGBA", "P"): img = img.convert("RGB")
-        img.thumbnail((800, 800))
+        img.thumbnail((1000, 1000))
         buf = io.BytesIO()
-        img.save(buf, format="JPEG", quality=75)
+        img.save(buf, format="JPEG", quality=85)
         return base64.b64encode(buf.getvalue()).decode()
     return ""
 
 def ir_para(p):
     st.session_state.pagina = p
-    st.session_state.pagina_detalhes = None # Garante que limpa o zoom ao mudar de página
+    st.session_state.pagina_detalhes = None
     st.rerun()
 
-# --- LÓGICA DE EXIBIÇÃO: PÁGINA DE ZOOM EXCLUSIVA ---
+# --- PÁGINA DE ZOOM ---
 if st.session_state.pagina_detalhes:
-    # Mostra apenas a foto ampliada e o botão de voltar
-    st.markdown(f'''
-        <div class="pagina-zoom">
-            <img src="data:image/jpeg;base64,{st.session_state.pagina_detalhes}" class="foto-ampliada">
-        </div>
-    ''', unsafe_allow_html=True)
-    
-    # Botão visível e funcional para fechar e voltar à Home
-    if st.button("⬅️ VOLTAR AO INÍCIO", key="btn_voltar_zoom_pagina", type="primary", use_container_width=True):
+    st.markdown('<div class="pagina-zoom">', unsafe_allow_html=True)
+    st.image(f"data:image/jpeg;base64,{st.session_state.pagina_detalhes}", use_container_width=True)
+    if st.button("⬅️ VOLTAR AO MURAL", use_container_width=True, type="primary"):
         st.session_state.pagina_detalhes = None
-        ir_para('home') # Força o recarregamento da Home
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.stop()
 
 # --- SIDEBAR ---
 with st.sidebar:
@@ -144,116 +114,122 @@ with st.sidebar:
             if user:
                 st.session_state.logado, st.session_state.user = True, user
                 st.rerun()
-            else: st.error("Erro no login")
+            else: st.error("Login inválido")
         if st.button("Criar Conta", use_container_width=True): ir_para('cadastro_user')
     else:
         st.success(f"Olá, {st.session_state.user['Nome'].split()[0]}")
-        if st.button("🏠 Início", use_container_width=True): ir_para('home')
+        if st.button("🏠 Home", use_container_width=True): ir_para('home')
         if st.button("🚪 Sair", use_container_width=True):
             st.session_state.logado = False
             ir_para('home')
 
-# --- PÁGINA: HOME (Mapa e Mural) ---
-# Só renderiza se NÃO estivermos na página de Zoom
-if st.session_state.pagina == 'home' and not st.session_state.pagina_detalhes:
+# --- PÁGINA: HOME ---
+if st.session_state.pagina == 'home':
     st.title("🐾 PetAlerta Santa Cruz do Sul")
     df = ler_planilha_direto(ABA_PETS)
 
-    # 1. MAPA
     m = folium.Map(location=SCS_COORDS, zoom_start=14)
     if not df.empty:
         for _, pet in df[df['Status'] == 'Perdido'].iterrows():
             try:
                 esp = str(pet['Especie']).lower()
-                icon_type, icon_img = ('orange', 'dog') if 'cão' in esp or 'cao' in esp else (('blue', 'cat') if 'gato' in esp else ('green', 'paw'))
-                folium.Marker([float(pet['Lat']), float(pet['Lng'])], popup=f"<b>{pet['Nome_Pet']}</b>", icon=folium.Icon(color=icon_type, icon=icon_img, prefix='fa')).add_to(m)
+                icon_c = 'orange' if 'cão' in esp or 'cao' in esp else ('blue' if 'gato' in esp else 'green')
+                folium.Marker([float(pet['Lat']), float(pet['Lng'])], 
+                              popup=f"<b>{pet['Nome_Pet']}</b>", 
+                              icon=folium.Icon(color=icon_c, icon='paw', prefix='fa')).add_to(m)
             except: continue
     st_folium(m, width=700, height=400)
 
     if st.session_state.logado:
-        st.button("🚨 REGISTRAR PET PERDIDO", on_click=lambda: ir_para('perdi_pet'), type="primary", use_container_width=True)
+        if st.button("🚨 REGISTRAR PET PERDIDO", type="primary", use_container_width=True): ir_para('perdi_pet')
 
-    st.divider()
     st.subheader("🔍 Mural de Desaparecidos")
-
-    # 2. MURAL COM CARDS "CARTEIRA DE IDENTIDADE" TOTALMENTE UNIFICADOS
     if not df.empty:
-        perdidos = df[df['Status'] == 'Perdido']
-        for _, pet in perdidos.iterrows():
-            # Início do Card Único (HTML unificado)
+        for _, pet in df[df['Status'] == 'Perdido'].iterrows():
             st.markdown(f'''
                 <div class="pet-card">
-                    <div class="pet-card-header">
-                        <h3>{pet['Nome_Pet']}</h3>
-                    </div>
+                    <div class="pet-card-header"><h3>{pet['Nome_Pet']}</h3></div>
                     <div class="pet-card-body">
-                        <div class="pet-card-foto-container">
-                            <img src="data:image/jpeg;base64,{pet['Foto']}" class="pet-card-foto" alt="Foto de {pet['Nome_Pet']}">
+                        <img src="data:image/jpeg;base64,{pet['Foto']}" class="pet-card-foto">
+                        <div class="pet-card-info">
+                            <p><b>Espécie:</b> {pet['Especie']}</p>
+                            <p><b>Raça:</b> {pet.get('Raca', 'Não informada')}</p>
+                            <p><b>Cor:</b> {pet.get('Cor', 'Não informada')}</p>
                         </div>
-                        <ul class="pet-card-detalhes">
-                            <li><b>Espécie:</b> {pet['Especie']}</li>
-                            <li><b>Raça:</b> {pet['Raca'] if 'Raca' in pet and pet['Raca'] else 'N/A'}</li>
-                            <li><b>Cor Principal:</b> {pet['Cor'] if 'Cor' in pet and pet['Cor'] else 'N/A'}</li>
-                        </ul>
                     </div>
                     <div class="pet-card-footer">
-                        <p class="pet-card-local">📍 Último local de avistamento: {pet['Local_Desaparecimento']}</p>
+                        <p>📍 <i>Último local: {pet['Local_Desaparecimento']}</i></p>
                     </div>
                 </div>
             ''', unsafe_allow_html=True)
             
-            # Botões (Streamlit precisa renderizar fora do HTML acima para funcionarem)
-            # Colocamos os botões logo abaixo do card HTML, mas visualmente parecem dentro
-            col1, col2 = st.columns([1, 2])
-            with col1:
-                if pet['Foto']:
-                    # Botão discreto de Zoom que MUDA A PÁGINA
-                    if st.button("🔍 Ampliar Foto", key=f"zoom_btn_final_{pet['ID']}", type="secondary", use_container_width=True):
-                        st.session_state.pagina_detalhes = pet['Foto']
-                        st.rerun()
-            with col2:
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.button("🔍 Ver Foto Grande", key=f"z_{pet['ID']}", use_container_width=True):
+                    st.session_state.pagina_detalhes = pet['Foto']
+                    st.rerun()
+            with c2:
                 if st.session_state.logado:
                     tel = "".join(filter(str.isdigit, str(pet['Tel_Tutor'])))
-                    # WhatsApp integrado dentro do rodapé visual do card
-                    st.link_button("🟢 Chamar Tutor no WhatsApp", f"https://wa.me/55{tel}", use_container_width=True)
-                else:
-                    st.info("🔒 Logue para ver contato")
-            st.markdown("<br>", unsafe_allow_html=True) # Espaço sutil entre cards
+                    st.link_button("🟢 WhatsApp do Tutor", f"https://wa.me/55{tel}", use_container_width=True)
+            st.write("")
+
+# --- PÁGINA: REGISTRO PET (CORREÇÃO DO MAPA) ---
+elif st.session_state.pagina == 'perdi_pet':
+    st.header("🚨 Registrar Animal Perdido")
+    st.warning("1. Clique no mapa abaixo para marcar o local exato.")
+    
+    m_reg = folium.Map(location=SCS_COORDS, zoom_start=15)
+    # Adiciona marcador se já clicou
+    if st.session_state.temp_lat:
+        folium.Marker([st.session_state.temp_lat, st.session_state.temp_lng], icon=folium.Icon(color='red')).add_to(m_reg)
+        
+    map_res = st_folium(m_reg, width=700, height=300, key="map_reg")
+    
+    if map_res and map_res.get("last_clicked"):
+        st.session_state.temp_lat = map_res["last_clicked"]["lat"]
+        st.session_state.temp_lng = map_res["last_clicked"]["lng"]
+        st.rerun()
+
+    if st.session_state.temp_lat:
+        st.success(f"📍 Local selecionado: {st.session_state.temp_lat:.4f}, {st.session_state.temp_lng:.4f}")
+
+    with st.form("f_pet"):
+        nome_p = st.text_input("Nome do Pet*")
+        esp = st.selectbox("Espécie", ["Cão", "Gato", "Outro"])
+        raca = st.text_input("Raça")
+        cor = st.text_input("Cor")
+        local_desc = st.text_input("Ponto de referência/Bairro")
+        foto = st.file_uploader("Foto do Pet")
+        
+        if st.form_submit_button("PUBLICAR ALERTA"):
+            if nome_p and st.session_state.temp_lat:
+                foto_b64 = processar_foto(foto)
+                df_p = ler_planilha_direto(ABA_PETS)
+                u = st.session_state.user
+                novo_p = pd.DataFrame([{
+                    "ID": str(int(datetime.now().timestamp())), 
+                    "Data": datetime.now().strftime("%d/%m/%Y"),
+                    "Status": "Perdido", "Especie": esp, "Nome_Pet": nome_p, 
+                    "Raca": raca, "Cor": cor, "Foto": foto_b64,
+                    "Lat": st.session_state.temp_lat, "Lng": st.session_state.temp_lng,
+                    "Local_Desaparecimento": local_desc, "Nome_Tutor": u['Nome'],
+                    "Tel_Tutor": u['Telefone'], "User_Vinculo": u['Usuario']
+                }])
+                conn.update(worksheet=ABA_PETS, data=pd.concat([df_p, novo_p], ignore_index=True))
+                st.session_state.temp_lat = None # Limpa para o próximo
+                st.success("Publicado!")
+                ir_para('home')
+            else: st.error("Faltam dados ou você não marcou o mapa!")
 
 # --- PÁGINA: CADASTRO USUÁRIO ---
 elif st.session_state.pagina == 'cadastro_user':
-    st.header("📝 Nova Conta")
+    st.header("📝 Criar Conta")
     with st.form("cad_u"):
-        n, t, e, u, p = st.text_input("Nome"), st.text_input("Whats"), st.text_input("Email"), st.text_input("User"), st.text_input("Pass", type="password")
+        n, t, e, u, p = st.text_input("Nome"), st.text_input("WhatsApp"), st.text_input("Email"), st.text_input("Usuário"), st.text_input("Senha", type="password")
         if st.form_submit_button("CADASTRAR"):
             df_u = ler_planilha_direto(ABA_USUARIOS)
             novo = pd.DataFrame([{"Usuario":u,"Senha":p,"Nivel":"Membro","Telefone":t,"Email":e,"Nascimento":"","Endereco":"","Nome":n}])
             conn.update(worksheet=ABA_USUARIOS, data=pd.concat([df_u, novo], ignore_index=True))
             st.success("Conta criada!")
             ir_para('home')
-
-# --- PÁGINA: REGISTRO PET ---
-elif st.session_state.pagina == 'perdi_pet':
-    st.header("🚨 Registrar Animal Perdido")
-    m_reg = folium.Map(location=SCS_COORDS, zoom_start=15)
-    map_res = st_folium(m_reg, width=700, height=300, key="map_reg")
-    if map_res and map_res.get("last_clicked"):
-        st.session_state.temp_lat, st.session_state.temp_lng = map_res["last_clicked"]["lat"], map_res["last_clicked"]["lng"]
-        st.success("Localização marcada!")
-    with st.form("f_pet"):
-        nome_p = st.text_input("Nome do Pet*")
-        esp = st.selectbox("Espécie", ["Cão", "Gato", "Outro"])
-        # NOVOS CAMPOS PARA A IDENTIDADE
-        raca_p = st.text_input("Raça")
-        cor_p = st.text_input("Cor Principal")
-        foto = st.file_uploader("Foto do Pet")
-        if st.form_submit_button("PUBLICAR ALERTA"):
-            if nome_p and st.session_state.temp_lat:
-                foto_b64 = processar_foto(foto)
-                df_p = ler_planilha_direto(ABA_PETS)
-                u = st.session_state.user
-                # SALVANDO OS NOVOS CAMPOS NA PLANILHA
-                novo_p = pd.DataFrame([{"ID": str(int(datetime.now().timestamp())), "Data": datetime.now().strftime("%d/%m/%Y"), "Status": "Perdido", "Especie": esp, "Nome_Pet": nome_p, "Raca": raca_p, "Cor": cor_p, "Foto": foto_b64, "Lat": st.session_state.temp_lat, "Lng": st.session_state.temp_lng, "Local_Desaparecimento": "Santa Cruz do Sul", "Nome_Tutor": u['Nome'], "Tel_Tutor": u['Telefone'], "User_Vinculo": u['Usuario']}])
-                conn.update(worksheet=ABA_PETS, data=pd.concat([df_p, novo_p], ignore_index=True))
-                st.success("Alerta publicado!")
-                ir_para('home')
