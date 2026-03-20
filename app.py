@@ -79,18 +79,29 @@ st.markdown("""
 
 def verificar_login(user_in, pwd_in):
     try:
+        # Forçamos a leitura da aba 'Usuarios' usando a conexão estabelecida
+        # Mudamos o ttl para 0 para garantir que ele não use dados velhos (cache)
         df_u = conn.read(worksheet="Usuarios", ttl=0)
-        if df_u is None or df_u.empty: return None
+        
+        if df_u is None or df_u.empty:
+            st.error("Erro: A aba 'Usuarios' está vazia ou não foi encontrada.")
+            return None
+            
         u_clean = str(user_in).strip().lower()
         p_clean = str(pwd_in).strip()
+        
+        # Correção para campos que o Excel/Sheets transforma em número (ex: 123 -> 123.0)
         for _, row in df_u.iterrows():
             db_user = str(row['Usuario']).strip().lower()
             db_pass = str(row['Senha']).strip()
             if db_pass.endswith('.0'): db_pass = db_pass[:-2]
+            
             if u_clean == db_user and p_clean == db_pass:
                 return row.to_dict()
         return None
-    except: return None
+    except Exception as e:
+        st.error(f"Erro de conexão com a tabela de usuários: {e}")
+        return None
 
 def processar_foto(arquivo):
     if arquivo:
