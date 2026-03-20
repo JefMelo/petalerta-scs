@@ -12,12 +12,9 @@ from geopy.geocoders import Nominatim
 st.set_page_config(page_title="PetAlerta SCS", page_icon="🐾", layout="centered")
 
 # --- CONFIGURAÇÕES TÉCNICAS ---
-# O ID da sua planilha extraído do link que você enviou
 SHEET_ID = "1RyredbJZsCPQvBxXqYmX1vBZJRgYToffm5agPxDBDRk"
-
-# Nomes das abas conforme sua planilha
 ABA_USUARIOS = "Usuarios"
-ABA_PETS = "Pets" # Certifique-se de que a aba de alertas se chama 'Pets' na planilha
+ABA_PETS = "Pets" 
 
 # --- INICIALIZAÇÃO DE ESTADOS ---
 if 'pagina' not in st.session_state: st.session_state.pagina = 'home'
@@ -28,31 +25,40 @@ if 'temp_lng' not in st.session_state: st.session_state.temp_lng = None
 if 'foto_ampliada' not in st.session_state: st.session_state.foto_ampliada = None
 
 SCS_COORDS = [-29.7182, -52.4306]
-geolocator = Nominatim(user_agent="petalerta_scs_2026_final")
 
-# --- CONEXÃO PARA GRAVAÇÃO (Secrets deve estar configurado) ---
+# --- CONEXÃO G-SHEETS ---
 from streamlit_gsheets import GSheetsConnection
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# --- FUNÇÃO DE LEITURA DIRETA (MÉTODO CSV QUE PULA ERROS DE API) ---
+# --- FUNÇÃO DE LEITURA ---
 def ler_planilha_direto(nome_aba):
     url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={nome_aba}"
     try:
         df = pd.read_csv(url)
         return df.astype(str).replace('nan', '')
-    except Exception as e:
-        st.error(f"Erro ao ler aba '{nome_aba}': Verifique se o nome no rodapé da planilha está correto.")
+    except:
         return pd.DataFrame()
 
-# --- INJEÇÃO DE CSS PARA O ZOOM ---
+# --- INJEÇÃO DE CSS (Padronização de Cards e Zoom) ---
 st.markdown("""
 <style>
-.lightbox-overlay {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background-color: rgba(0, 0, 0, 0.85); z-index: 9999;
-    display: flex; justify-content: center; align-items: center;
-}
-.lightbox-image { max-width: 90%; max-height: 90%; border-radius: 10px; border: 3px solid white; }
+    /* Estilo do Card do Mural */
+    .pet-card {
+        border: 1px solid #ddd;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 20px;
+        background-color: #f9f9f9;
+        min-height: 250px;
+    }
+    /* Estilo do Overlay do Zoom */
+    .lightbox-overlay {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background-color: rgba(0, 0, 0, 0.9); z-index: 9999;
+        display: flex; flex-direction: column; justify-content: center; align-items: center;
+    }
+    .lightbox-image { max-width: 85%; max-height: 70%; border: 3px solid white; border-radius: 5px; }
+    .btn-fechar { margin-top: 20px; padding: 10px 20px; background: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -60,14 +66,11 @@ st.markdown("""
 def verificar_login(user_in, pwd_in):
     df_u = ler_planilha_direto(ABA_USUARIOS)
     if df_u.empty: return None
-    u_clean = str(user_in).strip().lower()
-    p_clean = str(pwd_in).strip()
-    for _, row in df_u.iterrows():
-        db_user = str(row['Usuario']).strip().lower()
-        db_pass = str(row['Senha']).strip()
-        if db_pass.endswith('.0'): db_pass = db_pass[:-2]
-        if u_clean == db_user and p_clean == db_pass:
-            return row.to_dict()
+    u_c, p_c = str(user_in).strip().lower(), str(pwd_in).strip()
+    for _, r in df_u.iterrows():
+        db_u, db_p = str(r['Usuario']).strip().lower(), str(r['Senha']).strip()
+        if db_p.endswith('.0'): db_p = db_p[:-2]
+        if u_c == db_u and p_c == db_p: return r.to_dict()
     return None
 
 def processar_foto(arquivo):
@@ -80,126 +83,138 @@ def processar_foto(arquivo):
         return base64.b64encode(buf.getvalue()).decode()
     return ""
 
-def ir_para(pagina):
-    st.session_state.pagina = pagina
+def ir_para(p):
+    st.session_state.pagina = p
     st.rerun()
 
-# --- ZOOM LIGHTBOX ---
+# --- INTERFACE DE ZOOM (Lightbox) ---
 if st.session_state.foto_ampliada:
-    img_html = f'<img src="data:image/jpeg;base64,{st.session_state.foto_ampliada}" class="lightbox-image">'
-    st.markdown(f'<div class="lightbox-overlay">{img_html}</div>', unsafe_allow_html=True)
-    if st.button("❌ Fechar Zoom"):
-        st.session_state.foto_ampliada = None
-        st.rerun()
+    with st.container():
+        st.markdown(f'''
+            <div class="lightbox-overlay">
+                <img src="data:image/jpeg;base64,{st.session_state.foto_ampliada}" class="lightbox-image">
+            </div>
+        ''', unsafe_allow_html=True)
+        if st.button("⬅️ VOLTAR AO MURAL", key="close_zoom_btn"):
+            st.session_state.foto_ampliada = None
+            st.rerun()
 
 # --- SIDEBAR ---
 with st.sidebar:
-    st.header("👤 Área de Membros")
+    st.title("🐾 Menu")
     if not st.session_state.logado:
-        u_login = st.text_input("Usuário")
-        p_login = st.text_input("Senha", type="password")
+        u_l = st.text_input("Usuário")
+        p_l = st.text_input("Senha", type="password")
         if st.button("Entrar", use_container_width=True):
-            user_data = verificar_login(u_login, p_login)
-            if user_data:
-                st.session_state.logado, st.session_state.user = True, user_data
+            user = verificar_login(u_l, p_l)
+            if user:
+                st.session_state.logado, st.session_state.user = True, user
                 st.rerun()
-            else: st.error("Login inválido.")
+            else: st.error("Erro no login")
         if st.button("Criar Conta", use_container_width=True): ir_para('cadastro_user')
     else:
-        st.success(f"Olá, {str(st.session_state.user.get('Nome', 'Usuário')).split()[0]}!")
-        if st.button("🏠 Início", use_container_width=True): ir_para('home')
-        if st.button("📍 Meus Pets", use_container_width=True): ir_para('meus_pets')
+        st.success(f"Logado como: {st.session_state.user['Nome']}")
+        if st.button("🏠 Home", use_container_width=True): ir_para('home')
+        if st.button("📍 Meus Alertas", use_container_width=True): ir_para('meus_pets')
         if st.button("🚪 Sair", use_container_width=True):
             st.session_state.logado = False
             ir_para('home')
 
-# --- TELA: HOME ---
+# --- PÁGINA: HOME ---
 if st.session_state.pagina == 'home':
     st.title("🐾 PetAlerta Santa Cruz do Sul")
-    
     df = ler_planilha_direto(ABA_PETS)
-    
+
+    # 1. MAPA COM ÍCONES POR ESPÉCIE
     m = folium.Map(location=SCS_COORDS, zoom_start=14)
     if not df.empty:
         for _, pet in df[df['Status'] == 'Perdido'].iterrows():
             try:
+                # Escolha do ícone conforme espécie
+                esp = str(pet['Especie']).lower()
+                if 'cão' in esp or 'cao' in esp or 'cachorro' in esp:
+                    icon_type, icon_img = 'orange', 'dog'
+                elif 'gato' in esp:
+                    icon_type, icon_img = 'blue', 'cat'
+                else:
+                    icon_type, icon_img = 'green', 'paw'
+
                 folium.Marker(
                     [float(pet['Lat']), float(pet['Lng'])],
-                    popup=f"{pet['Nome_Pet']} - {pet['Especie']}",
-                    icon=folium.Icon(color='red', icon='info-sign')
+                    popup=f"<b>{pet['Nome_Pet']}</b><br>{pet['Especie']}",
+                    icon=folium.Icon(color=icon_type, icon=icon_img, prefix='fa')
                 ).add_to(m)
             except: continue
-    st_folium(m, width='stretch', height=400)
+    st_folium(m, width=700, height=400)
 
     if st.session_state.logado:
-        if st.button("🚨 REGISTRAR PET PERDIDO", use_container_width=True, type="primary"): ir_para('perdi_pet')
-    
+        st.button("🚨 REGISTRAR PET PERDIDO", on_click=lambda: ir_para('perdi_pet'), type="primary", use_container_width=True)
+
+    st.divider()
     st.subheader("🔍 Mural de Desaparecidos")
+
+    # 2. MURAL COM LARGURA/ESTILO FIXO
     if not df.empty:
         perdidos = df[df['Status'] == 'Perdido']
         for _, pet in perdidos.iterrows():
-            with st.container(border=True):
-                c1, c2 = st.columns([1, 1.5])
-                with c1:
-                    if pet['Foto']:
-                        st.image(f"data:image/jpeg;base64,{pet['Foto']}", use_container_width=True)
-                        if st.button("🔍 Zoom", key=f"z_{pet['ID']}"):
-                            st.session_state.foto_ampliada = pet['Foto']
-                            st.rerun()
-                with c2:
-                    st.subheader(pet['Nome_Pet'])
-                    st.write(f"📍 {pet['Local_Desaparecimento']}")
-                    if st.session_state.logado:
-                        tel_limpo = "".join(filter(str.isdigit, str(pet['Tel_Tutor'])))
-                        st.link_button("💬 Contatar Tutor", f"https://wa.me/55{tel_limpo}", use_container_width=True)
+            st.markdown(f'<div class="pet-card">', unsafe_allow_html=True)
+            col1, col2 = st.columns([1, 2])
+            with col1:
+                if pet['Foto']:
+                    st.image(f"data:image/jpeg;base64,{pet['Foto']}", use_container_width=True)
+                    if st.button("🔍 Ver Foto", key=f"zoom_{pet['ID']}"):
+                        st.session_state.foto_ampliada = pet['Foto']
+                        st.rerun()
+            with col2:
+                st.markdown(f"### {pet['Nome_Pet']}")
+                st.caption(f"🆔 Espécie: {pet['Especie']}")
+                st.write(f"📍 {pet['Local_Desaparecimento']}")
+                if st.session_state.logado:
+                    tel = "".join(filter(str.isdigit, str(pet['Tel_Tutor'])))
+                    st.link_button("🟢 Chamar no WhatsApp", f"https://wa.me/55{tel}")
+            st.markdown('</div>', unsafe_allow_html=True)
 
-# --- TELA: CADASTRO USUÁRIO ---
+# --- PÁGINA: CADASTRO USUÁRIO ---
 elif st.session_state.pagina == 'cadastro_user':
-    st.header("📝 Criar Conta")
-    with st.form("f_cad"):
-        n = st.text_input("Nome Completo*")
-        tl = st.text_input("WhatsApp (DDD+Número)*")
-        em = st.text_input("E-mail*")
-        us = st.text_input("Usuário (Login)*")
-        pw = st.text_input("Senha*", type="password")
+    st.header("📝 Nova Conta")
+    with st.form("cad_u"):
+        n, t, e, u, p = st.text_input("Nome"), st.text_input("Whats"), st.text_input("Email"), st.text_input("User"), st.text_input("Pass", type="password")
         if st.form_submit_button("CADASTRAR"):
-            if n and tl and em and us and pw:
-                df_u = ler_planilha_direto(ABA_USUARIOS)
-                novo_u = pd.DataFrame([{
-                    "Usuario": us, "Senha": pw, "Nivel": "Membro", "Telefone": tl,
-                    "Email": em, "Nascimento": "", "Endereco": "", "Nome": n
-                }])
-                conn.update(worksheet=ABA_USUARIOS, data=pd.concat([df_u, novo_u], ignore_index=True))
-                st.success("Conta criada! Entre pela lateral.")
-                ir_para('home')
-    st.button("Voltar", on_click=lambda: ir_para('home'))
+            df_u = ler_planilha_direto(ABA_USUARIOS)
+            novo = pd.DataFrame([{"Usuario":u,"Senha":p,"Nivel":"Membro","Telefone":t,"Email":e,"Nascimento":"","Endereco":"","Nome":n}])
+            conn.update(worksheet=ABA_USUARIOS, data=pd.concat([df_u, novo], ignore_index=True))
+            st.success("Conta criada!")
+            ir_para('home')
 
-# --- TELA: REGISTRO PET ---
+# --- PÁGINA: REGISTRO PET ---
 elif st.session_state.pagina == 'perdi_pet':
-    st.header("🚨 Registrar Animal")
+    st.header("🚨 Registrar Animal Perdido")
+    st.info("Clique no mapa para marcar onde o pet foi visto pela última vez.")
     m_reg = folium.Map(location=SCS_COORDS, zoom_start=15)
-    map_res = st_folium(m_reg, width='stretch', height=300, key="map_reg")
+    map_res = st_folium(m_reg, width=700, height=300, key="map_reg")
+    
     if map_res and map_res.get("last_clicked"):
         st.session_state.temp_lat = map_res["last_clicked"]["lat"]
         st.session_state.temp_lng = map_res["last_clicked"]["lng"]
-        st.success("Local marcado!")
+        st.success("Localização marcada!")
 
     with st.form("f_pet"):
         nome_p = st.text_input("Nome do Pet*")
         esp = st.selectbox("Espécie", ["Cão", "Gato", "Outro"])
-        foto = st.file_uploader("Foto")
-        if st.form_submit_button("PUBLICAR"):
+        foto = st.file_uploader("Foto do Pet")
+        if st.form_submit_button("PUBLICAR ALERTA"):
             if nome_p and st.session_state.temp_lat:
                 foto_b64 = processar_foto(foto)
                 df_p = ler_planilha_direto(ABA_PETS)
                 u = st.session_state.user
-                novo_pet = pd.DataFrame([{
+                novo_p = pd.DataFrame([{
                     "ID": str(int(datetime.now().timestamp())), "Data": datetime.now().strftime("%d/%m/%Y"),
                     "Status": "Perdido", "Especie": esp, "Nome_Pet": nome_p, "Foto": foto_b64,
                     "Lat": st.session_state.temp_lat, "Lng": st.session_state.temp_lng,
                     "Local_Desaparecimento": "Santa Cruz do Sul", "Nome_Tutor": u['Nome'],
                     "Tel_Tutor": u['Telefone'], "User_Vinculo": u['Usuario']
                 }])
-                conn.update(worksheet=ABA_PETS, data=pd.concat([df_p, novo_pet], ignore_index=True))
-                st.success("Pet cadastrado!")
+                conn.update(worksheet=ABA_PETS, data=pd.concat([df_p, novo_p], ignore_index=True))
+                st.success("Alerta publicado com sucesso!")
                 ir_para('home')
+            else: st.warning("Por favor, preencha o nome e marque o local no mapa.")
