@@ -22,7 +22,8 @@ if 'logado' not in st.session_state: st.session_state.logado = False
 if 'user' not in st.session_state: st.session_state.user = {}
 if 'temp_lat' not in st.session_state: st.session_state.temp_lat = None
 if 'temp_lng' not in st.session_state: st.session_state.temp_lng = None
-if 'foto_ampliada' not in st.session_state: st.session_state.foto_ampliada = None
+# ESTADO PARA A PÁGINA DE ZOOM EXCLUSIVA
+if 'pagina_detalhes' not in st.session_state: st.session_state.pagina_detalhes = None
 
 SCS_COORDS = [-29.7182, -52.4306]
 
@@ -39,38 +40,56 @@ def ler_planilha_direto(nome_aba):
     except:
         return pd.DataFrame()
 
-# --- INJEÇÃO DE CSS (Cards Unificados, Compactos e Lightbox Fixado) ---
+# --- INJEÇÃO DE CSS (Layout Carteira de Identidade e Página de Zoom) ---
 st.markdown("""
 <style>
-    /* Estilo do Card Unificado */
+    /* Estilo Carteira de Identidade do Pet */
     .pet-card {
-        border: 1px solid #e0e0e0;
-        border-radius: 8px;
-        padding: 15px;
-        margin-bottom: 15px;
+        border: 2px solid #ddd;
+        border-radius: 12px;
+        padding: 0px; /* Sem padding interno no container principal */
+        margin-bottom: 20px;
         background-color: #ffffff;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.05);
+        box-shadow: 3px 3px 8px rgba(0,0,0,0.1);
         display: flex;
         flex-direction: column;
+        overflow: hidden; /* Garante que o cabeçalho não vaze */
     }
-    .pet-card h3 { margin: 0 0 10px 0; font-size: 1.2rem; color: #333; }
-    .pet-card p { margin: 2px 0; font-size: 0.9rem; }
-    .pet-card-content { display: flex; gap: 15px; align-items: flex-start; }
-    .pet-card-foto-container { flex: 0 0 100px; display: flex; flex-direction: column; align-items: center; gap: 5px; }
-    .pet-card-foto { width: 100px; height: 100px; object-fit: cover; border-radius: 4px; border: 1px solid #eee; }
-    .pet-card-detalhes { flex: 1; }
+    .pet-card-header {
+        background-color: #f0f2f6; /* Cor de fundo sutil para o cabeçalho */
+        padding: 10px 15px;
+        border-bottom: 1px solid #ddd;
+    }
+    .pet-card h3 { margin: 0; font-size: 1.4rem; color: #333; }
     
-    /* Estilo do Overlay do Zoom (Lightbox) */
-    .lightbox-overlay {
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background-color: rgba(0, 0, 0, 0.95); z-index: 9999;
-        display: flex; flex-direction: column; justify-content: center; align-items: center;
-        gap: 20px;
+    .pet-card-body { display: flex; gap: 20px; padding: 15px; align-items: flex-start; }
+    .pet-card-foto-container { flex: 0 0 120px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .pet-card-foto { width: 120px; height: 120px; object-fit: cover; border-radius: 8px; border: 2px solid #eee; }
+    
+    .pet-card-detalhes { flex: 1; list-style: none; padding: 0; margin: 0; }
+    .pet-card-detalhes li { margin-bottom: 6px; font-size: 0.95rem; color: #555; }
+    .pet-card-detalhes b { color: #333; }
+
+    .pet-card-footer {
+        padding: 10px 15px;
+        border-top: 1px solid #eee;
+        background-color: #fafafa;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
     }
-    .lightbox-image { 
-        max-width: 90%; max-height: 75%; 
-        border: 2px solid #fff; border-radius: 4px; 
+    .pet-card-local { font-size: 0.9rem; color: #777; font-style: italic; }
+
+    /* Estilo para a Página de Zoom Exclusiva */
+    .pagina-zoom {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 80vh;
+        gap: 30px;
     }
+    .foto-ampliada { max-width: 95%; max-height: 70vh; border: 4px solid #fff; border-radius: 8px; box-shadow: 0 0 15px rgba(0,0,0,0.3); }
 </style>
 """, unsafe_allow_html=True)
 
@@ -97,20 +116,22 @@ def processar_foto(arquivo):
 
 def ir_para(p):
     st.session_state.pagina = p
+    st.session_state.pagina_detalhes = None # Garante que limpa o zoom ao mudar de página
     st.rerun()
 
-# --- INTERFACE DE ZOOM (Lightbox Unificado) ---
-if st.session_state.foto_ampliada:
+# --- LÓGICA DE EXIBIÇÃO: PÁGINA DE ZOOM EXCLUSIVA ---
+if st.session_state.pagina_detalhes:
+    # Mostra apenas a foto ampliada e o botão de voltar
     st.markdown(f'''
-        <div class="lightbox-overlay">
-            <img src="data:image/jpeg;base64,{st.session_state.foto_ampliada}" class="lightbox-image">
+        <div class="pagina-zoom">
+            <img src="data:image/jpeg;base64,{st.session_state.pagina_detalhes}" class="foto-ampliada">
         </div>
     ''', unsafe_allow_html=True)
     
-    # Botão visível e funcional para fechar
-    if st.button("❌ FECHAR FOTO", key="btn_fechar_zoom_final", type="primary", use_container_width=True):
-        st.session_state.foto_ampliada = None
-        st.rerun()
+    # Botão visível e funcional para fechar e voltar à Home
+    if st.button("⬅️ VOLTAR AO INÍCIO", key="btn_voltar_zoom_pagina", type="primary", use_container_width=True):
+        st.session_state.pagina_detalhes = None
+        ir_para('home') # Força o recarregamento da Home
 
 # --- SIDEBAR ---
 with st.sidebar:
@@ -132,8 +153,9 @@ with st.sidebar:
             st.session_state.logado = False
             ir_para('home')
 
-# --- PÁGINA: HOME ---
-if st.session_state.pagina == 'home':
+# --- PÁGINA: HOME (Mapa e Mural) ---
+# Só renderiza se NÃO estivermos na página de Zoom
+if st.session_state.pagina == 'home' and not st.session_state.pagina_detalhes:
     st.title("🐾 PetAlerta Santa Cruz do Sul")
     df = ler_planilha_direto(ABA_PETS)
 
@@ -154,23 +176,28 @@ if st.session_state.pagina == 'home':
     st.divider()
     st.subheader("🔍 Mural de Desaparecidos")
 
-    # 2. MURAL COM CARDS TOTALMENTE UNIFICADOS
+    # 2. MURAL COM CARDS "CARTEIRA DE IDENTIDADE" TOTALMENTE UNIFICADOS
     if not df.empty:
         perdidos = df[df['Status'] == 'Perdido']
         for _, pet in perdidos.iterrows():
-            # Início do Card Único (HTML)
+            # Início do Card Único (HTML unificado)
             st.markdown(f'''
                 <div class="pet-card">
-                    <h3>{pet['Nome_Pet']}</h3>
-                    <div class="pet-card-content">
+                    <div class="pet-card-header">
+                        <h3>{pet['Nome_Pet']}</h3>
+                    </div>
+                    <div class="pet-card-body">
                         <div class="pet-card-foto-container">
                             <img src="data:image/jpeg;base64,{pet['Foto']}" class="pet-card-foto" alt="Foto de {pet['Nome_Pet']}">
                         </div>
-                        <div class="pet-card-detalhes">
-                            <p><b>Espécie:</b> {pet['Especie']}</p>
-                            <p><b>Bairro:</b> {pet['Local_Desaparecimento']}</p>
-                            <p>📝 {pet['Caracteristicas'] if 'Caracteristicas' in pet else ''}</p>
-                        </div>
+                        <ul class="pet-card-detalhes">
+                            <li><b>Espécie:</b> {pet['Especie']}</li>
+                            <li><b>Raça:</b> {pet['Raca'] if 'Raca' in pet and pet['Raca'] else 'N/A'}</li>
+                            <li><b>Cor Principal:</b> {pet['Cor'] if 'Cor' in pet and pet['Cor'] else 'N/A'}</li>
+                        </ul>
+                    </div>
+                    <div class="pet-card-footer">
+                        <p class="pet-card-local">📍 Último local de avistamento: {pet['Local_Desaparecimento']}</p>
                     </div>
                 </div>
             ''', unsafe_allow_html=True)
@@ -180,17 +207,18 @@ if st.session_state.pagina == 'home':
             col1, col2 = st.columns([1, 2])
             with col1:
                 if pet['Foto']:
-                    # Botão discreto de Zoom
-                    if st.button("🔍 Ampliar Foto", key=f"zoom_btn_{pet['ID']}", type="secondary", use_container_width=True):
-                        st.session_state.foto_ampliada = pet['Foto']
+                    # Botão discreto de Zoom que MUDA A PÁGINA
+                    if st.button("🔍 Ampliar Foto", key=f"zoom_btn_final_{pet['ID']}", type="secondary", use_container_width=True):
+                        st.session_state.pagina_detalhes = pet['Foto']
                         st.rerun()
             with col2:
                 if st.session_state.logado:
                     tel = "".join(filter(str.isdigit, str(pet['Tel_Tutor'])))
-                    st.link_button("🟢 WhatsApp", f"https://wa.me/55{tel}", use_container_width=True)
+                    # WhatsApp integrado dentro do rodapé visual do card
+                    st.link_button("🟢 Chamar Tutor no WhatsApp", f"https://wa.me/55{tel}", use_container_width=True)
                 else:
                     st.info("🔒 Logue para ver contato")
-            st.markdown("<br>", unsafe_allow_html=True) # Espaço entre cards
+            st.markdown("<br>", unsafe_allow_html=True) # Espaço sutil entre cards
 
 # --- PÁGINA: CADASTRO USUÁRIO ---
 elif st.session_state.pagina == 'cadastro_user':
@@ -215,13 +243,17 @@ elif st.session_state.pagina == 'perdi_pet':
     with st.form("f_pet"):
         nome_p = st.text_input("Nome do Pet*")
         esp = st.selectbox("Espécie", ["Cão", "Gato", "Outro"])
+        # NOVOS CAMPOS PARA A IDENTIDADE
+        raca_p = st.text_input("Raça")
+        cor_p = st.text_input("Cor Principal")
         foto = st.file_uploader("Foto do Pet")
         if st.form_submit_button("PUBLICAR ALERTA"):
             if nome_p and st.session_state.temp_lat:
                 foto_b64 = processar_foto(foto)
                 df_p = ler_planilha_direto(ABA_PETS)
                 u = st.session_state.user
-                novo_p = pd.DataFrame([{"ID": str(int(datetime.now().timestamp())), "Data": datetime.now().strftime("%d/%m/%Y"), "Status": "Perdido", "Especie": esp, "Nome_Pet": nome_p, "Foto": foto_b64, "Lat": st.session_state.temp_lat, "Lng": st.session_state.temp_lng, "Local_Desaparecimento": "Santa Cruz do Sul", "Nome_Tutor": u['Nome'], "Tel_Tutor": u['Telefone'], "User_Vinculo": u['Usuario']}])
+                # SALVANDO OS NOVOS CAMPOS NA PLANILHA
+                novo_p = pd.DataFrame([{"ID": str(int(datetime.now().timestamp())), "Data": datetime.now().strftime("%d/%m/%Y"), "Status": "Perdido", "Especie": esp, "Nome_Pet": nome_p, "Raca": raca_p, "Cor": cor_p, "Foto": foto_b64, "Lat": st.session_state.temp_lat, "Lng": st.session_state.temp_lng, "Local_Desaparecimento": "Santa Cruz do Sul", "Nome_Tutor": u['Nome'], "Tel_Tutor": u['Telefone'], "User_Vinculo": u['Usuario']}])
                 conn.update(worksheet=ABA_PETS, data=pd.concat([df_p, novo_p], ignore_index=True))
                 st.success("Alerta publicado!")
                 ir_para('home')
