@@ -187,17 +187,19 @@ elif st.session_state.pagina == 'perdi_pet':
         caract = st.text_area("Características Marcantes")
         bairro = st.text_input("Bairro/Localização aproximada")
         foto = st.file_uploader("Foto do Pet")
-        
         if st.form_submit_button("🚀 PUBLICAR ALERTA"):
             if nome_p and st.session_state.temp_lat:
-                with st.spinner("Salvando dados..."):
+                with st.spinner("Sincronizando com a base de dados..."):
                     try:
-                        foto_b64 = processar_foto(foto)
+                        # 1. Lemos os dados atuais e descobrimos as colunas REAIS da planilha
                         df_p = ler_planilha_direto(ABA_PETS)
+                        colunas_reais = df_p.columns.tolist()
+                        
+                        foto_b64 = processar_foto(foto)
                         u = st.session_state.user
                         
-                        # DICIONÁRIO NA ORDEM EXATA DA SUA PLANILHA
-                        dados_para_salvar = {
+                        # 2. Criamos os dados básicos
+                        dados_base = {
                             "ID": str(int(datetime.now().timestamp())),
                             "DataStatus": f"{datetime.now().strftime('%d/%m/%Y')} - Perdido",
                             "Especie": esp,
@@ -218,13 +220,26 @@ elif st.session_state.pagina == 'perdi_pet':
                             "Endereco_Tutor": u.get('Endereco', '')
                         }
                         
-                        conn.update(worksheet=ABA_PETS, data=pd.concat([df_p, pd.DataFrame([dados_para_salvar])], ignore_index=True))
+                        # 3. Mapeamos apenas o que existe na planilha (Ignora erros de nome)
+                        nova_linha = {}
+                        for col in colunas_reais:
+                            # Se a coluna da planilha existir no nosso dicionário, usamos o valor
+                            # Caso contrário, deixamos vazio para não dar erro de API
+                            nova_linha[col] = dados_base.get(col, "")
+                        
+                        # 4. Atualizamos enviando a estrutura idêntica à planilha
+                        df_final = pd.concat([df_p, pd.DataFrame([nova_linha])], ignore_index=True)
+                        conn.update(worksheet=ABA_PETS, data=df_final)
+                        
                         st.session_state.temp_lat = None
-                        st.success("✅ Publicado!")
+                        st.success("✅ Pet cadastrado com sucesso!")
                         ir_para('home')
+                        
                     except Exception as e:
-                        st.error(f"Erro na API do Google Sheets. Verifique o cabeçalho da planilha.")
-            else: st.error("Faltam dados ou local no mapa!")
+                        st.error(f"Erro técnico: {e}")
+                        st.info("Dica: Verifique se a conta de serviço ainda tem permissão de EDITOR na planilha.")
+            else:
+                st.error("❌ Erro: Selecione o local no mapa e dê um nome ao pet.")
 
 # --- PÁGINA: CADASTRO USUÁRIO ---
 elif st.session_state.pagina == 'cadastro_user':
