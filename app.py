@@ -6,7 +6,6 @@ from PIL import Image
 import io
 import folium
 from streamlit_folium import st_folium
-from geopy.geocoders import Nominatim
 
 # 1. Configuração Inicial
 st.set_page_config(page_title="PetAlerta SCS", page_icon="🐾", layout="centered")
@@ -14,7 +13,7 @@ st.set_page_config(page_title="PetAlerta SCS", page_icon="🐾", layout="centere
 # --- CONFIGURAÇÕES TÉCNICAS ---
 SHEET_ID = "1RyredbJZsCPQvBxXqYmX1vBZJRgYToffm5agPxDBDRk"
 ABA_USUARIOS = "Usuarios"
-ABA_PETS = "Pets" # <--- CERTIFIQUE-SE QUE O NOME NA PLANILHA É EXATAMENTE ESTE
+ABA_PETS = "Dados" 
 
 # --- INICIALIZAÇÃO DE ESTADOS ---
 if 'pagina' not in st.session_state: st.session_state.pagina = 'home'
@@ -39,31 +38,19 @@ def ler_planilha_direto(nome_aba):
     except:
         return pd.DataFrame()
 
-# --- INJEÇÃO DE CSS (Carteira de Identidade e Zoom) ---
+# --- INJEÇÃO DE CSS ---
 st.markdown("""
 <style>
     .pet-card {
-        border: 2px solid #ddd;
-        border-radius: 12px;
-        margin-bottom: 25px;
-        background-color: #fff;
-        box-shadow: 3px 3px 10px rgba(0,0,0,0.1);
-        overflow: hidden;
+        border: 2px solid #ddd; border-radius: 12px; margin-bottom: 25px;
+        background-color: #fff; box-shadow: 3px 3px 10px rgba(0,0,0,0.1); overflow: hidden;
     }
-    .pet-card-header {
-        background-color: #f8f9fa;
-        padding: 12px 18px;
-        border-bottom: 2px solid #eee;
-    }
+    .pet-card-header { background-color: #f8f9fa; padding: 12px 18px; border-bottom: 2px solid #eee; }
     .pet-card h3 { margin: 0; color: #2c3e50; font-size: 1.5rem; }
     .pet-card-body { display: flex; gap: 15px; padding: 15px; flex-wrap: wrap; }
     .pet-card-foto { width: 140px; height: 140px; object-fit: cover; border-radius: 10px; border: 1px solid #ddd; }
     .pet-card-info { flex: 1; min-width: 200px; }
-    .pet-card-info p { margin: 4px 0; font-size: 1rem; color: #444; }
     .pet-card-footer { background: #fafafa; padding: 12px; border-top: 1px solid #eee; }
-    
-    .pagina-zoom { text-align: center; padding: 20px; }
-    .foto-grande { max-width: 100%; border-radius: 15px; border: 5px solid #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
 </style>
 """, unsafe_allow_html=True)
 
@@ -82,9 +69,9 @@ def processar_foto(arquivo):
     if arquivo:
         img = Image.open(arquivo)
         if img.mode in ("RGBA", "P"): img = img.convert("RGB")
-        img.thumbnail((1000, 1000))
+        img.thumbnail((800, 800))
         buf = io.BytesIO()
-        img.save(buf, format="JPEG", quality=85)
+        img.save(buf, format="JPEG", quality=80)
         return base64.b64encode(buf.getvalue()).decode()
     return ""
 
@@ -93,14 +80,12 @@ def ir_para(p):
     st.session_state.pagina_detalhes = None
     st.rerun()
 
-# --- PÁGINA DE ZOOM ---
+# --- ZOOM ---
 if st.session_state.pagina_detalhes:
-    st.markdown('<div class="pagina-zoom">', unsafe_allow_html=True)
     st.image(f"data:image/jpeg;base64,{st.session_state.pagina_detalhes}", use_container_width=True)
     if st.button("⬅️ VOLTAR AO MURAL", use_container_width=True, type="primary"):
         st.session_state.pagina_detalhes = None
         st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
 
 # --- SIDEBAR ---
@@ -152,75 +137,84 @@ if st.session_state.pagina == 'home':
                     <div class="pet-card-body">
                         <img src="data:image/jpeg;base64,{pet['Foto']}" class="pet-card-foto">
                         <div class="pet-card-info">
-                            <p><b>Espécie:</b> {pet['Especie']}</p>
-                            <p><b>Raça:</b> {pet.get('Raca', 'Não informada')}</p>
-                            <p><b>Cor:</b> {pet.get('Cor', 'Não informada')}</p>
+                            <p><b>Espécie:</b> {pet['Especie']} | <b>Raça:</b> {pet.get('Raca', '-')}</p>
+                            <p><b>Cor:</b> {pet.get('Cor', '-')}</p>
+                            <p>📝 {pet.get('Caracteristicas', '')}</p>
                         </div>
                     </div>
                     <div class="pet-card-footer">
-                        <p>📍 <i>Último local: {pet['Local_Desaparecimento']}</i></p>
+                        <p>📍 <i>Visto por último em: {pet['Local_Desaparecimento']}</i></p>
                     </div>
                 </div>
             ''', unsafe_allow_html=True)
-            
             c1, c2 = st.columns(2)
             with c1:
-                if st.button("🔍 Ver Foto Grande", key=f"z_{pet['ID']}", use_container_width=True):
+                if st.button("🔍 Ver Foto", key=f"z_{pet['ID']}", use_container_width=True):
                     st.session_state.pagina_detalhes = pet['Foto']
                     st.rerun()
             with c2:
                 if st.session_state.logado:
                     tel = "".join(filter(str.isdigit, str(pet['Tel_Tutor'])))
-                    st.link_button("🟢 WhatsApp do Tutor", f"https://wa.me/55{tel}", use_container_width=True)
+                    st.link_button("🟢 WhatsApp", f"https://wa.me/55{tel}", use_container_width=True)
             st.write("")
 
-# --- PÁGINA: REGISTRO PET (CORREÇÃO DO MAPA) ---
+# --- PÁGINA: REGISTRO PET (ORDE DE COLUNAS EXATA DA PLANILHA) ---
 elif st.session_state.pagina == 'perdi_pet':
     st.header("🚨 Registrar Animal Perdido")
-    st.warning("1. Clique no mapa abaixo para marcar o local exato.")
+    st.info("Clique no mapa para marcar o local.")
     
     m_reg = folium.Map(location=SCS_COORDS, zoom_start=15)
-    # Adiciona marcador se já clicou
     if st.session_state.temp_lat:
         folium.Marker([st.session_state.temp_lat, st.session_state.temp_lng], icon=folium.Icon(color='red')).add_to(m_reg)
-        
     map_res = st_folium(m_reg, width=700, height=300, key="map_reg")
     
     if map_res and map_res.get("last_clicked"):
-        st.session_state.temp_lat = map_res["last_clicked"]["lat"]
-        st.session_state.temp_lng = map_res["last_clicked"]["lng"]
+        st.session_state.temp_lat, st.session_state.temp_lng = map_res["last_clicked"]["lat"], map_res["last_clicked"]["lng"]
         st.rerun()
-
-    if st.session_state.temp_lat:
-        st.success(f"📍 Local selecionado: {st.session_state.temp_lat:.4f}, {st.session_state.temp_lng:.4f}")
 
     with st.form("f_pet"):
         nome_p = st.text_input("Nome do Pet*")
         esp = st.selectbox("Espécie", ["Cão", "Gato", "Outro"])
         raca = st.text_input("Raça")
         cor = st.text_input("Cor")
-        local_desc = st.text_input("Ponto de referência/Bairro")
-        foto = st.file_uploader("Foto do Pet")
+        caract = st.text_area("Características marcantes")
+        bairro = st.text_input("Bairro/Localização aproximada")
+        foto = st.file_uploader("Foto")
         
-        if st.form_submit_button("PUBLICAR ALERTA"):
+        if st.form_submit_button("🚀 PUBLICAR"):
             if nome_p and st.session_state.temp_lat:
                 foto_b64 = processar_foto(foto)
                 df_p = ler_planilha_direto(ABA_PETS)
                 u = st.session_state.user
+                
+                # SEQUÊNCIA EXATA DAS COLUNAS DA SUA ABA "DADOS"
                 novo_p = pd.DataFrame([{
-                    "ID": str(int(datetime.now().timestamp())), 
+                    "ID": str(int(datetime.now().timestamp())),
                     "Data": datetime.now().strftime("%d/%m/%Y"),
-                    "Status": "Perdido", "Especie": esp, "Nome_Pet": nome_p, 
-                    "Raca": raca, "Cor": cor, "Foto": foto_b64,
-                    "Lat": st.session_state.temp_lat, "Lng": st.session_state.temp_lng,
-                    "Local_Desaparecimento": local_desc, "Nome_Tutor": u['Nome'],
-                    "Tel_Tutor": u['Telefone'], "User_Vinculo": u['Usuario']
+                    "Status": "Perdido",
+                    "Especie": esp,
+                    "Nome_Pet": nome_p,
+                    "Raca": raca,
+                    "Cor": cor,
+                    "Caracteristicas": caract,
+                    "Local_Desaparecimento": bairro,
+                    "Lat": st.session_state.temp_lat,
+                    "Lng": st.session_state.temp_lng,
+                    "Foto": foto_b64,
+                    "Nome_Tutor": u['Nome'],
+                    "Tel_Tutor": u['Telefone'],
+                    "User_Vinculo": u['Usuario'],
+                    "Nascimento_Tutor": u.get('Nascimento', ''),
+                    "Telefone_Tutor": u.get('Telefone', ''),
+                    "Email_Tutor": u.get('Email', ''),
+                    "Endereco_Tutor": u.get('Endereco', '')
                 }])
+                
                 conn.update(worksheet=ABA_PETS, data=pd.concat([df_p, novo_p], ignore_index=True))
-                st.session_state.temp_lat = None # Limpa para o próximo
+                st.session_state.temp_lat = None
                 st.success("Publicado!")
                 ir_para('home')
-            else: st.error("Faltam dados ou você não marcou o mapa!")
+            else: st.error("Faltam dados ou local no mapa!")
 
 # --- PÁGINA: CADASTRO USUÁRIO ---
 elif st.session_state.pagina == 'cadastro_user':
