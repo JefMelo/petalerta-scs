@@ -183,39 +183,51 @@ elif st.session_state.pagina == 'perdi_pet':
         
         if st.form_submit_button("🚀 PUBLICAR"):
             if nome_p and st.session_state.temp_lat:
-                foto_b64 = processar_foto(foto)
-                df_p = ler_planilha_direto(ABA_PETS)
-                u = st.session_state.user
+                with st.spinner("Comunicando com o Google Sheets..."):
+                    try:
+                        foto_b64 = processar_foto(foto)
+                        u = st.session_state.user
+                        
+                        # Criamos o dicionário com as chaves EXATAS da sua planilha
+                        dados_para_salvar = {
+                            "ID": str(int(datetime.now().timestamp())),
+                            "Data": datetime.now().strftime("%d/%m/%Y"), # Verifique se na planilha é 'Data' ou 'DataStatus'
+                            "Status": "Perdido",
+                            "Especie": esp,
+                            "Nome_Pet": nome_p,
+                            "Raca": raca,
+                            "Cor": cor,
+                            "Caracteristicas": caract,
+                            "Local_Desaparecimento": bairro,
+                            "Lat": str(st.session_state.temp_lat),
+                            "Lng": str(st.session_state.temp_lng),
+                            "Foto": foto_b64,
+                            "Nome_Tutor": u.get('Nome', ''),
+                            "Tel_Tutor": u.get('Telefone', ''),
+                            "User_Vinculo": u.get('Usuario', ''),
+                            "Nascimento_Tutor": u.get('Nascimento', ''),
+                            "Telefone_Tutor": u.get('Telefone', ''),
+                            "Email_Tutor": u.get('Email', ''),
+                            "Endereco_Tutor": u.get('Endereco', '')
+                        }
+                        
+                        # Lemos os dados atuais
+                        df_p = ler_planilha_direto(ABA_PETS)
+                        novo_df = pd.concat([df_p, pd.DataFrame([dados_para_salvar])], ignore_index=True)
+                        
+                        # Comando de atualização
+                        conn.update(worksheet=ABA_PETS, data=novo_df)
+                        
+                        st.session_state.temp_lat = None
+                        st.success("✅ Pet cadastrado com sucesso!")
+                        st.balloons()
+                        ir_para('home')
+                    except Exception as e:
+                        st.error(f"Erro na API do Google: Verifique se as colunas da planilha 'Dados' estão corretas.")
+                        st.info("Dica: Os nomes das colunas na Planilha devem ser ID, Data, Status, Especie, Nome_Pet...")
+            else:
+                st.error("❌ Erro: Selecione o local no mapa e digite o nome do pet.")
                 
-                # SEQUÊNCIA EXATA DAS COLUNAS DA SUA ABA "DADOS"
-                novo_p = pd.DataFrame([{
-                    "ID": str(int(datetime.now().timestamp())),
-                    "Data": datetime.now().strftime("%d/%m/%Y"),
-                    "Status": "Perdido",
-                    "Especie": esp,
-                    "Nome_Pet": nome_p,
-                    "Raca": raca,
-                    "Cor": cor,
-                    "Caracteristicas": caract,
-                    "Local_Desaparecimento": bairro,
-                    "Lat": st.session_state.temp_lat,
-                    "Lng": st.session_state.temp_lng,
-                    "Foto": foto_b64,
-                    "Nome_Tutor": u['Nome'],
-                    "Tel_Tutor": u['Telefone'],
-                    "User_Vinculo": u['Usuario'],
-                    "Nascimento_Tutor": u.get('Nascimento', ''),
-                    "Telefone_Tutor": u.get('Telefone', ''),
-                    "Email_Tutor": u.get('Email', ''),
-                    "Endereco_Tutor": u.get('Endereco', '')
-                }])
-                
-                conn.update(worksheet=ABA_PETS, data=pd.concat([df_p, novo_p], ignore_index=True))
-                st.session_state.temp_lat = None
-                st.success("Publicado!")
-                ir_para('home')
-            else: st.error("Faltam dados ou local no mapa!")
-
 # --- PÁGINA: CADASTRO USUÁRIO ---
 elif st.session_state.pagina == 'cadastro_user':
     st.header("📝 Criar Conta")
