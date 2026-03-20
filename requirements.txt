@@ -1,0 +1,7 @@
+streamlit
+streamlit-gsheets
+pandas
+Pillow
+folium
+streamlit-folium
+geopy
