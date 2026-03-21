@@ -129,7 +129,7 @@ with st.sidebar:
             st.session_state.logado = False
             ir_para('home')
 
-# --- PÁGINA: HOME ---
+# --- PÁGINA: HOME ---# --- PÁGINA: HOME ---
 if st.session_state.pagina == 'home':
     st.title("🐾 PetAlerta Santa Cruz do Sul")
     df = ler_planilha_direto(ABA_PETS)
@@ -138,11 +138,13 @@ if st.session_state.pagina == 'home':
     if not df.empty:
         for _, pet in df.iterrows():
             try:
-                if "Perdido" in str(pet['DataStatus']):
-                    esp = str(pet['Especie']).lower()
+                # Usando .get() para evitar o KeyError se a coluna sumir ou tiver espaço
+                status_atual = str(pet.get('DataStatus', pet.get('Status', ''))) 
+                if "Perdido" in status_atual:
+                    esp = str(pet.get('Especie', '')).lower()
                     icon_c = 'orange' if 'cão' in esp or 'cao' in esp else ('blue' if 'gato' in esp else 'green')
                     folium.Marker([float(pet['Lat']), float(pet['Lng'])], 
-                                  popup=f"{pet['Nome_Pet']}", 
+                                  popup=f"{pet.get('Nome_Pet', 'Pet')}", 
                                   icon=folium.Icon(color=icon_c, icon='paw', prefix='fa')).add_to(m)
             except: continue
     st_folium(m, width=700, height=400)
@@ -153,35 +155,38 @@ if st.session_state.pagina == 'home':
     st.subheader("🔍 Mural de Desaparecidos")
     if not df.empty:
         for _, pet in df.iterrows():
-            if "Perdido" in str(pet['DataStatus']):
-                # Lógica de exibição da foto (Link ou Base64)
-                foto_src = pet['Foto'] if str(pet['Foto']).startswith("http") else f"data:image/jpeg;base64,{pet['Foto']}"
+            status_atual = str(pet.get('DataStatus', pet.get('Status', '')))
+            if "Perdido" in status_atual:
+                
+                foto_dado = str(pet.get('Foto', ''))
+                foto_src = foto_dado if foto_dado.startswith("http") else f"data:image/jpeg;base64,{foto_dado}"
                 
                 st.markdown(f'''
                     <div class="pet-card">
-                        <div class="pet-card-header"><h3>{pet['Nome_Pet']}</h3></div>
+                        <div class="pet-card-header"><h3>{pet.get('Nome_Pet', 'Sem Nome')}</h3></div>
                         <div class="pet-card-body">
                             <img src="{foto_src}" class="pet-card-foto">
                             <div class="pet-card-info">
-                                <p><b>Espécie:</b> {pet['Especie']} | <b>Raça:</b> {pet.get('Raca', '-')}</p>
+                                <p><b>Espécie:</b> {pet.get('Especie', '-')} | <b>Raça:</b> {pet.get('Raca', '-')}</p>
                                 <p><b>Cor:</b> {pet.get('Cor', '-')}</p>
                                 <p><b>Características:</b> {pet.get('Caracteristicas', '-')}</p>
                             </div>
                         </div>
                         <div class="pet-card-footer">
-                            <p>📍 <i>Visto em: {pet['Local_Desaparecimento']}</i></p>
+                            <p>📍 <i>Visto em: {pet.get('Local_Desaparecimento', '-')}</i></p>
                         </div>
                     </div>
                 ''', unsafe_allow_html=True)
                 
                 c1, c2 = st.columns(2)
                 with c1:
-                    if st.button("🔍 Ver Foto Grande", key=f"z_{pet['ID']}", use_container_width=True):
-                        st.session_state.pagina_detalhes = pet['Foto']
+                    if st.button("🔍 Ver Foto Grande", key=f"z_{pet.get('ID', '1')}", use_container_width=True):
+                        st.session_state.pagina_detalhes = foto_dado
                         st.rerun()
                 with c2:
                     if st.session_state.logado:
-                        tel = "".join(filter(str.isdigit, str(pet['Tel_Tutor'])))
+                        tel_tutor = str(pet.get('Tel_Tutor', ''))
+                        tel = "".join(filter(str.isdigit, tel_tutor))
                         st.link_button("🟢 WhatsApp do Tutor", f"https://wa.me/55{tel}", use_container_width=True)
                 st.write("")
 
