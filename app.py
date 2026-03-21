@@ -127,14 +127,15 @@ with st.sidebar:
         
         if st.button("🏠 Home", width='stretch'): 
             ir_para('home')
+        
+        # 👇 ADICIONE ESTE BOTÃO NOVO AQUI 👇
+        if st.button("🐾 Meus Pets", width='stretch'): 
+            ir_para('meus_pets')
+            
         if st.button("🚪 Sair", width='stretch'):
             st.session_state.logado = False
             ir_para('home')
-
-# ==========================================
-# ROTAS DE PÁGINAS
-# ==========================================
-
+            
 # ==========================================
 # ROTAS DE PÁGINAS
 # ==========================================
@@ -313,3 +314,72 @@ elif st.session_state.pagina == 'cadastro_user':
             st.cache_data.clear()
             st.success("Conta criada!")
             ir_para('home')
+
+# --- PÁGINA: MEUS PETS (GERENCIAMENTO) ---
+elif st.session_state.pagina == 'meus_pets':
+    st.header("🐾 Meus Pets Cadastrados")
+    
+    # Proteção de segurança
+    if not st.session_state.logado:
+        st.warning("Você precisa estar logado para ver seus pets.")
+        st.stop()
+        
+    df = ler_planilha_direto(ABA_PETS)
+    
+    if df.empty:
+        st.info("O sistema ainda não possui nenhum pet cadastrado.")
+    else:
+        # Filtra a planilha para mostrar APENAS os pets do usuário logado
+        usuario_logado = str(st.session_state.user.get('Usuario', '')).strip().lower()
+        
+        def eh_meu_pet(linha):
+            dono_na_planilha = str(linha.get('User_Vinculo', '')).strip().lower()
+            return dono_na_planilha == usuario_logado
+            
+        meus_pets = df[df.apply(eh_meu_pet, axis=1)]
+        
+        if meus_pets.empty:
+            st.info("Você ainda não cadastrou nenhum pet desaparecido.")
+        else:
+            # Lista os pets desse usuário
+            for idx, pet in meus_pets.iterrows():
+                pet_id = str(pet.get('ID', ''))
+                nome_pet = str(pet.get('Nome_Pet', 'Pet sem nome')).strip()
+                status_atual = str(pet.get('Status', '')).strip()
+                foto_src = str(pet.get('Foto', '')).strip()
+                
+                # Define a cor do status
+                cor = "green" if status_atual == "Encontrado" else "red"
+                
+                with st.container(border=True):
+                    c1, c2 = st.columns([1, 3])
+                    
+                    with c1:
+                        if foto_src and foto_src != '-':
+                            st.image(foto_src, width='stretch')
+                        else:
+                            st.write("📷 Sem foto")
+                            
+                    with c2:
+                        st.subheader(nome_pet)
+                        st.markdown(f"**Status:** :{cor}[**{status_atual}**]")
+                        st.write(f"**Registrado em:** {pet.get('Data', '-')}")
+                        
+                        # Se estiver perdido, mostra o botão para dar a boa notícia!
+                        if status_atual == 'Perdido':
+                            if st.button("🎉 MARCAR COMO ENCONTRADO", key=f"btn_enc_{pet_id}", type="primary", width='stretch'):
+                                with st.spinner("Atualizando o banco de dados..."):
+                                    try:
+                                        # 1. Altera o status apenas daquele Pet específico na tabela
+                                        df.loc[df['ID'] == pet_id, 'Status'] = 'Encontrado'
+                                        
+                                        # 2. Salva a tabela inteira atualizada de volta no Google Sheets
+                                        conn.update(worksheet=ABA_PETS, data=df)
+                                        
+                                        # 3. Limpa a memória para o app atualizar imediatamente
+                                        st.cache_data.clear()
+                                        
+                                        st.success(f"Que maravilha! O pet {nome_pet} foi marcado como Encontrado!")
+                                        st.rerun()
+                                    except Exception as e:
+                                        st.error(f"Erro ao atualizar status: {e}")
