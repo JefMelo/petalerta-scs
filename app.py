@@ -239,7 +239,7 @@ if st.session_state.pagina == 'home':
                                 <p><b>Características:</b> {valor_seguro(pet, 'Caracteristicas')}</p>
                             </div>
                         </div>
-                        <div class="pet-card-footer"><p style="margin: 0;">{rodape_texto}</p></div>
+                        <div class="pet-card-footer"><p style="margin: 0; color: #111111 !important;">{rodape_texto}</p></div>
                     </div>
                 ''', unsafe_allow_html=True)
                 
