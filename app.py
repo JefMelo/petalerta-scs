@@ -94,7 +94,6 @@ st.markdown("""
         border-radius: 12px !important;
         padding: 10px !important;
         margin-bottom: 15px !important;
-        /* st.container(border=True) já usa a cor do tema, não precisamos forçar */
     }
 
     /* 2. Classes para o HTML personalizado dentro do Card */
@@ -105,14 +104,13 @@ st.markdown("""
         background-color: transparent !important; /* Herda do contêiner */
         padding: 5px; 
         border-radius: 10px;
-        /* Garante que o texto base siga o tema do Streamlit */
         color: var(--text-color) !important;
         font-family: var(--font) !important;
     }
 
     /* Título do Card ultra colado e seguindo o tema */
     .titulo-card {
-        color: var(--text-color) !important; /* Dinâmico */
+        color: var(--text-color) !important;
         margin: 0px !important;
         padding: 0px !important;
         line-height: 1.0 !important;
@@ -122,7 +120,7 @@ st.markdown("""
     
     /* Texto do corpo seguindo o tema */
     .texto-card {
-        color: var(--text-color) !important; /* Dinâmico */
+        color: var(--text-color) !important;
         margin: 2px 0px !important;
         font-size: 0.95rem !important;
         line-height: 1.2 !important;
@@ -134,20 +132,17 @@ st.markdown("""
         height: 120px !important;
         object-fit: cover !important;
         border-radius: 10px !important;
-        /* Borda sutil que se adapta bem a fundos claros e escuros */
         border: 1px solid var(--secondary-background-color) !important;
     }
     
-    /* Alerta de avistamento (usa a cor primária do tema para destaque) */
+    /* MODIFICAÇÃO SOLICITADA: Cor fixa (Laranja/Vermelho) para alerta de avistamento */
     .avistamento-alerta {
-        color: var(--primary-color) !important; /* Dinâmico */
+        color: #FF4B4B !important; /* Vermelho vibrante (padrão Streamlit) fixo */
         font-weight: bold !important;
     }
     
     /* Hall da Fama - Título Verde adaptável */
     .titulo-hall {
-        color: var(--primary-color) !important; /* Usa cor primária em vez de verde fixo se preferir nativo, ou mantenha verde se for estético */
-        /* Mantendo verde estético que se adapta bem (ex: #27ae60 ou similar mais brilhante no escuro) */
         color: #2ECC71 !important; 
         margin:0;
     }
