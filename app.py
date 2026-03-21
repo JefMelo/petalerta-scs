@@ -38,32 +38,37 @@ def ler_planilha_direto(nome_aba):
         return pd.DataFrame()
 
 # --- FUNÇÃO UPLOAD IMGBB ---
+# --- NOVA FUNÇÃO UPLOAD IMGBB (Alinhada com a Documentação) ---
 def fazer_upload_imgbb(arquivo):
     if arquivo:
         try:
-            url = "https://api.imgbb.com/1/upload"
-            # Converte a imagem para base64 apenas para a VIAGEM até o servidor do ImgBB
+            # 1. Colocamos a chave diretamente na URL, exatamente como no seu curl
+            url = f"https://api.imgbb.com/1/upload?key={IMGBB_API_KEY}"
+            
+            # 2. Convertemos a imagem para o formato de texto que eles exigem
             img_b64 = base64.b64encode(arquivo.getvalue()).decode('utf-8')
             
+            # 3. Montamos o formulário apenas com a imagem
             payload = {
-                "key": IMGBB_API_KEY,
                 "image": img_b64
             }
             
+            # Fazemos o POST
             response = requests.post(url, data=payload)
             data = response.json()
             
+            # Verificamos se deu tudo certo
             if data.get("status") == 200:
-                return data["data"]["url"] # Retorna APENAS o link (ex: https://i.ibb.co/...)
+                return data["data"]["url"] # Retorna o link direto!
             else:
-                erro_msg = data.get('error', {}).get('message', 'Erro desconhecido')
+                erro_msg = data.get("error", {}).get("message", "Erro desconhecido")
                 st.error(f"Erro no servidor ImgBB: {erro_msg}")
                 return ""
         except Exception as e:
-            st.error(f"Erro de conexão com ImgBB: {e}")
+            st.error(f"Falha na conexão com a API de imagens: {e}")
             return ""
     return ""
-
+    
 # --- INJEÇÃO DE CSS ---
 st.markdown("""
 <style>
