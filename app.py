@@ -5,7 +5,6 @@ import requests
 import base64
 import folium
 from streamlit_folium import st_folium
-# Nova biblioteca para o GPS funcionar de verdade
 from streamlit_js_eval import streamlit_js_eval
 
 # 1. Configuração Inicial
@@ -213,9 +212,9 @@ if st.session_state.pagina == 'home':
                     pet_id = str(valor_seguro(pet, 'ID')).strip()
                     foto_src = valor_seguro(pet, 'Foto')
                     nome_pet = valor_seguro(pet, 'Nome_Pet')
-                    if nome_pet == '-': nome_pet = "Pet sem nome"
                     
                     loc_texto = f"📍 <span class='avistamento-alerta'>Sumiu em:</span> {valor_seguro(pet, 'Local_Desaparecimento')} ({valor_seguro(pet, 'Data')})"
+                    tem_avistamento = False
                     if not df_avis.empty:
                         avis_deste_pet = df_avis[df_avis['ID_Pet'] == pet_id]
                         if not avis_deste_pet.empty:
@@ -279,9 +278,9 @@ elif st.session_state.pagina == 'novo_avistamento':
         st.session_state.temp_lat, st.session_state.temp_lng = map_res["last_clicked"]["lat"], map_res["last_clicked"]["lng"]
         st.rerun()
 
-    # NOVO BOTÃO GPS SEGURO
+    # BOTÃO GPS
     if st.button("📍 Usar minha localização atual", width='stretch'):
-        loc = streamlit_js_eval(js_expressions="navigator.geolocation.getCurrentPosition(pos => { return {lat: pos.coords.latitude, lng: pos.coords.longitude} })")
+        loc = streamlit_js_eval(js_expressions="new Promise(resolve => navigator.geolocation.getCurrentPosition(pos => resolve({lat: pos.coords.latitude, lng: pos.coords.longitude})))", key="gps_avi")
         if loc:
             st.session_state.temp_lat, st.session_state.temp_lng = loc['lat'], loc['lng']
             with st.spinner("Localizando..."):
@@ -326,9 +325,9 @@ elif st.session_state.pagina == 'perdi_pet':
             st.session_state.map_address = obter_endereco(st.session_state.temp_lat, st.session_state.temp_lng)
         st.rerun()
 
-    # NOVO BOTÃO GPS SEGURO
+    # BOTÃO GPS
     if st.button("📍 Usar minha localização atual", width='stretch'):
-        loc = streamlit_js_eval(js_expressions="navigator.geolocation.getCurrentPosition(pos => { return {lat: pos.coords.latitude, lng: pos.coords.longitude} })")
+        loc = streamlit_js_eval(js_expressions="new Promise(resolve => navigator.geolocation.getCurrentPosition(pos => resolve({lat: pos.coords.latitude, lng: pos.coords.longitude})))", key="gps_reg")
         if loc:
             st.session_state.temp_lat, st.session_state.temp_lng = loc['lat'], loc['lng']
             with st.spinner("Localizando..."):
