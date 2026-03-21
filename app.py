@@ -13,7 +13,7 @@ st.set_page_config(page_title="PetAlerta SCS", page_icon="🐾", layout="centere
 SHEET_ID = "1RyredbJZsCPQvBxXqYmX1vBZJRgYToffm5agPxDBDRk"
 IMGBB_API_KEY = "54494e69c28056a133620f4e8be0ab72"
 ABA_USUARIOS = "Usuarios"
-ABA_PETS = "Dados" 
+ABA_PETS = "Dados" # <-- Aqui dizemos que a variável ABA_PETS aponta para a aba "Dados" da planilha
 
 # --- INICIALIZAÇÃO DE ESTADOS ---
 if 'pagina' not in st.session_state: st.session_state.pagina = 'home'
@@ -29,17 +29,16 @@ SCS_COORDS = [-29.7182, -52.4306]
 from streamlit_gsheets import GSheetsConnection
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# --- FUNÇÃO DE LEITURA (CORRIGIDA: COM CACHE ATIVADO) ---
+# --- FUNÇÃO DE LEITURA (CORRIGIDA E COM CACHE) ---
 def ler_planilha_direto(nome_aba):
     try:
-        # ttl=15 guarda a planilha na memória por 15 segundos!
-        # Isso salva a nossa cota da API do Google e deixa o site MUITO mais rápido.
+        # ttl=15 salva a cota do Google
         df = conn.read(worksheet=nome_aba, ttl=15, dtype=str)
         df = df.dropna(how='all')
         df.columns = df.columns.str.strip()
         df = df.fillna("")
         
-        # Varredura de limpeza
+        # Limpa o '.0' dos números
         for col in df.columns:
             if col not in ['Lat', 'Lng']:
                 df[col] = df[col].astype(str).str.replace(r'\.0$', '', regex=True)
@@ -81,6 +80,7 @@ st.markdown("""
     .pet-card-body { display: flex; gap: 15px; padding: 15px; flex-wrap: wrap; }
     .pet-card-foto { width: 150px; height: 150px; object-fit: cover; border-radius: 10px; border: 1px solid #ddd; cursor: pointer; }
     .pet-card-info { flex: 1; min-width: 200px; }
+    .pet-card-info p { margin: 4px 0; font-size: 1rem; color: #444; }
     .pet-card-footer { background: #fafafa; padding: 10px 15px; border-top: 1px solid #eee; }
 </style>
 """, unsafe_allow_html=True)
@@ -141,13 +141,19 @@ if st.session_state.pagina == 'home':
     st.title("🐾 PetAlerta Santa Cruz do Sul")
     df = ler_planilha_direto(ABA_PETS)
 
+    # =========================================================
+    # 🚨 O TESTE DO RAIO-X (Vai aparecer no topo do site) 🚨
+    # =========================================================
+    st.error("👇 ATENÇÃO: Verifique os nomes das colunas na tabela abaixo! Role para a direita. Depois nós apagamos isso.")
+    st.write(df)
+    st.markdown("---")
+
     # Função super inteligente que ignora acentos, espaços e maiúsculas
     def valor_seguro(linha, coluna):
         v = str(linha.get(coluna, '')).strip()
         if v and v.lower() not in ['nan', 'none', '']:
             return v
         
-        # Se não achou exato, tenta ignorar acentos e letras "ç" da planilha
         col_limpa = coluna.lower().replace('ç','c').replace('é','e').replace('í','i').replace('á','a')
         for c_real in linha.index:
             c_real_limpa = str(c_real).lower().replace('ç','c').replace('é','e').replace('í','i').replace('á','a').strip()
@@ -218,12 +224,12 @@ if st.session_state.pagina == 'home':
                     if st.session_state.logado:
                         tel_bruto = valor_seguro(pet, 'Tel_Tutor')
                         tel = "".join(filter(str.isdigit, tel_bruto))
-                        if len(tel) >= 10: # Se achou um número válido
+                        if len(tel) >= 10: 
                             st.link_button("🟢 WhatsApp", f"https://wa.me/55{tel}", use_container_width=True)
-                        else: # Se não tem telefone, mostra o botão inativo
+                        else:
                             st.button("🚫 Sem Contato", disabled=True, key=f"w_{valor_seguro(pet, 'ID')}", use_container_width=True)
                 st.write("")
-                
+
 # --- PÁGINA: REGISTRO PET ---
 elif st.session_state.pagina == 'perdi_pet':
     st.header("🚨 Registrar Animal Perdido")
@@ -255,7 +261,6 @@ elif st.session_state.pagina == 'perdi_pet':
                     url_foto = fazer_upload_imgbb(foto) if foto else ""
                     u = st.session_state.user
                     
-                    # DICIONÁRIO ESTRITAMENTE FIXO
                     dados_novos = {
                         "ID": str(int(datetime.now().timestamp())),
                         "Status": "Perdido",
@@ -283,7 +288,7 @@ elif st.session_state.pagina == 'perdi_pet':
                         df_final = pd.concat([df_p, pd.DataFrame([dados_novos])], ignore_index=True)
                         conn.update(worksheet=ABA_PETS, data=df_final)
                         
-                        st.cache_data.clear() # Limpa a memória para o pet aparecer na hora no mural!
+                        st.cache_data.clear()
                         
                         st.session_state.temp_lat = None
                         st.success("✅ Pet cadastrado com sucesso!")
@@ -302,17 +307,6 @@ elif st.session_state.pagina == 'cadastro_user':
             df_u = ler_planilha_direto(ABA_USUARIOS)
             novo = pd.DataFrame([{"Usuario":u_cad,"Senha":p_cad,"Nivel":"Membro","Telefone":t,"Email":e,"Nascimento":"","Endereco":"","Nome":n}])
             conn.update(worksheet=ABA_USUARIOS, data=pd.concat([df_u, novo], ignore_index=True))
-            st.cache_data.clear() # Limpa o cache aqui também para o usuário poder logar na hora
-            st.success("Conta criada!")
-            ir_para('home')
-# --- PÁGINA: CADASTRO USUÁRIO ---
-elif st.session_state.pagina == 'cadastro_user':
-    st.header("📝 Criar Conta")
-    with st.form("cad_u"):
-        n, t, e, u_cad, p_cad = st.text_input("Nome"), st.text_input("WhatsApp"), st.text_input("Email"), st.text_input("Usuário"), st.text_input("Senha", type="password")
-        if st.form_submit_button("CADASTRAR"):
-            df_u = ler_planilha_direto(ABA_USUARIOS)
-            novo = pd.DataFrame([{"Usuario":u_cad,"Senha":p_cad,"Nivel":"Membro","Telefone":t,"Email":e,"Nascimento":"","Endereco":"","Nome":n}])
-            conn.update(worksheet=ABA_USUARIOS, data=pd.concat([df_u, novo], ignore_index=True))
+            st.cache_data.clear()
             st.success("Conta criada!")
             ir_para('home')
