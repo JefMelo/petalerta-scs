@@ -13,7 +13,7 @@ st.set_page_config(page_title="PetAlerta SCS", page_icon="🐾", layout="centere
 SHEET_ID = "1RyredbJZsCPQvBxXqYmX1vBZJRgYToffm5agPxDBDRk"
 IMGBB_API_KEY = "54494e69c28056a133620f4e8be0ab72"
 ABA_USUARIOS = "Usuarios"
-ABA_PETS = "Dados" # <-- Aqui dizemos que a variável ABA_PETS aponta para a aba "Dados" da planilha
+ABA_PETS = "Dados" 
 
 # --- INICIALIZAÇÃO DE ESTADOS ---
 if 'pagina' not in st.session_state: st.session_state.pagina = 'home'
@@ -29,16 +29,14 @@ SCS_COORDS = [-29.7182, -52.4306]
 from streamlit_gsheets import GSheetsConnection
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# --- FUNÇÃO DE LEITURA (CORRIGIDA E COM CACHE) ---
+# --- FUNÇÃO DE LEITURA ---
 def ler_planilha_direto(nome_aba):
     try:
-        # ttl=15 salva a cota do Google
         df = conn.read(worksheet=nome_aba, ttl=15, dtype=str)
         df = df.dropna(how='all')
         df.columns = df.columns.str.strip()
         df = df.fillna("")
         
-        # Limpa o '.0' dos números
         for col in df.columns:
             if col not in ['Lat', 'Lng']:
                 df[col] = df[col].astype(str).str.replace(r'\.0$', '', regex=True)
@@ -141,26 +139,18 @@ if st.session_state.pagina == 'home':
     st.title("🐾 PetAlerta Santa Cruz do Sul")
     df = ler_planilha_direto(ABA_PETS)
 
-    # =========================================================
-    # 🚨 O TESTE DO RAIO-X (Vai aparecer no topo do site) 🚨
-    # =========================================================
-    st.error("👇 ATENÇÃO: Verifique os nomes das colunas na tabela abaixo! Role para a direita. Depois nós apagamos isso.")
-    st.write(df)
-    st.markdown("---")
-
-    # Função super inteligente que ignora acentos, espaços e maiúsculas
+    # Função Lupa (Nível Máximo): Ignora espaços e underlines na hora de buscar na planilha
     def valor_seguro(linha, coluna):
-        v = str(linha.get(coluna, '')).strip()
-        if v and v.lower() not in ['nan', 'none', '']:
-            return v
+        pet_dict = dict(linha)
+        col_buscada = coluna.lower().replace('ç','c').replace('é','e').replace('í','i').replace('á','a').replace('_', '').replace(' ', '')
         
-        col_limpa = coluna.lower().replace('ç','c').replace('é','e').replace('í','i').replace('á','a')
-        for c_real in linha.index:
-            c_real_limpa = str(c_real).lower().replace('ç','c').replace('é','e').replace('í','i').replace('á','a').strip()
-            if c_real_limpa == col_limpa:
-                val = str(linha[c_real]).strip()
-                if val and val.lower() not in ['nan', 'none', '']:
-                    return val
+        for chave, valor in pet_dict.items():
+            chave_limpa = str(chave).lower().replace('ç','c').replace('é','e').replace('í','i').replace('á','a').replace('_', '').replace(' ', '').strip()
+            
+            if chave_limpa == col_buscada:
+                v = str(valor).strip()
+                if v and v.lower() not in ['nan', 'none', '']:
+                    return v
         return '-'
 
     m = folium.Map(location=SCS_COORDS, zoom_start=14)
@@ -222,7 +212,11 @@ if st.session_state.pagina == 'home':
                         st.rerun()
                 with c2:
                     if st.session_state.logado:
+                        # Tenta pegar das duas colunas de telefone possíveis
                         tel_bruto = valor_seguro(pet, 'Tel_Tutor')
+                        if tel_bruto == '-':
+                            tel_bruto = valor_seguro(pet, 'Telefone_Tutor')
+                            
                         tel = "".join(filter(str.isdigit, tel_bruto))
                         if len(tel) >= 10: 
                             st.link_button("🟢 WhatsApp", f"https://wa.me/55{tel}", use_container_width=True)
@@ -289,7 +283,6 @@ elif st.session_state.pagina == 'perdi_pet':
                         conn.update(worksheet=ABA_PETS, data=df_final)
                         
                         st.cache_data.clear()
-                        
                         st.session_state.temp_lat = None
                         st.success("✅ Pet cadastrado com sucesso!")
                         ir_para('home')
