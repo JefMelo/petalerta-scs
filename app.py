@@ -24,6 +24,7 @@ if 'temp_lat' not in st.session_state: st.session_state.temp_lat = None
 if 'temp_lng' not in st.session_state: st.session_state.temp_lng = None
 if 'pagina_detalhes' not in st.session_state: st.session_state.pagina_detalhes = None
 if 'pet_foco' not in st.session_state: st.session_state.pet_foco = None
+if 'map_address' not in st.session_state: st.session_state.map_address = None # Guarda o endereço convertido
 
 SCS_COORDS = [-29.7182, -52.4306]
 
@@ -42,6 +43,7 @@ def modal_sucesso(mensagem, proxima_pagina='home'):
         st.session_state.pagina = proxima_pagina
         st.session_state.temp_lat = None
         st.session_state.temp_lng = None
+        st.session_state.map_address = None # Limpa o endereço
         st.rerun()
 
 # --- FUNÇÕES GLOBAIS ---
@@ -187,7 +189,9 @@ if st.session_state.pagina == 'home':
                     pet_id = str(valor_seguro(pet, 'ID')).strip()
                     foto_src = valor_seguro(pet, 'Foto')
                     nome_pet = valor_seguro(pet, 'Nome_Pet')
-                    loc_texto = f"📍 <b>Sumiu em:</b> {valor_seguro(pet, 'Local_Desaparecimento')} ({valor_seguro(pet, 'Data')})"
+                    
+                    # AJUSTE SOLICITADO: "Sumiu em:" em vermelho
+                    loc_texto = f"📍 <span class='avistamento-alerta'>Sumiu em:</span> {valor_seguro(pet, 'Local_Desaparecimento')} ({valor_seguro(pet, 'Data')})"
                     tem_avistamento = False
                     if not df_avis.empty:
                         avis_deste_pet = df_avis[df_avis['ID_Pet'] == pet_id]
@@ -246,7 +250,6 @@ elif st.session_state.pagina == 'novo_avistamento':
     st.header(f"👁️ Vi o pet: {valor_seguro(pet, 'Nome_Pet')}")
     if st.button("⬅️ Voltar", width='stretch'): ir_para('home')
     
-    # LÓGICA DE CLIQUE RECUPERADA
     m_avi = folium.Map(location=SCS_COORDS, zoom_start=15)
     if st.session_state.temp_lat:
         folium.Marker([st.session_state.temp_lat, st.session_state.temp_lng], icon=folium.Icon(color='red', icon='eye', prefix='fa')).add_to(m_avi)
@@ -256,7 +259,7 @@ elif st.session_state.pagina == 'novo_avistamento':
     if map_res and map_res.get("last_clicked"):
         st.session_state.temp_lat = map_res["last_clicked"]["lat"]
         st.session_state.temp_lng = map_res["last_clicked"]["lng"]
-        st.rerun() # Atualiza para mostrar o marcador vermelho
+        st.rerun() 
 
     with st.form("f_avis"):
         bairro_avi = st.text_input("Local (Referência)")
@@ -274,6 +277,7 @@ elif st.session_state.pagina == 'novo_avistamento':
                     df_av = ler_planilha_direto(ABA_AVISTAMENTOS)
                     conn.update(worksheet=ABA_AVISTAMENTOS, data=pd.concat([df_av, pd.DataFrame([novo_avi])], ignore_index=True))
                     st.cache_data.clear()
+                    st.session_state.temp_lat = None
                     modal_sucesso("Avistamento registrado com sucesso!")
             else: st.error("Clique no mapa para indicar o local!")
 
@@ -322,70 +326,115 @@ elif st.session_state.pagina == 'hall_fama':
 # --- PÁGINA: REGISTRO PET ---
 elif st.session_state.pagina == 'perdi_pet':
     st.header("🚨 Registrar Pet Perdido")
+    st.info("Clique no mapa para marcar o local exato do desaparecimento.")
+    if st.button("⬅️ Voltar", width='stretch'): ir_para('home')
+
     m_reg = folium.Map(location=SCS_COORDS, zoom_start=15)
+    
+    # AJUSTE SOLICITADO: Converter local apontado em endereço (Geolocalização Reversa)
     if st.session_state.temp_lat:
         folium.Marker([st.session_state.temp_lat, st.session_state.temp_lng], icon=folium.Icon(color='red')).add_to(m_reg)
     
-    # LÓGICA DE CLIQUE RECUPERADA
     map_res = st_folium(m_reg, width=700, height=300, key="map_reg")
+    
     if map_res and map_res.get("last_clicked"):
         st.session_state.temp_lat = map_res["last_clicked"]["lat"]
         st.session_state.temp_lng = map_res["last_clicked"]["lng"]
+        # Busca o endereço imediatamente após o clique
+        with st.spinner("Convertendo localização em endereço..."):
+            st.session_state.map_address = obter_endereco(st.session_state.temp_lat, st.session_state.temp_lng)
         st.rerun()
+
+    # Mostra o endereço capturado pelo mapa (se houver)
+    if st.session_state.map_address:
+        st.success(f"📍 Local capturado: **{st.session_state.map_address}**")
 
     with st.form("f_pet"):
         n_p = st.text_input("Nome do Pet*")
         esp = st.selectbox("Espécie", ["Cão", "Gato", "Outro"])
-        raca, cor, caract = st.text_input("Raça"), st.text_input("Cor"), st.text_area("Características")
-        bairro = st.text_input("Referência")
+        raca = st.text_input("Raça")
+        cor = st.text_input("Cor")
+        caract = st.text_area("Características")
+        bairro = st.text_input("Referência/Complemento do Local (Opcional)")
         foto = st.file_uploader("Foto")
+        
         if st.form_submit_button("🚀 PUBLICAR"):
-            if n_p and st.session_state.temp_lat:
+            if n_p and st.session_state.temp_lat and st.session_state.map_address:
                 with st.spinner("Salvando..."):
                     url_f = fazer_upload_imgbb(foto)
-                    end_r = obter_endereco(st.session_state.temp_lat, st.session_state.temp_lng)
+                    
+                    # Usa o endereço convertido do mapa + complemento opcional
+                    end_completo = f"{st.session_state.map_address} - {bairro}" if bairro else st.session_state.map_address
+                    
                     u = st.session_state.user
                     d = {
-                        "ID": str(int(datetime.now().timestamp())), "Status": "Perdido", "Data": datetime.now().strftime('%d/%m/%Y'),
-                        "Especie": esp, "Nome_Pet": n_p, "Raca": raca, "Cor": cor, "Caracteristicas": caract, 
-                        "Local_Desaparecimento": f"{end_r} - {bairro}" if bairro else end_r,
-                        "Lat": str(st.session_state.temp_lat), "Lng": str(st.session_state.temp_lng), "Foto": url_f,
-                        "User_Vinculo": u.get('Usuario', ''), "Tel_Tutor": u.get('Telefone', '')
+                        "ID": str(int(datetime.now().timestamp())), 
+                        "Status": "Perdido", 
+                        "Data": datetime.now().strftime('%d/%m/%Y'),
+                        "Especie": esp, 
+                        "Nome_Pet": n_p, 
+                        "Raca": raca, 
+                        "Cor": cor, 
+                        "Caracteristicas": caract, 
+                        "Local_Desaparecimento": end_completo, # Salva o endereço completo
+                        "Lat": str(st.session_state.temp_lat), 
+                        "Lng": str(st.session_state.temp_lng), 
+                        "Foto": url_f,
+                        "User_Vinculo": u.get('Usuario', ''), 
+                        "Tel_Tutor": u.get('Telefone', '')
                     }
                     df_p = ler_planilha_direto(ABA_PETS)
                     conn.update(worksheet=ABA_PETS, data=pd.concat([df_p, pd.DataFrame([d])], ignore_index=True))
                     st.cache_data.clear()
                     modal_sucesso("Pet perdido registrado com sucesso!")
-            else: st.error("Preencha o nome e marque o local no mapa.")
+            elif not st.session_state.temp_lat:
+                st.error("Por favor, clique no mapa para indicar o local do desaparecimento.")
+            else:
+                st.error("Preencha o nome do pet.")
 
 # --- PÁGINA: MEUS PETS ---
 elif st.session_state.pagina == 'meus_pets':
     st.header("🐾 Minhas Publicações")
     df = ler_planilha_direto(ABA_PETS)
-    u_log = str(st.session_state.user.get('Usuario', '')).lower()
-    meus = df[df.apply(lambda r: str(r.get('User_Vinculo', '')).lower() == u_log, axis=1)]
-    for idx, pet in meus.iterrows():
-        with st.container(border=True):
-            st.subheader(valor_seguro(pet, 'Nome_Pet'))
-            if valor_seguro(pet, 'Status') == 'Perdido':
-                if st.button("🎉 MARCAR COMO ENCONTRADO", key=f"enc_{idx}", type="primary", width='stretch'):
-                    with st.spinner("Atualizando..."):
-                        df.loc[idx, 'Status'] = 'Encontrado'
-                        conn.update(worksheet=ABA_PETS, data=df)
-                        st.cache_data.clear()
-                        modal_sucesso(f"Pet localizado registrado com sucesso!")
-    if meus.empty: st.info("Nenhuma publicação encontrada.")
+    if df.empty:
+        st.info("Nenhuma publicação encontrada.")
+    else:
+        u_log = str(st.session_state.user.get('Usuario', '')).lower()
+        meus = df[df.apply(lambda r: str(r.get('User_Vinculo', '')).lower() == u_log, axis=1)]
+        if meus.empty:
+            st.info("Você ainda não cadastrou nenhum pet.")
+        else:
+            for idx, pet in meus.iterrows():
+                with st.container(border=True):
+                    st.subheader(valor_seguro(pet, 'Nome_Pet'))
+                    status_pet = valor_seguro(pet, 'Status')
+                    st.write(f"Status: **{status_pet}**")
+                    if status_pet == 'Perdido':
+                        if st.button("🎉 MARCAR COMO ENCONTRADO", key=f"enc_{idx}", type="primary", width='stretch'):
+                            with st.spinner("Atualizando..."):
+                                df.loc[idx, 'Status'] = 'Encontrado'
+                                conn.update(worksheet=ABA_PETS, data=df)
+                                st.cache_data.clear()
+                                modal_sucesso(f"Pet localizado registrado com sucesso!")
 
 # --- PÁGINA: CADASTRO USER ---
 elif st.session_state.pagina == 'cadastro_user':
     st.header("📝 Criar Conta")
     with st.form("cad"):
-        n, t, u, p = st.text_input("Nome"), st.text_input("Whats"), st.text_input("User"), st.text_input("Senha", type="password")
+        n = st.text_input("Nome")
+        t = st.text_input("Whats (com DDD)")
+        u = st.text_input("User")
+        p = st.text_input("Senha", type="password")
         if st.form_submit_button("CADASTRAR"):
             if n and t and u and p:
                 df_u = ler_planilha_direto(ABA_USUARIOS)
-                novo = pd.DataFrame([{"Usuario":u,"Senha":p,"Telefone":t,"Nome":n}])
-                conn.update(worksheet=ABA_USUARIOS, data=pd.concat([df_u, novo], ignore_index=True))
-                st.cache_data.clear()
-                modal_sucesso("Usuário registrado com sucesso!")
-            else: st.error("Preencha todos os campos.")
+                # Verifica se usuário já existe
+                if not df_u.empty and u.strip().lower() in df_u['Usuario'].str.lower().values:
+                    st.error("Este nome de usuário já está em uso.")
+                else:
+                    novo = pd.DataFrame([{"Usuario": u.strip(), "Senha": p.strip(), "Telefone": t.strip(), "Nome": n.strip()}])
+                    conn.update(worksheet=ABA_USUARIOS, data=pd.concat([df_u, novo], ignore_index=True))
+                    st.cache_data.clear()
+                    modal_sucesso("Usuário registrado com sucesso!")
+            else:
+                st.error("Preencha todos os campos.")
