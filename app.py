@@ -29,14 +29,24 @@ SCS_COORDS = [-29.7182, -52.4306]
 from streamlit_gsheets import GSheetsConnection
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# --- FUNÇÃO DE LEITURA (COM PROTEÇÃO CONTRA ESPAÇOS INVISÍVEIS) ---
+# --- FUNÇÃO DE LEITURA (CORRIGIDA: SEM O .0) ---
 def ler_planilha_direto(nome_aba):
     try:
-        df = conn.read(worksheet=nome_aba, ttl=0)
+        # dtype=str avisa o Pandas para não tentar fazer contas com os números
+        df = conn.read(worksheet=nome_aba, ttl=0, dtype=str)
         df = df.dropna(how='all')
-        # A mágica aqui: remove espaços no início e fim dos nomes das colunas!
         df.columns = df.columns.str.strip()
-        return df.fillna("").astype(str)
+        df = df.fillna("")
+        
+        # Varredura de limpeza: tira o .0 de tudo, EXCETO das coordenadas do mapa
+        for col in df.columns:
+            if col not in ['Lat', 'Lng']:
+                # Tira o .0 do final das palavras/números usando regex
+                df[col] = df[col].astype(str).str.replace(r'\.0$', '', regex=True)
+                # Tira a palavra "nan" caso o Pandas a tenha gerado
+                df[col] = df[col].replace('nan', '')
+                
+        return df
     except Exception as e:
         st.error(f"Erro ao conectar com a planilha: {e}")
         return pd.DataFrame()
@@ -111,56 +121,39 @@ with st.sidebar:
                 st.session_state.logado, st.session_state.user = True, user_found
                 st.rerun()
             else: st.error("Login inválido")
-        # Correção do Callback de botão
+        
         if st.button("Criar Conta", use_container_width=True): 
             ir_para('cadastro_user')
     else:
         st.success(f"Olá, {st.session_state.user.get('Nome', 'Usuário').split()[0]}")
-        # Correção do Callback de botão
+        
         if st.button("🏠 Home", use_container_width=True): 
             ir_para('home')
         if st.button("🚪 Sair", use_container_width=True):
             st.session_state.logado = False
             ir_para('home')
 
+# ==========================================
+# ROTAS DE PÁGINAS (ALINHAMENTO CORRIGIDO)
+# ==========================================
+
 # --- PÁGINA: HOME ---
 if st.session_state.pagina == 'home':
     st.title("🐾 PetAlerta Santa Cruz do Sul")
-
-# --- FUNÇÃO DE LEITURA (CORRIGIDA: SEM O .0) ---
-def ler_planilha_direto(nome_aba):
-    try:
-        # dtype=str avisa o Pandas para não tentar fazer contas com os números
-        df = conn.read(worksheet=nome_aba, ttl=0, dtype=str)
-        df = df.dropna(how='all')
-        df.columns = df.columns.str.strip()
-        df = df.fillna("")
-        
-        # Varredura de limpeza: tira o .0 de tudo, EXCETO das coordenadas do mapa
-        for col in df.columns:
-            if col not in ['Lat', 'Lng']:
-                # Tira o .0 do final das palavras/números usando regex
-                df[col] = df[col].astype(str).str.replace(r'\.0$', '', regex=True)
-                # Tira a palavra "nan" caso o Pandas a tenha gerado em células vazias
-                df[col] = df[col].replace('nan', '')
-                
-        return df
-    except Exception as e:
-        st.error(f"Erro ao conectar com a planilha: {e}")
-        return pd.DataFrame()
+    df = ler_planilha_direto(ABA_PETS)
 
     m = folium.Map(location=SCS_COORDS, zoom_start=14)
     if not df.empty:
         for _, pet in df.iterrows():
             try:
-                if pegar_dado(pet, 'Status') == 'Perdido':
-                    esp = pegar_dado(pet, 'Especie').lower()
+                if str(pet.get('Status', '')).strip() == 'Perdido':
+                    esp = str(pet.get('Especie', '')).lower()
                     icon_c = 'orange' if 'cão' in esp or 'cao' in esp else ('blue' if 'gato' in esp else 'green')
                     
-                    nome_mapa = pegar_dado(pet, 'Nome_Pet')
-                    nome_mapa = "Pet" if nome_mapa == '-' else nome_mapa
+                    nome_mapa = str(pet.get('Nome_Pet', 'Pet')).strip()
+                    if not nome_mapa: nome_mapa = "Pet"
                     
-                    folium.Marker([float(pegar_dado(pet, 'Lat')), float(pegar_dado(pet, 'Lng'))], 
+                    folium.Marker([float(pet.get('Lat', 0)), float(pet.get('Lng', 0))], 
                                   popup=f"<b>{nome_mapa}</b>", 
                                   icon=folium.Icon(color=icon_c, icon='paw', prefix='fa')).add_to(m)
             except: continue
@@ -173,13 +166,11 @@ def ler_planilha_direto(nome_aba):
     st.subheader("🔍 Mural de Desaparecidos")
     if not df.empty:
         for _, pet in df.iterrows():
-            if pegar_dado(pet, 'Status') == 'Perdido':
+            if str(pet.get('Status', '')).strip() == 'Perdido':
                 
-                foto_src = pegar_dado(pet, 'Foto')
-                if foto_src == '-': foto_src = "" # Evita erro de imagem quebrada
-                
-                nome_pet = pegar_dado(pet, 'Nome_Pet')
-                nome_pet = "Pet sem nome" if nome_pet == '-' else nome_pet
+                foto_src = str(pet.get('Foto', '')).strip()
+                nome_pet = str(pet.get('Nome_Pet', 'Pet sem nome')).strip()
+                if not nome_pet: nome_pet = "Pet sem nome"
                 
                 st.markdown(f'''
                     <div class="pet-card">
@@ -189,32 +180,30 @@ def ler_planilha_direto(nome_aba):
                         <div class="pet-card-body">
                             <img src="{foto_src}" class="pet-card-foto" onerror="this.style.display='none'">
                             <div class="pet-card-info">
-                                <p><b>Espécie:</b> {pegar_dado(pet, 'Especie')} | <b>Raça:</b> {pegar_dado(pet, 'Raca')}</p>
-                                <p><b>Cor:</b> {pegar_dado(pet, 'Cor')}</p>
-                                <p><b>Características:</b> {pegar_dado(pet, 'Caracteristicas')}</p>
+                                <p><b>Espécie:</b> {pet.get('Especie', '-')} | <b>Raça:</b> {pet.get('Raca', '-')}</p>
+                                <p><b>Cor:</b> {pet.get('Cor', '-')}</p>
+                                <p><b>Características:</b> {pet.get('Caracteristicas', '-')}</p>
                             </div>
                         </div>
                         <div class="pet-card-footer">
-                            <p>📍 <i>Desapareceu em: {pegar_dado(pet, 'Data')} - Visto em: {pegar_dado(pet, 'Local_Desaparecimento')}</i></p>
+                            <p>📍 <i>Desapareceu em: {pet.get('Data', '-')} - Visto em: {pet.get('Local_Desaparecimento', '-')}</i></p>
                         </div>
                     </div>
                 ''', unsafe_allow_html=True)
                 
                 c1, c2 = st.columns(2)
                 with c1:
-                    if foto_src and st.button("🔍 Ver Foto Grande", key=f"z_{pegar_dado(pet, 'ID')}", use_container_width=True):
+                    if foto_src and st.button("🔍 Ver Foto Grande", key=f"z_{pet.get('ID', '0')}", use_container_width=True):
                         st.session_state.pagina_detalhes = foto_src
                         st.rerun()
                 with c2:
                     if st.session_state.logado:
-                        tel_bruto = pegar_dado(pet, 'Tel_Tutor')
+                        tel_bruto = str(pet.get('Tel_Tutor', ''))
                         tel = "".join(filter(str.isdigit, tel_bruto))
                         if tel:
                             st.link_button("🟢 WhatsApp", f"https://wa.me/55{tel}", use_container_width=True)
-                        else:
-                            st.button("🟢 Sem Contato", disabled=True, key=f"w_{pegar_dado(pet, 'ID')}", use_container_width=True)
                 st.write("")
-                
+
 # --- PÁGINA: REGISTRO PET ---
 elif st.session_state.pagina == 'perdi_pet':
     st.header("🚨 Registrar Animal Perdido")
@@ -242,6 +231,7 @@ elif st.session_state.pagina == 'perdi_pet':
                     url_foto = fazer_upload_imgbb(foto) if foto else ""
                     u = st.session_state.user
                     
+                    # DICIONÁRIO ESTRITAMENTE FIXO CONFORME SOLICITADO
                     dados_novos = {
                         "ID": str(int(datetime.now().timestamp())),
                         "Status": "Perdido",
