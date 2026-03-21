@@ -134,7 +134,7 @@ with st.sidebar:
             ir_para('home')
 
 # ==========================================
-# ROTAS DE PÁGINAS (ALINHAMENTO CORRIGIDO)
+# ROTAS DE PÁGINAS
 # ==========================================
 
 # --- PÁGINA: HOME ---
@@ -142,16 +142,23 @@ if st.session_state.pagina == 'home':
     st.title("🐾 PetAlerta Santa Cruz do Sul")
     df = ler_planilha_direto(ABA_PETS)
 
+    # Função "Salva-Vidas" para garantir que o texto apareça no card
+    def valor_seguro(linha, coluna):
+        v = str(linha.get(coluna, '')).strip()
+        if not v or v.lower() == 'nan' or v == 'None':
+            return '-'
+        return v
+
     m = folium.Map(location=SCS_COORDS, zoom_start=14)
     if not df.empty:
         for _, pet in df.iterrows():
             try:
-                if str(pet.get('Status', '')).strip() == 'Perdido':
-                    esp = str(pet.get('Especie', '')).lower()
+                if valor_seguro(pet, 'Status') == 'Perdido':
+                    esp = valor_seguro(pet, 'Especie').lower()
                     icon_c = 'orange' if 'cão' in esp or 'cao' in esp else ('blue' if 'gato' in esp else 'green')
                     
-                    nome_mapa = str(pet.get('Nome_Pet', 'Pet')).strip()
-                    if not nome_mapa: nome_mapa = "Pet"
+                    nome_mapa = valor_seguro(pet, 'Nome_Pet')
+                    nome_mapa = "Pet" if nome_mapa == '-' else nome_mapa
                     
                     folium.Marker([float(pet.get('Lat', 0)), float(pet.get('Lng', 0))], 
                                   popup=f"<b>{nome_mapa}</b>", 
@@ -166,11 +173,11 @@ if st.session_state.pagina == 'home':
     st.subheader("🔍 Mural de Desaparecidos")
     if not df.empty:
         for _, pet in df.iterrows():
-            if str(pet.get('Status', '')).strip() == 'Perdido':
+            if valor_seguro(pet, 'Status') == 'Perdido':
                 
                 foto_src = str(pet.get('Foto', '')).strip()
-                nome_pet = str(pet.get('Nome_Pet', 'Pet sem nome')).strip()
-                if not nome_pet: nome_pet = "Pet sem nome"
+                nome_pet = valor_seguro(pet, 'Nome_Pet')
+                nome_pet = "Pet sem nome" if nome_pet == '-' else nome_pet
                 
                 st.markdown(f'''
                     <div class="pet-card">
@@ -180,13 +187,13 @@ if st.session_state.pagina == 'home':
                         <div class="pet-card-body">
                             <img src="{foto_src}" class="pet-card-foto" onerror="this.style.display='none'">
                             <div class="pet-card-info">
-                                <p><b>Espécie:</b> {pet.get('Especie', '-')} | <b>Raça:</b> {pet.get('Raca', '-')}</p>
-                                <p><b>Cor:</b> {pet.get('Cor', '-')}</p>
-                                <p><b>Características:</b> {pet.get('Caracteristicas', '-')}</p>
+                                <p><b>Espécie:</b> {valor_seguro(pet, 'Especie')} | <b>Raça:</b> {valor_seguro(pet, 'Raca')}</p>
+                                <p><b>Cor:</b> {valor_seguro(pet, 'Cor')}</p>
+                                <p><b>Características:</b> {valor_seguro(pet, 'Caracteristicas')}</p>
                             </div>
                         </div>
                         <div class="pet-card-footer">
-                            <p>📍 <i>Desapareceu em: {pet.get('Data', '-')} - Visto em: {pet.get('Local_Desaparecimento', '-')}</i></p>
+                            <p>📍 <i>Desapareceu em: {valor_seguro(pet, 'Data')} - Visto em: {valor_seguro(pet, 'Local_Desaparecimento')}</i></p>
                         </div>
                     </div>
                 ''', unsafe_allow_html=True)
@@ -203,7 +210,7 @@ if st.session_state.pagina == 'home':
                         if tel:
                             st.link_button("🟢 WhatsApp", f"https://wa.me/55{tel}", use_container_width=True)
                 st.write("")
-
+                
 # --- PÁGINA: REGISTRO PET ---
 elif st.session_state.pagina == 'perdi_pet':
     st.header("🚨 Registrar Animal Perdido")
