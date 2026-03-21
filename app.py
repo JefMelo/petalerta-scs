@@ -124,18 +124,30 @@ with st.sidebar:
             ir_para('home')
 
 # --- PÁGINA: HOME ---
-# --- PÁGINA: HOME ---
 if st.session_state.pagina == 'home':
     st.title("🐾 PetAlerta Santa Cruz do Sul")
-    df = ler_planilha_direto(ABA_PETS)
 
-    # Função Lupa Inteligente: Acha a coluna mesmo se estiver com espaço ou letra minúscula
-    def pegar_dado(linha, nome_coluna):
-        for col in linha.index:
-            if str(col).strip().lower() == nome_coluna.strip().lower():
-                v = str(linha[col]).strip()
-                return v if v and v.lower() != 'nan' else '-'
-        return '-'
+# --- FUNÇÃO DE LEITURA (CORRIGIDA: SEM O .0) ---
+def ler_planilha_direto(nome_aba):
+    try:
+        # dtype=str avisa o Pandas para não tentar fazer contas com os números
+        df = conn.read(worksheet=nome_aba, ttl=0, dtype=str)
+        df = df.dropna(how='all')
+        df.columns = df.columns.str.strip()
+        df = df.fillna("")
+        
+        # Varredura de limpeza: tira o .0 de tudo, EXCETO das coordenadas do mapa
+        for col in df.columns:
+            if col not in ['Lat', 'Lng']:
+                # Tira o .0 do final das palavras/números usando regex
+                df[col] = df[col].astype(str).str.replace(r'\.0$', '', regex=True)
+                # Tira a palavra "nan" caso o Pandas a tenha gerado em células vazias
+                df[col] = df[col].replace('nan', '')
+                
+        return df
+    except Exception as e:
+        st.error(f"Erro ao conectar com a planilha: {e}")
+        return pd.DataFrame()
 
     m = folium.Map(location=SCS_COORDS, zoom_start=14)
     if not df.empty:
@@ -202,6 +214,7 @@ if st.session_state.pagina == 'home':
                         else:
                             st.button("🟢 Sem Contato", disabled=True, key=f"w_{pegar_dado(pet, 'ID')}", use_container_width=True)
                 st.write("")
+                
 # --- PÁGINA: REGISTRO PET ---
 elif st.session_state.pagina == 'perdi_pet':
     st.header("🚨 Registrar Animal Perdido")
