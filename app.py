@@ -24,7 +24,7 @@ if 'temp_lat' not in st.session_state: st.session_state.temp_lat = None
 if 'temp_lng' not in st.session_state: st.session_state.temp_lng = None
 if 'pagina_detalhes' not in st.session_state: st.session_state.pagina_detalhes = None
 if 'pet_foco' not in st.session_state: st.session_state.pet_foco = None
-if 'map_address' not in st.session_state: st.session_state.map_address = None # Guarda o endereço convertido
+if 'map_address' not in st.session_state: st.session_state.map_address = None
 
 SCS_COORDS = [-29.7182, -52.4306]
 
@@ -43,7 +43,7 @@ def modal_sucesso(mensagem, proxima_pagina='home'):
         st.session_state.pagina = proxima_pagina
         st.session_state.temp_lat = None
         st.session_state.temp_lng = None
-        st.session_state.map_address = None # Limpa o endereço
+        st.session_state.map_address = None
         st.rerun()
 
 # --- FUNÇÕES GLOBAIS ---
@@ -171,10 +171,37 @@ if st.session_state.pagina == 'home':
             try:
                 if valor_seguro(pet, 'Status') == 'Perdido':
                     esp = valor_seguro(pet, 'Especie').lower()
-                    icon_c = 'orange' if 'cão' in esp or 'cao' in esp else ('blue' if 'gato' in esp else 'green')
+                    
+                    # AJUSTE SOLICITADO: Ícone do mapa baseado na espécie
+                    if 'cão' in esp or 'cao' in esp:
+                        icon_name = 'dog'
+                        icon_color = 'orange'
+                    elif 'gato' in esp:
+                        icon_name = 'cat'
+                        icon_color = 'blue'
+                    else:
+                        icon_name = 'paw'
+                        icon_color = 'green'
+
                     lat_v, lng_v = valor_seguro(pet, 'Lat'), valor_seguro(pet, 'Lng')
+                    
+                    pet_id = str(valor_seguro(pet, 'ID')).strip()
+                    local_mapa = valor_seguro(pet, 'Local_Desaparecimento')
+                    
+                    if not df_avis.empty:
+                        avis_deste_pet = df_avis[df_avis['ID_Pet'] == pet_id]
+                        if not avis_deste_pet.empty:
+                            ultimo_avis = avis_deste_pet.iloc[-1]
+                            lat_v, lng_v = ultimo_avis['Lat'], ultimo_avis['Lng']
+                            local_mapa = f"Último avistamento: {ultimo_avis['Bairro']}"
+                            icon_color = 'red' # Muda para vermelho se avistado recentemente
+
                     if lat_v != '-' and lng_v != '-':
-                        folium.Marker([float(lat_v), float(lng_v)], popup=f"<b>{valor_seguro(pet, 'Nome_Pet')}</b>", icon=folium.Icon(color=icon_c, icon='paw', prefix='fa')).add_to(m)
+                        folium.Marker(
+                            [float(lat_v), float(lng_v)], 
+                            popup=f"<b>{valor_seguro(pet, 'Nome_Pet')}</b><br>📍 {local_mapa}", 
+                            icon=folium.Icon(color=icon_color, icon=icon_name, prefix='fa')
+                        ).add_to(m)
             except: continue
     st_folium(m, width='stretch', height=400)
 
@@ -190,7 +217,7 @@ if st.session_state.pagina == 'home':
                     foto_src = valor_seguro(pet, 'Foto')
                     nome_pet = valor_seguro(pet, 'Nome_Pet')
                     
-                    # AJUSTE SOLICITADO: "Sumiu em:" em vermelho
+                    # "Sumiu em:" em vermelho
                     loc_texto = f"📍 <span class='avistamento-alerta'>Sumiu em:</span> {valor_seguro(pet, 'Local_Desaparecimento')} ({valor_seguro(pet, 'Data')})"
                     tem_avistamento = False
                     if not df_avis.empty:
@@ -277,9 +304,8 @@ elif st.session_state.pagina == 'novo_avistamento':
                     df_av = ler_planilha_direto(ABA_AVISTAMENTOS)
                     conn.update(worksheet=ABA_AVISTAMENTOS, data=pd.concat([df_av, pd.DataFrame([novo_avi])], ignore_index=True))
                     st.cache_data.clear()
-                    st.session_state.temp_lat = None
                     modal_sucesso("Avistamento registrado com sucesso!")
-            else: st.error("Clique no mapa para indicar o local!")
+            else: st.error("Clique no mapa para indicar o local do avistamento!")
 
 # --- PÁGINA: ROTA ---
 elif st.session_state.pagina == 'historico_pet':
@@ -330,8 +356,6 @@ elif st.session_state.pagina == 'perdi_pet':
     if st.button("⬅️ Voltar", width='stretch'): ir_para('home')
 
     m_reg = folium.Map(location=SCS_COORDS, zoom_start=15)
-    
-    # AJUSTE SOLICITADO: Converter local apontado em endereço (Geolocalização Reversa)
     if st.session_state.temp_lat:
         folium.Marker([st.session_state.temp_lat, st.session_state.temp_lng], icon=folium.Icon(color='red')).add_to(m_reg)
     
@@ -340,18 +364,19 @@ elif st.session_state.pagina == 'perdi_pet':
     if map_res and map_res.get("last_clicked"):
         st.session_state.temp_lat = map_res["last_clicked"]["lat"]
         st.session_state.temp_lng = map_res["last_clicked"]["lng"]
-        # Busca o endereço imediatamente após o clique
         with st.spinner("Convertendo localização em endereço..."):
             st.session_state.map_address = obter_endereco(st.session_state.temp_lat, st.session_state.temp_lng)
         st.rerun()
 
-    # Mostra o endereço capturado pelo mapa (se houver)
     if st.session_state.map_address:
         st.success(f"📍 Local capturado: **{st.session_state.map_address}**")
 
     with st.form("f_pet"):
         n_p = st.text_input("Nome do Pet*")
-        esp = st.selectbox("Espécie", ["Cão", "Gato", "Outro"])
+        
+        # AJUSTE SOLICITADO: Apenas Cão e Gato
+        esp = st.selectbox("Espécie", ["Cão", "Gato"])
+        
         raca = st.text_input("Raça")
         cor = st.text_input("Cor")
         caract = st.text_area("Características")
@@ -362,10 +387,7 @@ elif st.session_state.pagina == 'perdi_pet':
             if n_p and st.session_state.temp_lat and st.session_state.map_address:
                 with st.spinner("Salvando..."):
                     url_f = fazer_upload_imgbb(foto)
-                    
-                    # Usa o endereço convertido do mapa + complemento opcional
                     end_completo = f"{st.session_state.map_address} - {bairro}" if bairro else st.session_state.map_address
-                    
                     u = st.session_state.user
                     d = {
                         "ID": str(int(datetime.now().timestamp())), 
@@ -376,7 +398,7 @@ elif st.session_state.pagina == 'perdi_pet':
                         "Raca": raca, 
                         "Cor": cor, 
                         "Caracteristicas": caract, 
-                        "Local_Desaparecimento": end_completo, # Salva o endereço completo
+                        "Local_Desaparecimento": end_completo,
                         "Lat": str(st.session_state.temp_lat), 
                         "Lng": str(st.session_state.temp_lng), 
                         "Foto": url_f,
@@ -428,7 +450,6 @@ elif st.session_state.pagina == 'cadastro_user':
         if st.form_submit_button("CADASTRAR"):
             if n and t and u and p:
                 df_u = ler_planilha_direto(ABA_USUARIOS)
-                # Verifica se usuário já existe
                 if not df_u.empty and u.strip().lower() in df_u['Usuario'].str.lower().values:
                     st.error("Este nome de usuário já está em uso.")
                 else:
