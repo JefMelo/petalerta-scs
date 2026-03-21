@@ -29,21 +29,20 @@ SCS_COORDS = [-29.7182, -52.4306]
 from streamlit_gsheets import GSheetsConnection
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# --- FUNÇÃO DE LEITURA (CORRIGIDA: SEM O .0) ---
+# --- FUNÇÃO DE LEITURA (CORRIGIDA: COM CACHE ATIVADO) ---
 def ler_planilha_direto(nome_aba):
     try:
-        # dtype=str avisa o Pandas para não tentar fazer contas com os números
-        df = conn.read(worksheet=nome_aba, ttl=0, dtype=str)
+        # ttl=15 guarda a planilha na memória por 15 segundos!
+        # Isso salva a nossa cota da API do Google e deixa o site MUITO mais rápido.
+        df = conn.read(worksheet=nome_aba, ttl=15, dtype=str)
         df = df.dropna(how='all')
         df.columns = df.columns.str.strip()
         df = df.fillna("")
         
-        # Varredura de limpeza: tira o .0 de tudo, EXCETO das coordenadas do mapa
+        # Varredura de limpeza
         for col in df.columns:
             if col not in ['Lat', 'Lng']:
-                # Tira o .0 do final das palavras/números usando regex
                 df[col] = df[col].astype(str).str.replace(r'\.0$', '', regex=True)
-                # Tira a palavra "nan" caso o Pandas a tenha gerado
                 df[col] = df[col].replace('nan', '')
                 
         return df
@@ -276,15 +275,15 @@ elif st.session_state.pagina == 'perdi_pet':
                     }
                     
                     try:
-                        df_p = ler_planilha_direto(ABA_PETS)
-                        df_final = pd.concat([df_p, pd.DataFrame([dados_novos])], ignore_index=True)
-                        conn.update(worksheet=ABA_PETS, data=df_final)
-                        
-                        st.session_state.temp_lat = None
-                        st.success("✅ Pet cadastrado com sucesso!")
-                        ir_para('home')
-                    except Exception as e:
-                        st.error(f"Erro ao salvar: {e}")
+                            df_p = ler_planilha_direto(ABA_PETS)
+                            df_final = pd.concat([df_p, pd.DataFrame([dados_novos])], ignore_index=True)
+                            conn.update(worksheet=ABA_PETS, data=df_final)
+                            
+                            st.cache_data.clear() # <--- ADICIONE ESTA LINHA AQUI! (Limpa a memória)
+                            
+                            st.session_state.temp_lat = None
+                            st.success("✅ Pet cadastrado com sucesso!")
+                            ir_para('home')
             else:
                 st.error("Preencha o nome e marque o local no mapa.")
 
