@@ -91,8 +91,9 @@ def ir_para(p):
 
 # --- PÁGINA DE ZOOM ---
 if st.session_state.pagina_detalhes:
-    st.image(st.session_state.pagina_detalhes, use_container_width=True)
-    if st.button("⬅️ VOLTAR AO MURAL", use_container_width=True, type="primary"):
+    # Atualizado para width='stretch'
+    st.image(st.session_state.pagina_detalhes, width='stretch')
+    if st.button("⬅️ VOLTAR AO MURAL", width='stretch', type="primary"):
         st.session_state.pagina_detalhes = None
         st.rerun()
     st.stop()
@@ -103,7 +104,7 @@ with st.sidebar:
     if not st.session_state.logado:
         u_l = st.text_input("Usuário")
         p_l = st.text_input("Senha", type="password")
-        if st.button("Entrar", use_container_width=True):
+        if st.button("Entrar", width='stretch'):
             df_u = ler_planilha_direto(ABA_USUARIOS)
             u_clean = u_l.strip().lower()
             p_clean = p_l.strip()
@@ -119,14 +120,14 @@ with st.sidebar:
                 st.rerun()
             else: st.error("Login inválido")
         
-        if st.button("Criar Conta", use_container_width=True): 
+        if st.button("Criar Conta", width='stretch'): 
             ir_para('cadastro_user')
     else:
         st.success(f"Olá, {st.session_state.user.get('Nome', 'Usuário').split()[0]}")
         
-        if st.button("🏠 Home", use_container_width=True): 
+        if st.button("🏠 Home", width='stretch'): 
             ir_para('home')
-        if st.button("🚪 Sair", use_container_width=True):
+        if st.button("🚪 Sair", width='stretch'):
             st.session_state.logado = False
             ir_para('home')
 
@@ -139,7 +140,6 @@ if st.session_state.pagina == 'home':
     st.title("🐾 PetAlerta Santa Cruz do Sul")
     df = ler_planilha_direto(ABA_PETS)
 
-    # Função Lupa (Nível Máximo): Ignora espaços e underlines na hora de buscar na planilha
     def valor_seguro(linha, coluna):
         pet_dict = dict(linha)
         col_buscada = coluna.lower().replace('ç','c').replace('é','e').replace('í','i').replace('á','a').replace('_', '').replace(' ', '')
@@ -173,7 +173,8 @@ if st.session_state.pagina == 'home':
     st_folium(m, width=700, height=400)
 
     if st.session_state.logado:
-        if st.button("🚨 REGISTRAR PET PERDIDO", type="primary", use_container_width=True):
+        # Atualizado para width='stretch'
+        if st.button("🚨 REGISTRAR PET PERDIDO", type="primary", width='stretch'):
             ir_para('perdi_pet')
 
     st.subheader("🔍 Mural de Desaparecidos")
@@ -207,21 +208,23 @@ if st.session_state.pagina == 'home':
                 
                 c1, c2 = st.columns(2)
                 with c1:
-                    if foto_src and st.button("🔍 Ver Foto", key=f"z_{valor_seguro(pet, 'ID')}", use_container_width=True):
+                    # Atualizado para width='stretch'
+                    if foto_src and st.button("🔍 Ver Foto", key=f"z_{valor_seguro(pet, 'ID')}", width='stretch'):
                         st.session_state.pagina_detalhes = foto_src
                         st.rerun()
                 with c2:
                     if st.session_state.logado:
-                        # Tenta pegar das duas colunas de telefone possíveis
                         tel_bruto = valor_seguro(pet, 'Tel_Tutor')
                         if tel_bruto == '-':
                             tel_bruto = valor_seguro(pet, 'Telefone_Tutor')
                             
                         tel = "".join(filter(str.isdigit, tel_bruto))
                         if len(tel) >= 10: 
-                            st.link_button("🟢 WhatsApp", f"https://wa.me/55{tel}", use_container_width=True)
+                            # Atualizado para width='stretch'
+                            st.link_button("🟢 WhatsApp", f"https://wa.me/55{tel}", width='stretch')
                         else:
-                            st.button("🚫 Sem Contato", disabled=True, key=f"w_{valor_seguro(pet, 'ID')}", use_container_width=True)
+                            # Atualizado para width='stretch'
+                            st.button("🚫 Sem Contato", disabled=True, key=f"w_{valor_seguro(pet, 'ID')}", width='stretch')
                 st.write("")
 
 # --- PÁGINA: REGISTRO PET ---
