@@ -32,7 +32,7 @@ from streamlit_gsheets import GSheetsConnection
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 # ==========================================
-# 📢 NOVOS: SISTEMA DE POP-UPS (MODAIS)
+# 📢 SISTEMA DE POP-UPS (MODAIS)
 # ==========================================
 
 @st.dialog("Sucesso!")
@@ -40,6 +40,8 @@ def modal_sucesso(mensagem, proxima_pagina='home'):
     st.write(f"### 🎉 {mensagem}")
     if st.button("OK", width='stretch', type="primary"):
         st.session_state.pagina = proxima_pagina
+        st.session_state.temp_lat = None
+        st.session_state.temp_lng = None
         st.rerun()
 
 # --- FUNÇÕES GLOBAIS ---
@@ -238,17 +240,24 @@ if st.session_state.pagina == 'home':
                         with c2: st.button("🔒 Login p/ Contato", disabled=True, key=f"log_{pet_id}", width='stretch')
                 st.write("") 
 
-# --- PÁGINA: NOVO AVISTAMENTO (Com Pop-up) ---
+# --- PÁGINA: NOVO AVISTAMENTO ---
 elif st.session_state.pagina == 'novo_avistamento':
     pet = st.session_state.pet_foco
     st.header(f"👁️ Vi o pet: {valor_seguro(pet, 'Nome_Pet')}")
     if st.button("⬅️ Voltar", width='stretch'): ir_para('home')
+    
+    # LÓGICA DE CLIQUE RECUPERADA
     m_avi = folium.Map(location=SCS_COORDS, zoom_start=15)
-    if st.session_state.temp_lat: folium.Marker([st.session_state.temp_lat, st.session_state.temp_lng], icon=folium.Icon(color='red')).add_to(m_avi)
+    if st.session_state.temp_lat:
+        folium.Marker([st.session_state.temp_lat, st.session_state.temp_lng], icon=folium.Icon(color='red', icon='eye', prefix='fa')).add_to(m_avi)
+    
     map_res = st_folium(m_avi, width=700, height=300, key="map_avi")
+    
     if map_res and map_res.get("last_clicked"):
-        st.session_state.temp_lat, st.session_state.temp_lng = map_res["last_clicked"]["lat"], map_res["last_clicked"]["lng"]
-        st.rerun()
+        st.session_state.temp_lat = map_res["last_clicked"]["lat"]
+        st.session_state.temp_lng = map_res["last_clicked"]["lng"]
+        st.rerun() # Atualiza para mostrar o marcador vermelho
+
     with st.form("f_avis"):
         bairro_avi = st.text_input("Local (Referência)")
         obs_avi = st.text_area("Observações")
@@ -265,9 +274,27 @@ elif st.session_state.pagina == 'novo_avistamento':
                     df_av = ler_planilha_direto(ABA_AVISTAMENTOS)
                     conn.update(worksheet=ABA_AVISTAMENTOS, data=pd.concat([df_av, pd.DataFrame([novo_avi])], ignore_index=True))
                     st.cache_data.clear()
-                    st.session_state.temp_lat = None
-                    modal_sucesso("Avistamento registrado com sucesso!") # Pop-up
-            else: st.error("Clique no mapa.")
+                    modal_sucesso("Avistamento registrado com sucesso!")
+            else: st.error("Clique no mapa para indicar o local!")
+
+# --- PÁGINA: ROTA ---
+elif st.session_state.pagina == 'historico_pet':
+    pet = st.session_state.pet_foco
+    st.header(f"🗺️ Rota: {valor_seguro(pet, 'Nome_Pet')}")
+    if st.button("⬅️ Voltar", width='stretch'): ir_para('home')
+    df_avis = ler_planilha_direto(ABA_AVISTAMENTOS)
+    if not df_avis.empty: df_avis['ID_Pet'] = df_avis['ID_Pet'].astype(str).str.strip()
+    avis_deste = df_avis[df_avis['ID_Pet'] == str(valor_seguro(pet, 'ID')).strip()] if not df_avis.empty else pd.DataFrame()
+    if not avis_deste.empty:
+        l_o, n_o = float(valor_seguro(pet, 'Lat')), float(valor_seguro(pet, 'Lng'))
+        m_h = folium.Map(location=[l_o, n_o], zoom_start=14)
+        pontos = [[l_o, n_o]]
+        folium.Marker([l_o, n_o], icon=folium.Icon(color='black')).add_to(m_h)
+        for _, av in avis_deste.iterrows():
+            pontos.append([float(av['Lat']), float(av['Lng'])])
+            folium.Marker([float(av['Lat']), float(av['Lng'])], icon=folium.Icon(color='red')).add_to(m_h)
+        folium.PolyLine(pontos, color="red").add_to(m_h)
+        st_folium(m_h, width='stretch', height=400)
 
 # --- PÁGINA: HALL DA FAMA ---
 elif st.session_state.pagina == 'hall_fama':
@@ -292,14 +319,20 @@ elif st.session_state.pagina == 'hall_fama':
                         st.rerun()
                 st.write("")
 
-# --- PÁGINA: REGISTRO PET (Com Pop-up) ---
+# --- PÁGINA: REGISTRO PET ---
 elif st.session_state.pagina == 'perdi_pet':
     st.header("🚨 Registrar Pet Perdido")
     m_reg = folium.Map(location=SCS_COORDS, zoom_start=15)
+    if st.session_state.temp_lat:
+        folium.Marker([st.session_state.temp_lat, st.session_state.temp_lng], icon=folium.Icon(color='red')).add_to(m_reg)
+    
+    # LÓGICA DE CLIQUE RECUPERADA
     map_res = st_folium(m_reg, width=700, height=300, key="map_reg")
     if map_res and map_res.get("last_clicked"):
-        st.session_state.temp_lat, st.session_state.temp_lng = map_res["last_clicked"]["lat"], map_res["last_clicked"]["lng"]
+        st.session_state.temp_lat = map_res["last_clicked"]["lat"]
+        st.session_state.temp_lng = map_res["last_clicked"]["lng"]
         st.rerun()
+
     with st.form("f_pet"):
         n_p = st.text_input("Nome do Pet*")
         esp = st.selectbox("Espécie", ["Cão", "Gato", "Outro"])
@@ -322,11 +355,10 @@ elif st.session_state.pagina == 'perdi_pet':
                     df_p = ler_planilha_direto(ABA_PETS)
                     conn.update(worksheet=ABA_PETS, data=pd.concat([df_p, pd.DataFrame([d])], ignore_index=True))
                     st.cache_data.clear()
-                    st.session_state.temp_lat = None
-                    modal_sucesso("Pet perdido registrado com sucesso!") # Pop-up
-            else: st.error("Preencha o nome e marque no mapa.")
+                    modal_sucesso("Pet perdido registrado com sucesso!")
+            else: st.error("Preencha o nome e marque o local no mapa.")
 
-# --- PÁGINA: MEUS PETS (Com Pop-up) ---
+# --- PÁGINA: MEUS PETS ---
 elif st.session_state.pagina == 'meus_pets':
     st.header("🐾 Minhas Publicações")
     df = ler_planilha_direto(ABA_PETS)
@@ -338,25 +370,22 @@ elif st.session_state.pagina == 'meus_pets':
             if valor_seguro(pet, 'Status') == 'Perdido':
                 if st.button("🎉 MARCAR COMO ENCONTRADO", key=f"enc_{idx}", type="primary", width='stretch'):
                     with st.spinner("Atualizando..."):
-                        try:
-                            df.loc[idx, 'Status'] = 'Encontrado'
-                            conn.update(worksheet=ABA_PETS, data=df)
-                            st.cache_data.clear()
-                            modal_sucesso(f"Que notícia boa! {valor_seguro(pet, 'Nome_Pet')} marcado como localizado.") # Pop-up
-                        except: st.error("Erro ao atualizar.")
+                        df.loc[idx, 'Status'] = 'Encontrado'
+                        conn.update(worksheet=ABA_PETS, data=df)
+                        st.cache_data.clear()
+                        modal_sucesso(f"Pet localizado registrado com sucesso!")
     if meus.empty: st.info("Nenhuma publicação encontrada.")
 
-# --- PÁGINA: CADASTRO USER (Com Pop-up) ---
+# --- PÁGINA: CADASTRO USER ---
 elif st.session_state.pagina == 'cadastro_user':
     st.header("📝 Criar Conta")
     with st.form("cad"):
         n, t, u, p = st.text_input("Nome"), st.text_input("Whats"), st.text_input("User"), st.text_input("Senha", type="password")
         if st.form_submit_button("CADASTRAR"):
             if n and t and u and p:
-                with st.spinner("Criando conta..."):
-                    df_u = ler_planilha_direto(ABA_USUARIOS)
-                    novo = pd.DataFrame([{"Usuario":u,"Senha":p,"Telefone":t,"Nome":n}])
-                    conn.update(worksheet=ABA_USUARIOS, data=pd.concat([df_u, novo], ignore_index=True))
-                    st.cache_data.clear()
-                    modal_sucesso("Usuário registrado com sucesso! Faça o login na lateral.") # Pop-up
+                df_u = ler_planilha_direto(ABA_USUARIOS)
+                novo = pd.DataFrame([{"Usuario":u,"Senha":p,"Telefone":t,"Nome":n}])
+                conn.update(worksheet=ABA_USUARIOS, data=pd.concat([df_u, novo], ignore_index=True))
+                st.cache_data.clear()
+                modal_sucesso("Usuário registrado com sucesso!")
             else: st.error("Preencha todos os campos.")
