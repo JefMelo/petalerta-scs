@@ -142,12 +142,21 @@ if st.session_state.pagina == 'home':
     st.title("🐾 PetAlerta Santa Cruz do Sul")
     df = ler_planilha_direto(ABA_PETS)
 
-    # Função "Salva-Vidas" para garantir que o texto apareça no card
+    # Função super inteligente que ignora acentos, espaços e maiúsculas
     def valor_seguro(linha, coluna):
         v = str(linha.get(coluna, '')).strip()
-        if not v or v.lower() == 'nan' or v == 'None':
-            return '-'
-        return v
+        if v and v.lower() not in ['nan', 'none', '']:
+            return v
+        
+        # Se não achou exato, tenta ignorar acentos e letras "ç" da planilha
+        col_limpa = coluna.lower().replace('ç','c').replace('é','e').replace('í','i').replace('á','a')
+        for c_real in linha.index:
+            c_real_limpa = str(c_real).lower().replace('ç','c').replace('é','e').replace('í','i').replace('á','a').strip()
+            if c_real_limpa == col_limpa:
+                val = str(linha[c_real]).strip()
+                if val and val.lower() not in ['nan', 'none', '']:
+                    return val
+        return '-'
 
     m = folium.Map(location=SCS_COORDS, zoom_start=14)
     if not df.empty:
@@ -156,13 +165,15 @@ if st.session_state.pagina == 'home':
                 if valor_seguro(pet, 'Status') == 'Perdido':
                     esp = valor_seguro(pet, 'Especie').lower()
                     icon_c = 'orange' if 'cão' in esp or 'cao' in esp else ('blue' if 'gato' in esp else 'green')
-                    
                     nome_mapa = valor_seguro(pet, 'Nome_Pet')
                     nome_mapa = "Pet" if nome_mapa == '-' else nome_mapa
                     
-                    folium.Marker([float(pet.get('Lat', 0)), float(pet.get('Lng', 0))], 
-                                  popup=f"<b>{nome_mapa}</b>", 
-                                  icon=folium.Icon(color=icon_c, icon='paw', prefix='fa')).add_to(m)
+                    lat_v = valor_seguro(pet, 'Lat')
+                    lng_v = valor_seguro(pet, 'Lng')
+                    if lat_v != '-' and lng_v != '-':
+                        folium.Marker([float(lat_v), float(lng_v)], 
+                                      popup=f"<b>{nome_mapa}</b>", 
+                                      icon=folium.Icon(color=icon_c, icon='paw', prefix='fa')).add_to(m)
             except: continue
     st_folium(m, width=700, height=400)
 
@@ -175,7 +186,8 @@ if st.session_state.pagina == 'home':
         for _, pet in df.iterrows():
             if valor_seguro(pet, 'Status') == 'Perdido':
                 
-                foto_src = str(pet.get('Foto', '')).strip()
+                foto_src = valor_seguro(pet, 'Foto')
+                if foto_src == '-': foto_src = ""
                 nome_pet = valor_seguro(pet, 'Nome_Pet')
                 nome_pet = "Pet sem nome" if nome_pet == '-' else nome_pet
                 
@@ -200,15 +212,17 @@ if st.session_state.pagina == 'home':
                 
                 c1, c2 = st.columns(2)
                 with c1:
-                    if foto_src and st.button("🔍 Ver Foto Grande", key=f"z_{pet.get('ID', '0')}", use_container_width=True):
+                    if foto_src and st.button("🔍 Ver Foto", key=f"z_{valor_seguro(pet, 'ID')}", use_container_width=True):
                         st.session_state.pagina_detalhes = foto_src
                         st.rerun()
                 with c2:
                     if st.session_state.logado:
-                        tel_bruto = str(pet.get('Tel_Tutor', ''))
+                        tel_bruto = valor_seguro(pet, 'Tel_Tutor')
                         tel = "".join(filter(str.isdigit, tel_bruto))
-                        if tel:
+                        if len(tel) >= 10: # Se achou um número válido
                             st.link_button("🟢 WhatsApp", f"https://wa.me/55{tel}", use_container_width=True)
+                        else: # Se não tem telefone, mostra o botão inativo
+                            st.button("🚫 Sem Contato", disabled=True, key=f"w_{valor_seguro(pet, 'ID')}", use_container_width=True)
                 st.write("")
                 
 # --- PÁGINA: REGISTRO PET ---
