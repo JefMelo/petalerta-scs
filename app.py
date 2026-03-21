@@ -31,6 +31,17 @@ SCS_COORDS = [-29.7182, -52.4306]
 from streamlit_gsheets import GSheetsConnection
 conn = st.connection("gsheets", type=GSheetsConnection)
 
+# ==========================================
+# 📢 NOVOS: SISTEMA DE POP-UPS (MODAIS)
+# ==========================================
+
+@st.dialog("Sucesso!")
+def modal_sucesso(mensagem, proxima_pagina='home'):
+    st.write(f"### 🎉 {mensagem}")
+    if st.button("OK", width='stretch', type="primary"):
+        st.session_state.pagina = proxima_pagina
+        st.rerun()
+
 # --- FUNÇÕES GLOBAIS ---
 def ler_planilha_direto(nome_aba):
     try:
@@ -86,66 +97,16 @@ def obter_endereco(lat, lng):
     except: pass
     return "Localização no mapa"
 
-# --- CSS ADAPTÁVEL AO TEMA (Usa Variáveis Streamlit) ---
+# --- CSS ADAPTÁVEL AO TEMA ---
 st.markdown("""
 <style>
-    /* 1. Ajuste do contêiner nativo para não forçar cores fixas */
-    [data-testid="stVerticalBlockBorderWrapper"] > div {
-        border-radius: 12px !important;
-        padding: 10px !important;
-        margin-bottom: 15px !important;
-    }
-
-    /* 2. Classes para o HTML personalizado dentro do Card */
-    .html-card-wrapper {
-        display: flex; 
-        gap: 15px; 
-        align-items: flex-start; 
-        background-color: transparent !important; /* Herda do contêiner */
-        padding: 5px; 
-        border-radius: 10px;
-        color: var(--text-color) !important;
-        font-family: var(--font) !important;
-    }
-
-    /* Título do Card ultra colado e seguindo o tema */
-    .titulo-card {
-        color: var(--text-color) !important;
-        margin: 0px !important;
-        padding: 0px !important;
-        line-height: 1.0 !important;
-        font-size: 1.3rem !important;
-        font-weight: bold !important;
-    }
-    
-    /* Texto do corpo seguindo o tema */
-    .texto-card {
-        color: var(--text-color) !important;
-        margin: 2px 0px !important;
-        font-size: 0.95rem !important;
-        line-height: 1.2 !important;
-    }
-
-    /* Foto (mantém tamanho bom) */
-    .foto-card {
-        width: 120px !important;
-        height: 120px !important;
-        object-fit: cover !important;
-        border-radius: 10px !important;
-        border: 1px solid var(--secondary-background-color) !important;
-    }
-    
-    /* MODIFICAÇÃO SOLICITADA: Cor fixa (Laranja/Vermelho) para alerta de avistamento */
-    .avistamento-alerta {
-        color: #FF4B4B !important; /* Vermelho vibrante (padrão Streamlit) fixo */
-        font-weight: bold !important;
-    }
-    
-    /* Hall da Fama - Título Verde adaptável */
-    .titulo-hall {
-        color: #2ECC71 !important; 
-        margin:0;
-    }
+    [data-testid="stVerticalBlockBorderWrapper"] > div { border-radius: 12px !important; padding: 10px !important; margin-bottom: 15px !important; }
+    .html-card-wrapper { display: flex; gap: 15px; align-items: flex-start; background-color: transparent !important; padding: 5px; border-radius: 10px; color: var(--text-color) !important; font-family: var(--font) !important; }
+    .titulo-card { color: var(--text-color) !important; margin: 0px !important; padding: 0px !important; line-height: 1.0 !important; font-size: 1.3rem !important; font-weight: bold !important; }
+    .texto-card { color: var(--text-color) !important; margin: 2px 0px !important; font-size: 0.95rem !important; line-height: 1.2 !important; }
+    .foto-card { width: 120px !important; height: 120px !important; object-fit: cover !important; border-radius: 10px !important; border: 1px solid var(--secondary-background-color) !important; }
+    .avistamento-alerta { color: #FF4B4B !important; font-weight: bold !important; }
+    .titulo-hall { color: #2ECC71 !important; margin:0; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -220,14 +181,10 @@ if st.session_state.pagina == 'home':
     if not df.empty:
         for _, pet in df.iterrows():
             if valor_seguro(pet, 'Status') == 'Perdido':
-                
-                # --- INÍCIO DO CARD AGRUPADO (Usando contêiner nativo para o tema) ---
                 with st.container(border=True):
                     pet_id = str(valor_seguro(pet, 'ID')).strip()
                     foto_src = valor_seguro(pet, 'Foto')
                     nome_pet = valor_seguro(pet, 'Nome_Pet')
-                    if nome_pet == '-': nome_pet = "Pet sem nome"
-                    
                     loc_texto = f"📍 <b>Sumiu em:</b> {valor_seguro(pet, 'Local_Desaparecimento')} ({valor_seguro(pet, 'Data')})"
                     tem_avistamento = False
                     if not df_avis.empty:
@@ -237,7 +194,6 @@ if st.session_state.pagina == 'home':
                             ultimo_avis = avis_deste_pet.iloc[-1]
                             loc_texto = f"<span class='avistamento-alerta'>🚨 Último avistamento:</span> {ultimo_avis.get('Bairro', '')} ({ultimo_avis.get('Data_Hora', '')})"
                     
-                    # HTML COM CORES ADAPTÁVEIS (Classes CSS definidas no topo)
                     st.markdown(f'''
                         <div class="html-card-wrapper">
                             <img src="{foto_src}" class="foto-card" onerror="this.style.display='none'">
@@ -251,7 +207,6 @@ if st.session_state.pagina == 'home':
                         </div>
                     ''', unsafe_allow_html=True)
                     
-                    # BOTÕES DENTRO DO CARD (Usando widgets nativos adaptáveis)
                     if st.session_state.logado:
                         c1, c2, c3, c4 = st.columns(4)
                         with c1:
@@ -283,7 +238,7 @@ if st.session_state.pagina == 'home':
                         with c2: st.button("🔒 Login p/ Contato", disabled=True, key=f"log_{pet_id}", width='stretch')
                 st.write("") 
 
-# --- PÁGINA: REGISTRAR AVISTAMENTO ---
+# --- PÁGINA: NOVO AVISTAMENTO (Com Pop-up) ---
 elif st.session_state.pagina == 'novo_avistamento':
     pet = st.session_state.pet_foco
     st.header(f"👁️ Vi o pet: {valor_seguro(pet, 'Nome_Pet')}")
@@ -295,7 +250,7 @@ elif st.session_state.pagina == 'novo_avistamento':
         st.session_state.temp_lat, st.session_state.temp_lng = map_res["last_clicked"]["lat"], map_res["last_clicked"]["lng"]
         st.rerun()
     with st.form("f_avis"):
-        bairro_avi = st.text_input("Local (Ponto de Referência)")
+        bairro_avi = st.text_input("Local (Referência)")
         obs_avi = st.text_area("Observações")
         if st.form_submit_button("📍 SALVAR"):
             if st.session_state.temp_lat:
@@ -311,25 +266,8 @@ elif st.session_state.pagina == 'novo_avistamento':
                     conn.update(worksheet=ABA_AVISTAMENTOS, data=pd.concat([df_av, pd.DataFrame([novo_avi])], ignore_index=True))
                     st.cache_data.clear()
                     st.session_state.temp_lat = None
-                    ir_para('home')
-
-# --- PÁGINA: ROTA ---
-elif st.session_state.pagina == 'historico_pet':
-    pet = st.session_state.pet_foco
-    st.header(f"🗺️ Rota: {valor_seguro(pet, 'Nome_Pet')}")
-    if st.button("⬅️ Voltar", width='stretch'): ir_para('home')
-    df_avis = ler_planilha_direto(ABA_AVISTAMENTOS)
-    avis_deste = df_avis[df_avis['ID_Pet'] == str(valor_seguro(pet, 'ID')).strip()]
-    if not avis_deste.empty:
-        l_o, n_o = valor_seguro(pet, 'Lat'), valor_seguro(pet, 'Lng')
-        m_h = folium.Map(location=[float(l_o), float(n_o)], zoom_start=14)
-        pontos = [[float(l_o), float(n_o)]]
-        folium.Marker([float(l_o), float(n_o)], icon=folium.Icon(color='black')).add_to(m_h)
-        for _, av in avis_deste.iterrows():
-            pontos.append([float(av['Lat']), float(av['Lng'])])
-            folium.Marker([float(av['Lat']), float(av['Lng'])], icon=folium.Icon(color='red')).add_to(m_h)
-        folium.PolyLine(pontos, color="red").add_to(m_h)
-        st_folium(m_h, width='stretch', height=400)
+                    modal_sucesso("Avistamento registrado com sucesso!") # Pop-up
+            else: st.error("Clique no mapa.")
 
 # --- PÁGINA: HALL DA FAMA ---
 elif st.session_state.pagina == 'hall_fama':
@@ -354,7 +292,7 @@ elif st.session_state.pagina == 'hall_fama':
                         st.rerun()
                 st.write("")
 
-# --- PÁGINA: REGISTRO PET ---
+# --- PÁGINA: REGISTRO PET (Com Pop-up) ---
 elif st.session_state.pagina == 'perdi_pet':
     st.header("🚨 Registrar Pet Perdido")
     m_reg = folium.Map(location=SCS_COORDS, zoom_start=15)
@@ -366,26 +304,29 @@ elif st.session_state.pagina == 'perdi_pet':
         n_p = st.text_input("Nome do Pet*")
         esp = st.selectbox("Espécie", ["Cão", "Gato", "Outro"])
         raca, cor, caract = st.text_input("Raça"), st.text_input("Cor"), st.text_area("Características")
-        bairro = st.text_input("Bairro/Referência")
+        bairro = st.text_input("Referência")
         foto = st.file_uploader("Foto")
         if st.form_submit_button("🚀 PUBLICAR"):
             if n_p and st.session_state.temp_lat:
-                url_f = fazer_upload_imgbb(foto)
-                end_r = obter_endereco(st.session_state.temp_lat, st.session_state.temp_lng)
-                u = st.session_state.user
-                d = {
-                    "ID": str(int(datetime.now().timestamp())), "Status": "Perdido", "Data": datetime.now().strftime('%d/%m/%Y'),
-                    "Especie": esp, "Nome_Pet": n_p, "Raca": raca, "Cor": cor, "Caracteristicas": caract, 
-                    "Local_Desaparecimento": f"{end_r} - {bairro}" if bairro else end_r,
-                    "Lat": str(st.session_state.temp_lat), "Lng": str(st.session_state.temp_lng), "Foto": url_f,
-                    "User_Vinculo": u.get('Usuario', ''), "Tel_Tutor": u.get('Telefone', '')
-                }
-                df_p = ler_planilha_direto(ABA_PETS)
-                conn.update(worksheet=ABA_PETS, data=pd.concat([df_p, pd.DataFrame([d])], ignore_index=True))
-                st.cache_data.clear()
-                ir_para('home')
+                with st.spinner("Salvando..."):
+                    url_f = fazer_upload_imgbb(foto)
+                    end_r = obter_endereco(st.session_state.temp_lat, st.session_state.temp_lng)
+                    u = st.session_state.user
+                    d = {
+                        "ID": str(int(datetime.now().timestamp())), "Status": "Perdido", "Data": datetime.now().strftime('%d/%m/%Y'),
+                        "Especie": esp, "Nome_Pet": n_p, "Raca": raca, "Cor": cor, "Caracteristicas": caract, 
+                        "Local_Desaparecimento": f"{end_r} - {bairro}" if bairro else end_r,
+                        "Lat": str(st.session_state.temp_lat), "Lng": str(st.session_state.temp_lng), "Foto": url_f,
+                        "User_Vinculo": u.get('Usuario', ''), "Tel_Tutor": u.get('Telefone', '')
+                    }
+                    df_p = ler_planilha_direto(ABA_PETS)
+                    conn.update(worksheet=ABA_PETS, data=pd.concat([df_p, pd.DataFrame([d])], ignore_index=True))
+                    st.cache_data.clear()
+                    st.session_state.temp_lat = None
+                    modal_sucesso("Pet perdido registrado com sucesso!") # Pop-up
+            else: st.error("Preencha o nome e marque no mapa.")
 
-# --- PÁGINA: MEUS PETS ---
+# --- PÁGINA: MEUS PETS (Com Pop-up) ---
 elif st.session_state.pagina == 'meus_pets':
     st.header("🐾 Minhas Publicações")
     df = ler_planilha_direto(ABA_PETS)
@@ -396,19 +337,26 @@ elif st.session_state.pagina == 'meus_pets':
             st.subheader(valor_seguro(pet, 'Nome_Pet'))
             if valor_seguro(pet, 'Status') == 'Perdido':
                 if st.button("🎉 MARCAR COMO ENCONTRADO", key=f"enc_{idx}", type="primary", width='stretch'):
-                    df.loc[idx, 'Status'] = 'Encontrado'
-                    conn.update(worksheet=ABA_PETS, data=df)
-                    st.cache_data.clear()
-                    st.rerun()
+                    with st.spinner("Atualizando..."):
+                        try:
+                            df.loc[idx, 'Status'] = 'Encontrado'
+                            conn.update(worksheet=ABA_PETS, data=df)
+                            st.cache_data.clear()
+                            modal_sucesso(f"Que notícia boa! {valor_seguro(pet, 'Nome_Pet')} marcado como localizado.") # Pop-up
+                        except: st.error("Erro ao atualizar.")
+    if meus.empty: st.info("Nenhuma publicação encontrada.")
 
-# --- PÁGINA: CADASTRO USER ---
+# --- PÁGINA: CADASTRO USER (Com Pop-up) ---
 elif st.session_state.pagina == 'cadastro_user':
     st.header("📝 Criar Conta")
     with st.form("cad"):
         n, t, u, p = st.text_input("Nome"), st.text_input("Whats"), st.text_input("User"), st.text_input("Senha", type="password")
         if st.form_submit_button("CADASTRAR"):
-            df_u = ler_planilha_direto(ABA_USUARIOS)
-            novo = pd.DataFrame([{"Usuario":u,"Senha":p,"Telefone":t,"Nome":n}])
-            conn.update(worksheet=ABA_USUARIOS, data=pd.concat([df_u, novo], ignore_index=True))
-            st.cache_data.clear()
-            ir_para('home')
+            if n and t and u and p:
+                with st.spinner("Criando conta..."):
+                    df_u = ler_planilha_direto(ABA_USUARIOS)
+                    novo = pd.DataFrame([{"Usuario":u,"Senha":p,"Telefone":t,"Nome":n}])
+                    conn.update(worksheet=ABA_USUARIOS, data=pd.concat([df_u, novo], ignore_index=True))
+                    st.cache_data.clear()
+                    modal_sucesso("Usuário registrado com sucesso! Faça o login na lateral.") # Pop-up
+            else: st.error("Preencha todos os campos.")
