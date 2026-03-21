@@ -29,11 +29,13 @@ SCS_COORDS = [-29.7182, -52.4306]
 from streamlit_gsheets import GSheetsConnection
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# --- FUNÇÃO DE LEITURA ---
+# --- FUNÇÃO DE LEITURA (COM PROTEÇÃO CONTRA ESPAÇOS INVISÍVEIS) ---
 def ler_planilha_direto(nome_aba):
     try:
         df = conn.read(worksheet=nome_aba, ttl=0)
         df = df.dropna(how='all')
+        # A mágica aqui: remove espaços no início e fim dos nomes das colunas!
+        df.columns = df.columns.str.strip()
         return df.fillna("").astype(str)
     except Exception as e:
         st.error(f"Erro ao conectar com a planilha: {e}")
@@ -74,6 +76,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# --- FUNÇÃO DE NAVEGAÇÃO SEGURA ---
 def ir_para(p):
     st.session_state.pagina = p
     st.session_state.pagina_detalhes = None
@@ -108,10 +111,14 @@ with st.sidebar:
                 st.session_state.logado, st.session_state.user = True, user_found
                 st.rerun()
             else: st.error("Login inválido")
-        st.button("Criar Conta", on_click=lambda: ir_para('cadastro_user'), use_container_width=True)
+        # Correção do Callback de botão
+        if st.button("Criar Conta", use_container_width=True): 
+            ir_para('cadastro_user')
     else:
         st.success(f"Olá, {st.session_state.user.get('Nome', 'Usuário').split()[0]}")
-        st.button("🏠 Home", on_click=lambda: ir_para('home'), use_container_width=True)
+        # Correção do Callback de botão
+        if st.button("🏠 Home", use_container_width=True): 
+            ir_para('home')
         if st.button("🚪 Sair", use_container_width=True):
             st.session_state.logado = False
             ir_para('home')
@@ -125,8 +132,7 @@ if st.session_state.pagina == 'home':
     if not df.empty:
         for _, pet in df.iterrows():
             try:
-                # Agora filtramos estritamente pela coluna 'Status'
-                if pet.get('Status', '') == 'Perdido':
+                if pet.get('Status', '').strip() == 'Perdido':
                     esp = str(pet.get('Especie', '')).lower()
                     icon_c = 'orange' if 'cão' in esp or 'cao' in esp else ('blue' if 'gato' in esp else 'green')
                     folium.Marker([float(pet.get('Lat', 0)), float(pet.get('Lng', 0))], 
@@ -136,13 +142,14 @@ if st.session_state.pagina == 'home':
     st_folium(m, width=700, height=400)
 
     if st.session_state.logado:
-        st.button("🚨 REGISTRAR PET PERDIDO", on_click=lambda: ir_para('perdi_pet'), type="primary", use_container_width=True)
+        # Correção do Callback de botão
+        if st.button("🚨 REGISTRAR PET PERDIDO", type="primary", use_container_width=True):
+            ir_para('perdi_pet')
 
     st.subheader("🔍 Mural de Desaparecidos")
     if not df.empty:
         for _, pet in df.iterrows():
-            # Filtro pela coluna 'Status'
-            if pet.get('Status', '') == 'Perdido':
+            if pet.get('Status', '').strip() == 'Perdido':
                 foto_src = str(pet.get('Foto', ''))
                 
                 st.markdown(f'''
@@ -200,10 +207,8 @@ elif st.session_state.pagina == 'perdi_pet':
                 with st.spinner("Enviando foto e salvando dados..."):
                     
                     url_foto = fazer_upload_imgbb(foto) if foto else ""
-                    
                     u = st.session_state.user
                     
-                    # DICIONÁRIO ESTRITAMENTE FIXO CONFORME SOLICITADO
                     dados_novos = {
                         "ID": str(int(datetime.now().timestamp())),
                         "Status": "Perdido",
