@@ -14,7 +14,7 @@ SHEET_ID = "1RyredbJZsCPQvBxXqYmX1vBZJRgYToffm5agPxDBDRk"
 IMGBB_API_KEY = "54494e69c28056a133620f4e8be0ab72"
 ABA_USUARIOS = "Usuarios"
 ABA_PETS = "Dados" 
-ABA_AVISTAMENTOS = "Avistamentos" # <--- NOVA ABA!
+ABA_AVISTAMENTOS = "Avistamentos"
 
 # --- INICIALIZAÇÃO DE ESTADOS ---
 if 'pagina' not in st.session_state: st.session_state.pagina = 'home'
@@ -23,7 +23,7 @@ if 'user' not in st.session_state: st.session_state.user = {}
 if 'temp_lat' not in st.session_state: st.session_state.temp_lat = None
 if 'temp_lng' not in st.session_state: st.session_state.temp_lng = None
 if 'pagina_detalhes' not in st.session_state: st.session_state.pagina_detalhes = None
-if 'pet_foco' not in st.session_state: st.session_state.pet_foco = None # Guarda qual pet estamos vendo/avistando
+if 'pet_foco' not in st.session_state: st.session_state.pet_foco = None
 
 SCS_COORDS = [-29.7182, -52.4306]
 
@@ -38,12 +38,9 @@ def ler_planilha_direto(nome_aba):
         df = df.dropna(how='all')
         df.columns = df.columns.str.strip()
         df = df.fillna("")
-        
         for col in df.columns:
             if col not in ['Lat', 'Lng']:
-                df[col] = df[col].astype(str).str.replace(r'\.0$', '', regex=True)
-                df[col] = df[col].replace('nan', '')
-                
+                df[col] = df[col].astype(str).str.replace(r'\.0$', '', regex=True).replace('nan', '')
         return df
     except Exception as e:
         st.error(f"Erro ao conectar com a planilha: {e}")
@@ -57,27 +54,43 @@ def fazer_upload_imgbb(arquivo):
             payload = {"image": img_b64}
             response = requests.post(url, data=payload)
             data = response.json()
-            if data.get("status") == 200:
-                return data["data"]["url"]
-            else:
-                st.error(f"Erro no ImgBB: {data.get('error', {}).get('message', '')}")
-                return ""
+            if data.get("status") == 200: return data["data"]["url"]
         except Exception as e:
             st.error(f"Falha de conexão com ImgBB: {e}")
-            return ""
     return ""
 
 def valor_seguro(linha, coluna):
     pet_dict = dict(linha)
     col_buscada = coluna.lower().replace('ç','c').replace('é','e').replace('í','i').replace('á','a').replace('_', '').replace(' ', '').replace('\n', '').replace('\r', '')
-    
     for chave, valor in pet_dict.items():
         chave_limpa = str(chave).lower().replace('ç','c').replace('é','e').replace('í','i').replace('á','a').replace('_', '').replace(' ', '').replace('\n', '').replace('\r', '').strip()
         if chave_limpa == col_buscada:
             v = str(valor).strip()
-            if v and v.lower() not in ['nan', 'none', '']:
-                return v
+            if v and v.lower() not in ['nan', 'none', '']: return v
     return '-'
+
+# --- NOVA FUNÇÃO: GEOLOCALIZAÇÃO REVERSA ---
+# Transforma as coordenadas do mapa em endereço de rua real!
+def obter_endereco(lat, lng):
+    try:
+        url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lng}&zoom=16"
+        headers = {'User-Agent': 'PetAlertaSCS_App/1.0'}
+        resp = requests.get(url, headers=headers, timeout=4)
+        if resp.status_code == 200:
+            dados = resp.json()
+            end = dados.get('address', {})
+            rua = end.get('road', '')
+            bairro = end.get('suburb', end.get('neighbourhood', ''))
+            
+            if rua and bairro: return f"{rua}, {bairro}"
+            if rua: return rua
+            if bairro: return bairro
+            
+            display = dados.get('display_name', '')
+            return display.split(',')[0] if display else "Localização marcada no mapa"
+    except:
+        pass
+    return "Localização marcada no mapa"
 
 # --- INJEÇÃO DE CSS ---
 st.markdown("""
@@ -116,20 +129,17 @@ with st.sidebar:
     if st.button("🏆 Hall da Fama", width='stretch'): ir_para('hall_fama')
     
     st.divider()
-    
     if not st.session_state.logado:
         st.subheader("Entrar")
         u_l = st.text_input("Usuário")
         p_l = st.text_input("Senha", type="password")
         if st.button("Entrar", width='stretch', type="primary"):
             df_u = ler_planilha_direto(ABA_USUARIOS)
-            u_clean = u_l.strip().lower()
-            p_clean = p_l.strip()
             user_found = None
             if not df_u.empty:
                 for _, r in df_u.iterrows():
                     db_p = str(r.get('Senha', '')).replace('.0', '')
-                    if str(r.get('Usuario', '')).lower() == u_clean and db_p == p_clean:
+                    if str(r.get('Usuario', '')).lower() == u_l.strip().lower() and db_p == p_l.strip():
                         user_found = r.to_dict()
                         break
             if user_found:
@@ -153,7 +163,11 @@ if st.session_state.pagina == 'home':
     st.title("🐾 PetAlerta Santa Cruz do Sul")
     
     df = ler_planilha_direto(ABA_PETS)
-    df_avis = ler_planilha_direto(ABA_AVISTAMENTOS) # Lê a nova aba
+    df_avis = ler_planilha_direto(ABA_AVISTAMENTOS)
+
+    # Padroniza a coluna de IDs na aba avistamentos para evitar erros de leitura
+    if not df_avis.empty and 'ID_Pet' in df_avis.columns:
+        df_avis['ID_Pet'] = df_avis['ID_Pet'].astype(str).str.strip()
 
     m = folium.Map(location=SCS_COORDS, zoom_start=14)
     if not df.empty:
@@ -165,8 +179,7 @@ if st.session_state.pagina == 'home':
                     nome_mapa = valor_seguro(pet, 'Nome_Pet')
                     nome_mapa = "Pet" if nome_mapa == '-' else nome_mapa
                     
-                    # Checa se tem avistamento para esse pet
-                    pet_id = valor_seguro(pet, 'ID')
+                    pet_id = str(valor_seguro(pet, 'ID')).strip()
                     lat_v = valor_seguro(pet, 'Lat')
                     lng_v = valor_seguro(pet, 'Lng')
                     local_mapa = valor_seguro(pet, 'Local_Desaparecimento')
@@ -178,7 +191,7 @@ if st.session_state.pagina == 'home':
                             lat_v = ultimo_avis['Lat']
                             lng_v = ultimo_avis['Lng']
                             local_mapa = f"Último avistamento: {ultimo_avis['Bairro']}"
-                            icon_c = 'red' # Fica vermelho se foi avistado recentemente!
+                            icon_c = 'red'
 
                     if lat_v != '-' and lng_v != '-':
                         folium.Marker([float(lat_v), float(lng_v)], 
@@ -197,22 +210,23 @@ if st.session_state.pagina == 'home':
         for _, pet in df.iterrows():
             if valor_seguro(pet, 'Status') == 'Perdido':
                 tem_perdido = True
-                pet_id = valor_seguro(pet, 'ID')
+                pet_id = str(valor_seguro(pet, 'ID')).strip()
                 foto_src = valor_seguro(pet, 'Foto')
                 if foto_src == '-': foto_src = ""
                 nome_pet = valor_seguro(pet, 'Nome_Pet')
                 nome_pet = "Pet sem nome" if nome_pet == '-' else nome_pet
                 
-                # --- LÓGICA DE EXIBIÇÃO DO RODAPÉ (Desaparecimento vs Avistamento) ---
+                # Texto original do desaparecimento
                 rodape_texto = f"📍 <b>Sumiu em:</b> {valor_seguro(pet, 'Local_Desaparecimento')} (Data: {valor_seguro(pet, 'Data')})"
                 tem_avistamento = False
                 
+                # Sobrescreve pelo avistamento se existir
                 if not df_avis.empty:
                     avis_deste_pet = df_avis[df_avis['ID_Pet'] == pet_id]
                     if not avis_deste_pet.empty:
                         tem_avistamento = True
                         ultimo_avis = avis_deste_pet.iloc[-1]
-                        rodape_texto = f"🚨 <span class='avistamento-destaque'>Último avistamento:</span> {ultimo_avis['Bairro']} (Em {ultimo_avis['Data_Hora']})"
+                        rodape_texto = f"🚨 <span class='avistamento-destaque'>Último avistamento:</span> {ultimo_avis.get('Bairro', '')} (Em {ultimo_avis.get('Data_Hora', '')})"
                 
                 st.markdown(f'''
                     <div class="pet-card">
@@ -229,14 +243,11 @@ if st.session_state.pagina == 'home':
                     </div>
                 ''', unsafe_allow_html=True)
                 
-                # Botoes do Card
                 col_botoes = st.columns(4 if st.session_state.logado else 2)
-                
                 with col_botoes[0]:
                     if foto_src and st.button("🔍 Ver Foto", key=f"zf_{pet_id}", width='stretch'):
                         st.session_state.pagina_detalhes = foto_src
                         st.rerun()
-                
                 with col_botoes[1]:
                     tel_bruto = valor_seguro(pet, 'Tel_Tutor')
                     if tel_bruto == '-': tel_bruto = valor_seguro(pet, 'Telefone_Tutor')
@@ -257,10 +268,9 @@ if st.session_state.pagina == 'home':
                                 st.session_state.pet_foco = dict(pet)
                                 ir_para('historico_pet')
                         else:
-                            st.button("🗺️ Rota", disabled=True, key=f"rota_dis_{pet_id}", help="Ainda não há avistamentos", width='stretch')
+                            st.button("🗺️ Rota", disabled=True, key=f"rota_dis_{pet_id}", help="Sem avistamentos ainda", width='stretch')
                 st.write("")
-        if not tem_perdido:
-            st.info("Nenhum pet desaparecido no momento! 🎉")
+        if not tem_perdido: st.info("Nenhum pet desaparecido no momento! 🎉")
 
 # --- PÁGINA: REGISTRAR AVISTAMENTO ---
 elif st.session_state.pagina == 'novo_avistamento':
@@ -281,18 +291,24 @@ elif st.session_state.pagina == 'novo_avistamento':
         st.rerun()
 
     with st.form("f_avis"):
-        bairro_avi = st.text_input("Bairro ou Ponto de Referência*")
+        # Agora é opcional, pois o app acha a rua sozinho!
+        bairro_avi = st.text_input("Complemento do Local (Opcional)")
         obs_avi = st.text_area("Observações (Ex: Estava mancando, correu para um beco...)")
         
         if st.form_submit_button("📍 SALVAR AVISTAMENTO", type="primary"):
-            if bairro_avi and st.session_state.temp_lat:
-                with st.spinner("Salvando avistamento..."):
+            if st.session_state.temp_lat:
+                with st.spinner("Buscando endereço da rua e salvando avistamento..."):
+                    
+                    # Mágica de conversão de coordenada em Rua
+                    endereco_rua = obter_endereco(st.session_state.temp_lat, st.session_state.temp_lng)
+                    local_final = f"{endereco_rua} - {bairro_avi}" if bairro_avi else endereco_rua
+                    
                     novo_avi = {
                         "ID_Pet": valor_seguro(pet, 'ID'),
                         "Data_Hora": datetime.now().strftime('%d/%m/%Y %H:%M'),
                         "Lat": str(st.session_state.temp_lat),
                         "Lng": str(st.session_state.temp_lng),
-                        "Bairro": bairro_avi,
+                        "Bairro": local_final,
                         "Observacao": obs_avi,
                         "Usuario": st.session_state.user.get('Usuario', '')
                     }
@@ -300,15 +316,14 @@ elif st.session_state.pagina == 'novo_avistamento':
                         df_av = ler_planilha_direto(ABA_AVISTAMENTOS)
                         df_final_av = pd.concat([df_av, pd.DataFrame([novo_avi])], ignore_index=True)
                         conn.update(worksheet=ABA_AVISTAMENTOS, data=df_final_av)
-                        
                         st.cache_data.clear()
                         st.session_state.temp_lat = None
-                        st.success("✅ Avistamento registrado! Obrigado por ajudar.")
+                        st.success("✅ Avistamento registrado! O endereço foi capturado automaticamente.")
                         ir_para('home')
                     except Exception as e:
                         st.error(f"Erro ao salvar: {e}")
             else:
-                st.error("Por favor, preencha o Bairro e clique no mapa.")
+                st.error("Por favor, clique no mapa para marcar o local.")
 
 # --- PÁGINA: HISTÓRICO/ROTA DO PET ---
 elif st.session_state.pagina == 'historico_pet':
@@ -317,48 +332,36 @@ elif st.session_state.pagina == 'historico_pet':
     if st.button("⬅️ Voltar ao Mural", width='stretch'): ir_para('home')
 
     df_avis = ler_planilha_direto(ABA_AVISTAMENTOS)
-    avis_deste_pet = df_avis[df_avis['ID_Pet'] == valor_seguro(pet, 'ID')] if not df_avis.empty else pd.DataFrame()
+    if not df_avis.empty and 'ID_Pet' in df_avis.columns:
+        df_avis['ID_Pet'] = df_avis['ID_Pet'].astype(str).str.strip()
+    
+    avis_deste_pet = df_avis[df_avis['ID_Pet'] == str(valor_seguro(pet, 'ID')).strip()] if not df_avis.empty else pd.DataFrame()
 
     if not avis_deste_pet.empty:
-        # Pega a localização original
         lat_orig, lng_orig = valor_seguro(pet, 'Lat'), valor_seguro(pet, 'Lng')
-        
         m_hist = folium.Map(location=[float(lat_orig), float(lng_orig)], zoom_start=14)
-        pontos_rota = []
+        pontos_rota = [[float(lat_orig), float(lng_orig)]]
         
-        # Ponto Inicial (Onde sumiu)
-        folium.Marker([float(lat_orig), float(lng_orig)], 
-                      popup="<b>Ponto Zero</b><br>Onde desapareceu", 
-                      icon=folium.Icon(color='black', icon='home', prefix='fa')).add_to(m_hist)
-        pontos_rota.append([float(lat_orig), float(lng_orig)])
+        folium.Marker([float(lat_orig), float(lng_orig)], popup="<b>Onde desapareceu</b>", icon=folium.Icon(color='black', icon='home', prefix='fa')).add_to(m_hist)
         
-        # Desenha os avistamentos
         for i, av in avis_deste_pet.iterrows():
             lat_a, lng_a = float(av['Lat']), float(av['Lng'])
             pontos_rota.append([lat_a, lng_a])
+            folium.Marker([lat_a, lng_a], popup=f"<b>Avistamento</b><br>{av['Bairro']}<br>{av['Data_Hora']}<br><i>{av['Observacao']}</i>", icon=folium.Icon(color='red', icon='eye', prefix='fa')).add_to(m_hist)
             
-            folium.Marker([lat_a, lng_a], 
-                          popup=f"<b>Avistamento</b><br>{av['Bairro']}<br>{av['Data_Hora']}<br><i>{av['Observacao']}</i>", 
-                          icon=folium.Icon(color='red', icon='eye', prefix='fa')).add_to(m_hist)
-            
-        # Traça a linha ligando os pontos
         folium.PolyLine(pontos_rota, color="red", weight=2.5, opacity=0.8).add_to(m_hist)
-        
         st_folium(m_hist, width='stretch', height=400)
         
         st.subheader("Registros:")
         for _, av in avis_deste_pet.iterrows():
             st.info(f"📍 **{av['Data_Hora']} - {av['Bairro']}**\n\n_{av['Observacao']}_ (Relatado por: {av['Usuario']})")
-    else:
-        st.warning("Nenhum histórico encontrado para este pet.")
+    else: st.warning("Nenhum histórico encontrado.")
 
 # --- PÁGINA: HALL DA FAMA ---
 elif st.session_state.pagina == 'hall_fama':
     st.title("🏆 Hall da Fama")
     st.write("Aqui celebramos os finais felizes! Estes pets já voltaram para suas famílias em Santa Cruz do Sul. ❤️")
-    
     df = ler_planilha_direto(ABA_PETS)
-    
     if not df.empty:
         tem_encontrado = False
         for _, pet in df.iterrows():
@@ -366,12 +369,9 @@ elif st.session_state.pagina == 'hall_fama':
                 tem_encontrado = True
                 foto_src = valor_seguro(pet, 'Foto')
                 if foto_src == '-': foto_src = ""
-                nome_pet = valor_seguro(pet, 'Nome_Pet')
-                nome_pet = "Pet sem nome" if nome_pet == '-' else nome_pet
-                
                 st.markdown(f'''
                     <div class="pet-card-encontrado">
-                        <div class="pet-card-header-encontrado"><h3>🎉 {nome_pet}</h3></div>
+                        <div class="pet-card-header-encontrado"><h3>🎉 {valor_seguro(pet, 'Nome_Pet')}</h3></div>
                         <div class="pet-card-body">
                             <img src="{foto_src}" class="pet-card-foto" onerror="this.style.display='none'">
                             <div class="pet-card-info">
@@ -381,7 +381,6 @@ elif st.session_state.pagina == 'hall_fama':
                         </div>
                     </div>
                 ''', unsafe_allow_html=True)
-                
                 if foto_src and st.button("🔍 Ver Foto", key=f"z_{valor_seguro(pet, 'ID')}", width='stretch'):
                     st.session_state.pagina_detalhes = foto_src
                     st.rerun()
@@ -408,20 +407,26 @@ elif st.session_state.pagina == 'perdi_pet':
         esp = st.selectbox("Espécie", ["Cão", "Gato", "Outro"])
         raca, cor = st.text_input("Raça"), st.text_input("Cor Principal")
         caract = st.text_area("Características marcantes")
-        bairro = st.text_input("Bairro/Local aproximado")
+        
+        # Agora é opcional, o app pega a rua sozinho!
+        bairro = st.text_input("Complemento do Local (Opcional)")
         foto = st.file_uploader("Foto do Pet")
         
         if st.form_submit_button("🚀 PUBLICAR"):
             if nome_p and st.session_state.temp_lat:
-                with st.spinner("Enviando foto e salvando dados..."):
+                with st.spinner("Buscando endereço no mapa e salvando dados..."):
                     url_foto = fazer_upload_imgbb(foto) if foto else ""
-                    u = st.session_state.user
                     
+                    # Mágica de conversão de coordenada em Rua para novos pets
+                    endereco_rua = obter_endereco(st.session_state.temp_lat, st.session_state.temp_lng)
+                    local_final = f"{endereco_rua} - {bairro}" if bairro else endereco_rua
+                    
+                    u = st.session_state.user
                     dados_novos = {
                         "ID": str(int(datetime.now().timestamp())),
                         "Status": "Perdido", "Data": datetime.now().strftime('%d/%m/%Y'),
                         "Especie": esp, "Nome_Pet": nome_p, "Raca": raca, "Cor": cor,
-                        "Caracteristicas": caract, "Local_Desaparecimento": bairro,
+                        "Caracteristicas": caract, "Local_Desaparecimento": local_final,
                         "Lat": str(st.session_state.temp_lat), "Lng": str(st.session_state.temp_lng),
                         "Foto": url_foto, "Nome_Tutor": u.get('Nome', ''), "Tel_Tutor": u.get('Telefone', ''),
                         "User_Vinculo": u.get('Usuario', ''), "Nascimento_Tutor": u.get('Nascimento', ''),
@@ -438,13 +443,12 @@ elif st.session_state.pagina == 'perdi_pet':
                     except Exception as e: st.error(f"Erro ao salvar: {e}")
             else: st.error("Preencha o nome e marque o local no mapa.")
 
-# --- PÁGINA: MEUS PETS (GERENCIAMENTO) ---
+# --- PÁGINA: MEUS PETS ---
 elif st.session_state.pagina == 'meus_pets':
     st.header("🐾 Meus Pets Cadastrados")
     if not st.session_state.logado:
         st.warning("Você precisa estar logado para ver seus pets.")
         st.stop()
-        
     df = ler_planilha_direto(ABA_PETS)
     if df.empty:
         st.info("O sistema ainda não possui nenhum pet cadastrado.")
@@ -452,17 +456,15 @@ elif st.session_state.pagina == 'meus_pets':
         usuario_logado = str(st.session_state.user.get('Usuario', '')).strip().lower()
         def eh_meu_pet(linha):
             return str(linha.get('User_Vinculo', '')).strip().lower() == usuario_logado
-            
         meus_pets = df[df.apply(eh_meu_pet, axis=1)]
         if meus_pets.empty:
             st.info("Você ainda não cadastrou nenhum pet desaparecido.")
         else:
             for idx, pet in meus_pets.iterrows():
-                pet_id, nome_pet = valor_seguro(pet, 'ID'), valor_seguro(pet, 'Nome_Pet')
+                pet_id, nome_pet = str(valor_seguro(pet, 'ID')).strip(), valor_seguro(pet, 'Nome_Pet')
                 if nome_pet == '-': nome_pet = "Pet sem nome"
                 status_atual, foto_src = valor_seguro(pet, 'Status'), valor_seguro(pet, 'Foto')
                 cor = "green" if status_atual == "Encontrado" else "red"
-                
                 with st.container(border=True):
                     c1, c2 = st.columns([1, 3])
                     with c1:
@@ -474,14 +476,14 @@ elif st.session_state.pagina == 'meus_pets':
                         st.write(f"**Registrado em:** {valor_seguro(pet, 'Data')}")
                         if status_atual == 'Perdido':
                             if st.button("🎉 MARCAR COMO ENCONTRADO", key=f"btn_enc_{pet_id}", type="primary", width='stretch'):
-                                with st.spinner("Atualizando o banco de dados..."):
+                                with st.spinner("Atualizando banco de dados..."):
                                     try:
                                         df.loc[df['ID'] == pet_id, 'Status'] = 'Encontrado'
                                         conn.update(worksheet=ABA_PETS, data=df)
                                         st.cache_data.clear()
-                                        st.success(f"Que maravilha! O pet {nome_pet} foi marcado como Encontrado!")
+                                        st.success(f"Que maravilha! {nome_pet} foi marcado como Encontrado!")
                                         st.rerun()
-                                    except Exception as e: st.error(f"Erro ao atualizar status: {e}")
+                                    except Exception as e: st.error(f"Erro: {e}")
 
 # --- PÁGINA: CADASTRO USUÁRIO ---
 elif st.session_state.pagina == 'cadastro_user':
