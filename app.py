@@ -56,7 +56,7 @@ def fazer_upload_imgbb(arquivo):
             data = response.json()
             if data.get("status") == 200: return data["data"]["url"]
         except Exception as e:
-            st.error(f"Falha de conexão com ImgBB: {e}")
+            pass
     return ""
 
 def valor_seguro(linha, coluna):
@@ -69,8 +69,6 @@ def valor_seguro(linha, coluna):
             if v and v.lower() not in ['nan', 'none', '']: return v
     return '-'
 
-# --- NOVA FUNÇÃO: GEOLOCALIZAÇÃO REVERSA ---
-# Transforma as coordenadas do mapa em endereço de rua real!
 def obter_endereco(lat, lng):
     try:
         url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lng}&zoom=16"
@@ -87,25 +85,29 @@ def obter_endereco(lat, lng):
             if bairro: return bairro
             
             display = dados.get('display_name', '')
-            return display.split(',')[0] if display else "Localização marcada no mapa"
+            return display.split(',')[0] if display else "Localização no mapa"
     except:
         pass
-    return "Localização marcada no mapa"
+    return "Localização no mapa"
 
-# --- INJEÇÃO DE CSS ---
+# --- INJEÇÃO DE CSS BLINDADO (FORÇANDO COR PRETA) ---
 st.markdown("""
 <style>
     .pet-card { border: 2px solid #ddd; border-radius: 12px; margin-bottom: 25px; background-color: #fff; box-shadow: 3px 3px 10px rgba(0,0,0,0.1); overflow: hidden; }
     .pet-card-encontrado { border: 2px solid #2ecc71; border-radius: 12px; margin-bottom: 25px; background-color: #f4fff8; box-shadow: 3px 3px 10px rgba(46, 204, 113, 0.2); overflow: hidden; }
     .pet-card-header { background-color: #f8f9fa; padding: 12px 18px; border-bottom: 2px solid #eee; }
-    .pet-card-header-encontrado { background-color: #e8f8f5; padding: 12px 18px; border-bottom: 2px solid #2ecc71; color: #27ae60; }
-    .pet-card h3 { margin: 0; font-size: 1.5rem; }
+    .pet-card-header h3 { color: #000000 !important; margin: 0; font-size: 1.5rem; }
+    .pet-card-header-encontrado { background-color: #e8f8f5; padding: 12px 18px; border-bottom: 2px solid #2ecc71; }
+    .pet-card-header-encontrado h3 { color: #27ae60 !important; margin: 0; font-size: 1.5rem; }
+    
     .pet-card-body { display: flex; gap: 15px; padding: 15px; flex-wrap: wrap; }
     .pet-card-foto { width: 150px; height: 150px; object-fit: cover; border-radius: 10px; border: 1px solid #ddd; cursor: pointer; }
     .pet-card-info { flex: 1; min-width: 200px; }
-    .pet-card-info p { margin: 4px 0; font-size: 1rem; color: #444; }
+    .pet-card-info p { margin: 4px 0; font-size: 1rem; color: #000000 !important; }
+    
     .pet-card-footer { background: #fafafa; padding: 10px 15px; border-top: 1px solid #eee; }
-    .avistamento-destaque { color: #d35400; font-weight: bold; }
+    .pet-card-footer p, .pet-card-footer b, .pet-card-footer span { color: #000000 !important; margin: 0; }
+    .avistamento-destaque { color: #d35400 !important; font-weight: bold; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -165,7 +167,6 @@ if st.session_state.pagina == 'home':
     df = ler_planilha_direto(ABA_PETS)
     df_avis = ler_planilha_direto(ABA_AVISTAMENTOS)
 
-    # Padroniza a coluna de IDs na aba avistamentos para evitar erros de leitura
     if not df_avis.empty and 'ID_Pet' in df_avis.columns:
         df_avis['ID_Pet'] = df_avis['ID_Pet'].astype(str).str.strip()
 
@@ -216,11 +217,9 @@ if st.session_state.pagina == 'home':
                 nome_pet = valor_seguro(pet, 'Nome_Pet')
                 nome_pet = "Pet sem nome" if nome_pet == '-' else nome_pet
                 
-                # Texto original do desaparecimento
                 rodape_texto = f"📍 <b>Sumiu em:</b> {valor_seguro(pet, 'Local_Desaparecimento')} (Data: {valor_seguro(pet, 'Data')})"
                 tem_avistamento = False
                 
-                # Sobrescreve pelo avistamento se existir
                 if not df_avis.empty:
                     avis_deste_pet = df_avis[df_avis['ID_Pet'] == pet_id]
                     if not avis_deste_pet.empty:
@@ -230,7 +229,7 @@ if st.session_state.pagina == 'home':
                 
                 st.markdown(f'''
                     <div class="pet-card">
-                        <div class="pet-card-header"><h3 style="color: #2c3e50;">{nome_pet}</h3></div>
+                        <div class="pet-card-header"><h3>{nome_pet}</h3></div>
                         <div class="pet-card-body">
                             <img src="{foto_src}" class="pet-card-foto" onerror="this.style.display='none'">
                             <div class="pet-card-info">
@@ -239,36 +238,49 @@ if st.session_state.pagina == 'home':
                                 <p><b>Características:</b> {valor_seguro(pet, 'Caracteristicas')}</p>
                             </div>
                         </div>
-                        <div class="pet-card-footer"><p style="margin: 0; color: #111111 !important;">{rodape_texto}</p></div>
+                        <div class="pet-card-footer"><p>{rodape_texto}</p></div>
                     </div>
                 ''', unsafe_allow_html=True)
                 
-                col_botoes = st.columns(4 if st.session_state.logado else 2)
-                with col_botoes[0]:
-                    if foto_src and st.button("🔍 Ver Foto", key=f"zf_{pet_id}", width='stretch'):
-                        st.session_state.pagina_detalhes = foto_src
-                        st.rerun()
-                with col_botoes[1]:
-                    tel_bruto = valor_seguro(pet, 'Tel_Tutor')
-                    if tel_bruto == '-': tel_bruto = valor_seguro(pet, 'Telefone_Tutor')
-                    tel = "".join(filter(str.isdigit, tel_bruto))
-                    if len(tel) >= 10: 
-                        st.link_button("🟢 Whats", f"https://wa.me/55{tel}", width='stretch')
-                    else:
-                        st.button("🚫 S/ Contato", disabled=True, key=f"w_{pet_id}", width='stretch')
-                
+                # --- LÓGICA DE BOTÕES SEGURA E RESTRITA ---
                 if st.session_state.logado:
+                    col_botoes = st.columns(4)
+                    
+                    with col_botoes[0]:
+                        if foto_src and st.button("🔍 Ver Foto", key=f"zf_{pet_id}", width='stretch'):
+                            st.session_state.pagina_detalhes = foto_src
+                            st.rerun()
+                            
+                    with col_botoes[1]:
+                        tel_bruto = valor_seguro(pet, 'Tel_Tutor')
+                        if tel_bruto == '-': tel_bruto = valor_seguro(pet, 'Telefone_Tutor')
+                        tel = "".join(filter(str.isdigit, tel_bruto))
+                        if len(tel) >= 10: 
+                            st.link_button("🟢 Whats", f"https://wa.me/55{tel}", width='stretch')
+                        else:
+                            st.button("🚫 S/ Contato", disabled=True, key=f"w_{pet_id}", width='stretch')
+                            
                     with col_botoes[2]:
                         if st.button("👁️ Vi este pet!", key=f"avi_{pet_id}", width='stretch'):
                             st.session_state.pet_foco = dict(pet)
                             ir_para('novo_avistamento')
+                            
                     with col_botoes[3]:
                         if tem_avistamento:
                             if st.button("🗺️ Rota", key=f"rota_{pet_id}", width='stretch'):
                                 st.session_state.pet_foco = dict(pet)
                                 ir_para('historico_pet')
                         else:
-                            st.button("🗺️ Rota", disabled=True, key=f"rota_dis_{pet_id}", help="Sem avistamentos ainda", width='stretch')
+                            st.button("🗺️ Rota", disabled=True, key=f"rota_dis_{pet_id}", help="Sem avistamentos", width='stretch')
+                
+                else: # Usuário DESLOGADO (Só vê foto e cadeado)
+                    col_botoes = st.columns(2)
+                    with col_botoes[0]:
+                        if foto_src and st.button("🔍 Ver Foto", key=f"zf_{pet_id}", width='stretch'):
+                            st.session_state.pagina_detalhes = foto_src
+                            st.rerun()
+                    with col_botoes[1]:
+                        st.button("🔒 Login p/ Contato", disabled=True, key=f"log_{pet_id}", width='stretch')
                 st.write("")
         if not tem_perdido: st.info("Nenhum pet desaparecido no momento! 🎉")
 
@@ -291,15 +303,12 @@ elif st.session_state.pagina == 'novo_avistamento':
         st.rerun()
 
     with st.form("f_avis"):
-        # Agora é opcional, pois o app acha a rua sozinho!
         bairro_avi = st.text_input("Complemento do Local (Opcional)")
         obs_avi = st.text_area("Observações (Ex: Estava mancando, correu para um beco...)")
         
         if st.form_submit_button("📍 SALVAR AVISTAMENTO", type="primary"):
             if st.session_state.temp_lat:
                 with st.spinner("Buscando endereço da rua e salvando avistamento..."):
-                    
-                    # Mágica de conversão de coordenada em Rua
                     endereco_rua = obter_endereco(st.session_state.temp_lat, st.session_state.temp_lng)
                     local_final = f"{endereco_rua} - {bairro_avi}" if bairro_avi else endereco_rua
                     
@@ -376,7 +385,7 @@ elif st.session_state.pagina == 'hall_fama':
                             <img src="{foto_src}" class="pet-card-foto" onerror="this.style.display='none'">
                             <div class="pet-card-info">
                                 <p><b>Espécie:</b> {valor_seguro(pet, 'Especie')} | <b>Raça:</b> {valor_seguro(pet, 'Raca')}</p>
-                                <p style="color: #27ae60; font-weight: bold; margin-top: 10px;">Graças à comunidade, este pet não está mais perdido!</p>
+                                <p style="color: #27ae60 !important; font-weight: bold; margin-top: 10px;">Graças à comunidade, este pet não está mais perdido!</p>
                             </div>
                         </div>
                     </div>
@@ -407,8 +416,6 @@ elif st.session_state.pagina == 'perdi_pet':
         esp = st.selectbox("Espécie", ["Cão", "Gato", "Outro"])
         raca, cor = st.text_input("Raça"), st.text_input("Cor Principal")
         caract = st.text_area("Características marcantes")
-        
-        # Agora é opcional, o app pega a rua sozinho!
         bairro = st.text_input("Complemento do Local (Opcional)")
         foto = st.file_uploader("Foto do Pet")
         
@@ -416,8 +423,6 @@ elif st.session_state.pagina == 'perdi_pet':
             if nome_p and st.session_state.temp_lat:
                 with st.spinner("Buscando endereço no mapa e salvando dados..."):
                     url_foto = fazer_upload_imgbb(foto) if foto else ""
-                    
-                    # Mágica de conversão de coordenada em Rua para novos pets
                     endereco_rua = obter_endereco(st.session_state.temp_lat, st.session_state.temp_lng)
                     local_final = f"{endereco_rua} - {bairro}" if bairro else endereco_rua
                     
