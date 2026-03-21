@@ -5,7 +5,8 @@ import requests
 import base64
 import folium
 from streamlit_folium import st_folium
-import streamlit.components.v1 as components
+# Nova biblioteca para o GPS funcionar de verdade
+from streamlit_js_eval import streamlit_js_eval
 
 # 1. Configuração Inicial
 st.set_page_config(page_title="PetAlerta SCS", page_icon="🐾", layout="centered")
@@ -46,38 +47,6 @@ def modal_sucesso(mensagem, proxima_pagina='home'):
         st.session_state.temp_lng = None
         st.session_state.map_address = None
         st.rerun()
-
-# ==========================================
-# 📍 COMPONENTE GPS (JAVASCRIPT)
-# ==========================================
-def componente_gps():
-    # Cria um botão invisível que aciona o GPS do navegador
-    js_code = """
-    <script>
-    function getLocation() {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(showPosition);
-      }
-    }
-    function showPosition(position) {
-      const lat = position.coords.latitude;
-      const lng = position.coords.longitude;
-      window.parent.postMessage({type: 'streamlit:setComponentValue', value: {lat: lat, lng: lng}}, '*');
-    }
-    </script>
-    <button onclick="getLocation()" style="
-        background-color: #ff4b4b; 
-        color: white; 
-        border: none; 
-        padding: 10px 20px; 
-        border-radius: 8px; 
-        cursor: pointer; 
-        width: 100%;
-        font-weight: bold;
-        font-family: sans-serif;
-        ">📍 Usar minha localização atual</button>
-    """
-    return components.html(js_code, height=50)
 
 # --- FUNÇÕES GLOBAIS ---
 def ler_planilha_direto(nome_aba):
@@ -205,7 +174,6 @@ if st.session_state.pagina == 'home':
                 if valor_seguro(pet, 'Status') == 'Perdido':
                     esp = valor_seguro(pet, 'Especie').lower()
                     
-                    # CORES FIXAS POR ESPÉCIE
                     if 'cão' in esp or 'cao' in esp:
                         icon_name, icon_color = 'dog', 'orange'
                     elif 'gato' in esp:
@@ -223,7 +191,7 @@ if st.session_state.pagina == 'home':
                             ultimo_avis = avis_deste_pet.iloc[-1]
                             lat_v, lng_v = ultimo_avis['Lat'], ultimo_avis['Lng']
                             local_mapa = f"Último avistamento: {ultimo_avis['Bairro']}"
-                            icon_color = 'red' # Vermelho para avistamento recente
+                            icon_color = 'red'
 
                     if lat_v != '-' and lng_v != '-':
                         folium.Marker(
@@ -245,11 +213,13 @@ if st.session_state.pagina == 'home':
                     pet_id = str(valor_seguro(pet, 'ID')).strip()
                     foto_src = valor_seguro(pet, 'Foto')
                     nome_pet = valor_seguro(pet, 'Nome_Pet')
+                    if nome_pet == '-': nome_pet = "Pet sem nome"
                     
                     loc_texto = f"📍 <span class='avistamento-alerta'>Sumiu em:</span> {valor_seguro(pet, 'Local_Desaparecimento')} ({valor_seguro(pet, 'Data')})"
                     if not df_avis.empty:
                         avis_deste_pet = df_avis[df_avis['ID_Pet'] == pet_id]
                         if not avis_deste_pet.empty:
+                            tem_avistamento = True
                             ultimo_avis = avis_deste_pet.iloc[-1]
                             loc_texto = f"<span class='avistamento-alerta'>🚨 Último avistamento:</span> {ultimo_avis.get('Bairro', '')} ({ultimo_avis.get('Data_Hora', '')})"
                     
@@ -305,20 +275,18 @@ elif st.session_state.pagina == 'novo_avistamento':
         folium.Marker([st.session_state.temp_lat, st.session_state.temp_lng], icon=folium.Icon(color='red', icon='eye', prefix='fa')).add_to(m_avi)
     
     map_res = st_folium(m_avi, width=700, height=300, key="map_avi")
-    
-    # Captura coordenadas do clique
     if map_res and map_res.get("last_clicked"):
-        st.session_state.temp_lat = map_res["last_clicked"]["lat"]
-        st.session_state.temp_lng = map_res["last_clicked"]["lng"]
+        st.session_state.temp_lat, st.session_state.temp_lng = map_res["last_clicked"]["lat"], map_res["last_clicked"]["lng"]
         st.rerun()
 
-    # BOTÃO GPS
-    loc_data = componente_gps()
-    if loc_data and 'lat' in loc_data:
-        st.session_state.temp_lat, st.session_state.temp_lng = loc_data['lat'], loc_data['lng']
-        with st.spinner("Localizando..."):
-            st.session_state.map_address = obter_endereco(st.session_state.temp_lat, st.session_state.temp_lng)
-        st.rerun()
+    # NOVO BOTÃO GPS SEGURO
+    if st.button("📍 Usar minha localização atual", width='stretch'):
+        loc = streamlit_js_eval(js_expressions="navigator.geolocation.getCurrentPosition(pos => { return {lat: pos.coords.latitude, lng: pos.coords.longitude} })")
+        if loc:
+            st.session_state.temp_lat, st.session_state.temp_lng = loc['lat'], loc['lng']
+            with st.spinner("Localizando..."):
+                st.session_state.map_address = obter_endereco(st.session_state.temp_lat, st.session_state.temp_lng)
+            st.rerun()
 
     if st.session_state.map_address:
         st.success(f"📍 Local capturado: **{st.session_state.map_address}**")
@@ -352,21 +320,20 @@ elif st.session_state.pagina == 'perdi_pet':
         folium.Marker([st.session_state.temp_lat, st.session_state.temp_lng], icon=folium.Icon(color='red')).add_to(m_reg)
     
     map_res = st_folium(m_reg, width=700, height=300, key="map_reg")
-    
     if map_res and map_res.get("last_clicked"):
-        st.session_state.temp_lat = map_res["last_clicked"]["lat"]
-        st.session_state.temp_lng = map_res["last_clicked"]["lng"]
+        st.session_state.temp_lat, st.session_state.temp_lng = map_res["last_clicked"]["lat"], map_res["last_clicked"]["lng"]
         with st.spinner("Convertendo endereço..."):
             st.session_state.map_address = obter_endereco(st.session_state.temp_lat, st.session_state.temp_lng)
         st.rerun()
 
-    # BOTÃO GPS
-    loc_data = componente_gps()
-    if loc_data and 'lat' in loc_data:
-        st.session_state.temp_lat, st.session_state.temp_lng = loc_data['lat'], loc_data['lng']
-        with st.spinner("Localizando..."):
-            st.session_state.map_address = obter_endereco(st.session_state.temp_lat, st.session_state.temp_lng)
-        st.rerun()
+    # NOVO BOTÃO GPS SEGURO
+    if st.button("📍 Usar minha localização atual", width='stretch'):
+        loc = streamlit_js_eval(js_expressions="navigator.geolocation.getCurrentPosition(pos => { return {lat: pos.coords.latitude, lng: pos.coords.longitude} })")
+        if loc:
+            st.session_state.temp_lat, st.session_state.temp_lng = loc['lat'], loc['lng']
+            with st.spinner("Localizando..."):
+                st.session_state.map_address = obter_endereco(st.session_state.temp_lat, st.session_state.temp_lng)
+            st.rerun()
 
     if st.session_state.map_address:
         st.success(f"📍 Local capturado: **{st.session_state.map_address}**")
@@ -396,7 +363,7 @@ elif st.session_state.pagina == 'perdi_pet':
                 modal_sucesso("Pet registrado com sucesso!")
             else: st.error("Preencha o nome e indique o local no mapa.")
 
-# --- DEMAIS PÁGINAS (HALL DA FAMA, MEUS PETS, CADASTRO) MANTIDAS ---
+# --- DEMAIS PÁGINAS MANTIDAS ---
 elif st.session_state.pagina == 'hall_fama':
     st.title("🏆 Hall da Fama")
     df = ler_planilha_direto(ABA_PETS)
