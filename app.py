@@ -42,14 +42,26 @@ def fazer_upload_imgbb(arquivo):
     if arquivo:
         try:
             url = "https://api.imgbb.com/1/upload"
-            payload = {"key": IMGBB_API_KEY}
-            files = {"image": arquivo.getvalue()}
-            response = requests.post(url, payload, files=files)
+            # Converte a imagem para base64 apenas para a VIAGEM até o servidor do ImgBB
+            img_b64 = base64.b64encode(arquivo.getvalue()).decode('utf-8')
+            
+            payload = {
+                "key": IMGBB_API_KEY,
+                "image": img_b64
+            }
+            
+            response = requests.post(url, data=payload)
             data = response.json()
-            if data["status"] == 200:
-                return data["data"]["url"]
+            
+            if data.get("status") == 200:
+                return data["data"]["url"] # Retorna APENAS o link (ex: https://i.ibb.co/...)
+            else:
+                erro_msg = data.get('error', {}).get('message', 'Erro desconhecido')
+                st.error(f"Erro no servidor ImgBB: {erro_msg}")
+                return ""
         except Exception as e:
-            st.error(f"Erro no upload da imagem: {e}")
+            st.error(f"Erro de conexão com ImgBB: {e}")
+            return ""
     return ""
 
 # --- INJEÇÃO DE CSS ---
