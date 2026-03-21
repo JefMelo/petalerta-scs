@@ -135,17 +135,22 @@ with st.sidebar:
 # ROTAS DE PÁGINAS
 # ==========================================
 
+# ==========================================
+# ROTAS DE PÁGINAS
+# ==========================================
+
 # --- PÁGINA: HOME ---
 if st.session_state.pagina == 'home':
     st.title("🐾 PetAlerta Santa Cruz do Sul")
     df = ler_planilha_direto(ABA_PETS)
 
+    # Lupa Suprema: Agora remove quebras de linha (\n) e caracteres ocultos
     def valor_seguro(linha, coluna):
         pet_dict = dict(linha)
-        col_buscada = coluna.lower().replace('ç','c').replace('é','e').replace('í','i').replace('á','a').replace('_', '').replace(' ', '')
+        col_buscada = coluna.lower().replace('ç','c').replace('é','e').replace('í','i').replace('á','a').replace('_', '').replace(' ', '').replace('\n', '').replace('\r', '')
         
         for chave, valor in pet_dict.items():
-            chave_limpa = str(chave).lower().replace('ç','c').replace('é','e').replace('í','i').replace('á','a').replace('_', '').replace(' ', '').strip()
+            chave_limpa = str(chave).lower().replace('ç','c').replace('é','e').replace('í','i').replace('á','a').replace('_', '').replace(' ', '').replace('\n', '').replace('\r', '').strip()
             
             if chave_limpa == col_buscada:
                 v = str(valor).strip()
@@ -162,18 +167,19 @@ if st.session_state.pagina == 'home':
                     icon_c = 'orange' if 'cão' in esp or 'cao' in esp else ('blue' if 'gato' in esp else 'green')
                     nome_mapa = valor_seguro(pet, 'Nome_Pet')
                     nome_mapa = "Pet" if nome_mapa == '-' else nome_mapa
+                    local_mapa = valor_seguro(pet, 'Local_Desaparecimento')
                     
                     lat_v = valor_seguro(pet, 'Lat')
                     lng_v = valor_seguro(pet, 'Lng')
                     if lat_v != '-' and lng_v != '-':
+                        # Agora o mapa também mostra o endereço ao clicar!
                         folium.Marker([float(lat_v), float(lng_v)], 
-                                      popup=f"<b>{nome_mapa}</b>", 
+                                      popup=f"<b>{nome_mapa}</b><br>📍 {local_mapa}", 
                                       icon=folium.Icon(color=icon_c, icon='paw', prefix='fa')).add_to(m)
             except: continue
-    st_folium(m, width=700, height=400)
+    st_folium(m, width='stretch', height=400)
 
     if st.session_state.logado:
-        # Atualizado para width='stretch'
         if st.button("🚨 REGISTRAR PET PERDIDO", type="primary", width='stretch'):
             ir_para('perdi_pet')
 
@@ -186,6 +192,10 @@ if st.session_state.pagina == 'home':
                 if foto_src == '-': foto_src = ""
                 nome_pet = valor_seguro(pet, 'Nome_Pet')
                 nome_pet = "Pet sem nome" if nome_pet == '-' else nome_pet
+                
+                # HTML reconstruído de forma mais segura para evitar quebra de texto
+                local_desaparecimento = valor_seguro(pet, 'Local_Desaparecimento')
+                data_desaparecimento = valor_seguro(pet, 'Data')
                 
                 st.markdown(f'''
                     <div class="pet-card">
@@ -201,14 +211,13 @@ if st.session_state.pagina == 'home':
                             </div>
                         </div>
                         <div class="pet-card-footer">
-                            <p>📍 <i>Desapareceu em: {valor_seguro(pet, 'Data')} - Visto em: {valor_seguro(pet, 'Local_Desaparecimento')}</i></p>
+                            <p style="margin: 0; color: #555;">📍 <b>Visto em:</b> {local_desaparecimento} (Data: {data_desaparecimento})</p>
                         </div>
                     </div>
                 ''', unsafe_allow_html=True)
                 
                 c1, c2 = st.columns(2)
                 with c1:
-                    # Atualizado para width='stretch'
                     if foto_src and st.button("🔍 Ver Foto", key=f"z_{valor_seguro(pet, 'ID')}", width='stretch'):
                         st.session_state.pagina_detalhes = foto_src
                         st.rerun()
@@ -220,13 +229,11 @@ if st.session_state.pagina == 'home':
                             
                         tel = "".join(filter(str.isdigit, tel_bruto))
                         if len(tel) >= 10: 
-                            # Atualizado para width='stretch'
                             st.link_button("🟢 WhatsApp", f"https://wa.me/55{tel}", width='stretch')
                         else:
-                            # Atualizado para width='stretch'
                             st.button("🚫 Sem Contato", disabled=True, key=f"w_{valor_seguro(pet, 'ID')}", width='stretch')
                 st.write("")
-
+                
 # --- PÁGINA: REGISTRO PET ---
 elif st.session_state.pagina == 'perdi_pet':
     st.header("🚨 Registrar Animal Perdido")
