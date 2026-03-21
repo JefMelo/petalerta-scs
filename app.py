@@ -229,11 +229,15 @@ elif st.session_state.pagina == 'perdi_pet':
     st.header("🚨 Registrar Animal Perdido")
     st.info("Clique no mapa para marcar o local.")
     m_reg = folium.Map(location=SCS_COORDS, zoom_start=15)
+    
     if st.session_state.temp_lat:
         folium.Marker([st.session_state.temp_lat, st.session_state.temp_lng], icon=folium.Icon(color='red')).add_to(m_reg)
+    
     map_res = st_folium(m_reg, width=700, height=300, key="map_reg")
+    
     if map_res and map_res.get("last_clicked"):
-        st.session_state.temp_lat, st.session_state.temp_lng = map_res["last_clicked"]["lat"], map_res["last_clicked"]["lng"]
+        st.session_state.temp_lat = map_res["last_clicked"]["lat"]
+        st.session_state.temp_lng = map_res["last_clicked"]["lng"]
         st.rerun()
 
     with st.form("f_pet"):
@@ -251,7 +255,7 @@ elif st.session_state.pagina == 'perdi_pet':
                     url_foto = fazer_upload_imgbb(foto) if foto else ""
                     u = st.session_state.user
                     
-                    # DICIONÁRIO ESTRITAMENTE FIXO CONFORME SOLICITADO
+                    # DICIONÁRIO ESTRITAMENTE FIXO
                     dados_novos = {
                         "ID": str(int(datetime.now().timestamp())),
                         "Status": "Perdido",
@@ -275,18 +279,32 @@ elif st.session_state.pagina == 'perdi_pet':
                     }
                     
                     try:
-                            df_p = ler_planilha_direto(ABA_PETS)
-                            df_final = pd.concat([df_p, pd.DataFrame([dados_novos])], ignore_index=True)
-                            conn.update(worksheet=ABA_PETS, data=df_final)
-                            
-                            st.cache_data.clear() # <--- ADICIONE ESTA LINHA AQUI! (Limpa a memória)
-                            
-                            st.session_state.temp_lat = None
-                            st.success("✅ Pet cadastrado com sucesso!")
-                            ir_para('home')
+                        df_p = ler_planilha_direto(ABA_PETS)
+                        df_final = pd.concat([df_p, pd.DataFrame([dados_novos])], ignore_index=True)
+                        conn.update(worksheet=ABA_PETS, data=df_final)
+                        
+                        st.cache_data.clear() # Limpa a memória para o pet aparecer na hora no mural!
+                        
+                        st.session_state.temp_lat = None
+                        st.success("✅ Pet cadastrado com sucesso!")
+                        ir_para('home')
+                    except Exception as e:
+                        st.error(f"Erro ao salvar: {e}")
             else:
                 st.error("Preencha o nome e marque o local no mapa.")
 
+# --- PÁGINA: CADASTRO USUÁRIO ---
+elif st.session_state.pagina == 'cadastro_user':
+    st.header("📝 Criar Conta")
+    with st.form("cad_u"):
+        n, t, e, u_cad, p_cad = st.text_input("Nome"), st.text_input("WhatsApp"), st.text_input("Email"), st.text_input("Usuário"), st.text_input("Senha", type="password")
+        if st.form_submit_button("CADASTRAR"):
+            df_u = ler_planilha_direto(ABA_USUARIOS)
+            novo = pd.DataFrame([{"Usuario":u_cad,"Senha":p_cad,"Nivel":"Membro","Telefone":t,"Email":e,"Nascimento":"","Endereco":"","Nome":n}])
+            conn.update(worksheet=ABA_USUARIOS, data=pd.concat([df_u, novo], ignore_index=True))
+            st.cache_data.clear() # Limpa o cache aqui também para o usuário poder logar na hora
+            st.success("Conta criada!")
+            ir_para('home')
 # --- PÁGINA: CADASTRO USUÁRIO ---
 elif st.session_state.pagina == 'cadastro_user':
     st.header("📝 Criar Conta")
