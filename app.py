@@ -86,19 +86,33 @@ def obter_endereco(lat, lng):
     except: pass
     return "Localização no mapa"
 
-# --- CSS AGRESSIVO (Força Fundo Branco e Títulos Colados) ---
+# --- CSS ADAPTÁVEL AO TEMA (Usa Variáveis Streamlit) ---
 st.markdown("""
 <style>
-    /* Força o contêiner a ser branco e as letras pretas */
-    [data-testid="stVerticalBlockBorderWrapper"] {
-        background-color: #FFFFFF !important;
-        color: #000000 !important;
+    /* 1. Ajuste do contêiner nativo para não forçar cores fixas */
+    [data-testid="stVerticalBlockBorderWrapper"] > div {
         border-radius: 12px !important;
+        padding: 10px !important;
+        margin-bottom: 15px !important;
+        /* st.container(border=True) já usa a cor do tema, não precisamos forçar */
     }
-    
-    /* Título do Card ultra colado */
+
+    /* 2. Classes para o HTML personalizado dentro do Card */
+    .html-card-wrapper {
+        display: flex; 
+        gap: 15px; 
+        align-items: flex-start; 
+        background-color: transparent !important; /* Herda do contêiner */
+        padding: 5px; 
+        border-radius: 10px;
+        /* Garante que o texto base siga o tema do Streamlit */
+        color: var(--text-color) !important;
+        font-family: var(--font) !important;
+    }
+
+    /* Título do Card ultra colado e seguindo o tema */
     .titulo-card {
-        color: #000000 !important;
+        color: var(--text-color) !important; /* Dinâmico */
         margin: 0px !important;
         padding: 0px !important;
         line-height: 1.0 !important;
@@ -106,25 +120,36 @@ st.markdown("""
         font-weight: bold !important;
     }
     
-    /* Texto do corpo do card */
+    /* Texto do corpo seguindo o tema */
     .texto-card {
-        color: #000000 !important;
+        color: var(--text-color) !important; /* Dinâmico */
         margin: 2px 0px !important;
         font-size: 0.95rem !important;
         line-height: 1.2 !important;
     }
 
+    /* Foto (mantém tamanho bom) */
     .foto-card {
         width: 120px !important;
         height: 120px !important;
         object-fit: cover !important;
         border-radius: 10px !important;
-        border: 1px solid #ccc !important;
+        /* Borda sutil que se adapta bem a fundos claros e escuros */
+        border: 1px solid var(--secondary-background-color) !important;
     }
     
+    /* Alerta de avistamento (usa a cor primária do tema para destaque) */
     .avistamento-alerta {
-        color: #d35400 !important;
+        color: var(--primary-color) !important; /* Dinâmico */
         font-weight: bold !important;
+    }
+    
+    /* Hall da Fama - Título Verde adaptável */
+    .titulo-hall {
+        color: var(--primary-color) !important; /* Usa cor primária em vez de verde fixo se preferir nativo, ou mantenha verde se for estético */
+        /* Mantendo verde estético que se adapta bem (ex: #27ae60 ou similar mais brilhante no escuro) */
+        color: #2ECC71 !important; 
+        margin:0;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -201,11 +226,12 @@ if st.session_state.pagina == 'home':
         for _, pet in df.iterrows():
             if valor_seguro(pet, 'Status') == 'Perdido':
                 
-                # --- INÍCIO DO CARD AGRUPADO ---
+                # --- INÍCIO DO CARD AGRUPADO (Usando contêiner nativo para o tema) ---
                 with st.container(border=True):
                     pet_id = str(valor_seguro(pet, 'ID')).strip()
                     foto_src = valor_seguro(pet, 'Foto')
                     nome_pet = valor_seguro(pet, 'Nome_Pet')
+                    if nome_pet == '-': nome_pet = "Pet sem nome"
                     
                     loc_texto = f"📍 <b>Sumiu em:</b> {valor_seguro(pet, 'Local_Desaparecimento')} ({valor_seguro(pet, 'Data')})"
                     tem_avistamento = False
@@ -216,21 +242,21 @@ if st.session_state.pagina == 'home':
                             ultimo_avis = avis_deste_pet.iloc[-1]
                             loc_texto = f"<span class='avistamento-alerta'>🚨 Último avistamento:</span> {ultimo_avis.get('Bairro', '')} ({ultimo_avis.get('Data_Hora', '')})"
                     
-                    # HTML COM CORES FORÇADAS (Inline Styles)
+                    # HTML COM CORES ADAPTÁVEIS (Classes CSS definidas no topo)
                     st.markdown(f'''
-                        <div style="display: flex; gap: 15px; align-items: flex-start; background-color: white; padding: 5px; border-radius: 10px;">
+                        <div class="html-card-wrapper">
                             <img src="{foto_src}" class="foto-card" onerror="this.style.display='none'">
                             <div style="flex: 1;">
-                                <h3 class="titulo-card" style="color: black !important;">{nome_pet}</h3>
-                                <p class="texto-card" style="color: black !important;"><b>Espécie:</b> {valor_seguro(pet, 'Especie')} | <b>Raça:</b> {valor_seguro(pet, 'Raca')}</p>
-                                <p class="texto-card" style="color: black !important;"><b>Cor:</b> {valor_seguro(pet, 'Cor')}</p>
-                                <p class="texto-card" style="color: black !important;"><b>Características:</b> {valor_seguro(pet, 'Caracteristicas')}</p>
-                                <p class="texto-card" style="color: black !important; margin-top: 5px !important;">{loc_texto}</p>
+                                <h3 class="titulo-card">{nome_pet}</h3>
+                                <p class="texto-card"><b>Espécie:</b> {valor_seguro(pet, 'Especie')} | <b>Raça:</b> {valor_seguro(pet, 'Raca')}</p>
+                                <p class="texto-card"><b>Cor:</b> {valor_seguro(pet, 'Cor')}</p>
+                                <p class="texto-card"><b>Características:</b> {valor_seguro(pet, 'Caracteristicas')}</p>
+                                <p class="texto-card" style="margin-top: 5px !important;">{loc_texto}</p>
                             </div>
                         </div>
                     ''', unsafe_allow_html=True)
                     
-                    # BOTÕES DENTRO DO CARD
+                    # BOTÕES DENTRO DO CARD (Usando widgets nativos adaptáveis)
                     if st.session_state.logado:
                         c1, c2, c3, c4 = st.columns(4)
                         with c1:
@@ -319,14 +345,19 @@ elif st.session_state.pagina == 'hall_fama':
             if valor_seguro(pet, 'Status') == 'Encontrado':
                 with st.container(border=True):
                     st.markdown(f'''
-                        <div style="display: flex; gap: 15px; background-color: white; padding: 10px; border-radius: 10px;">
+                        <div class="html-card-wrapper">
                             <img src="{valor_seguro(pet, 'Foto')}" class="foto-card">
                             <div>
-                                <h3 style="color: #27ae60 !important; margin:0;">🎉 {valor_seguro(pet, 'Nome_Pet')}</h3>
-                                <p style="color: black !important; margin: 5px 0;">Já está em casa com sua família! ❤️</p>
+                                <h3 class="titulo-hall">🎉 {valor_seguro(pet, 'Nome_Pet')}</h3>
+                                <p class="texto-card"><b>Espécie:</b> {valor_seguro(pet, 'Especie')} | <b>Raça:</b> {valor_seguro(pet, 'Raca')}</p>
+                                <p class="texto-card" style="font-weight: bold; margin-top: 5px;">Este pet já voltou para casa! ❤️</p>
                             </div>
                         </div>
                     ''', unsafe_allow_html=True)
+                    if valor_seguro(pet, 'Foto') and st.button("🔍 Foto", key=f"z_{valor_seguro(pet, 'ID')}", width='stretch'):
+                        st.session_state.pagina_detalhes = valor_seguro(pet, 'Foto')
+                        st.rerun()
+                st.write("")
 
 # --- PÁGINA: REGISTRO PET ---
 elif st.session_state.pagina == 'perdi_pet':
