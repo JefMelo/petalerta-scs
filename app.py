@@ -124,64 +124,84 @@ with st.sidebar:
             ir_para('home')
 
 # --- PÁGINA: HOME ---
+# --- PÁGINA: HOME ---
 if st.session_state.pagina == 'home':
     st.title("🐾 PetAlerta Santa Cruz do Sul")
     df = ler_planilha_direto(ABA_PETS)
+
+    # Função Lupa Inteligente: Acha a coluna mesmo se estiver com espaço ou letra minúscula
+    def pegar_dado(linha, nome_coluna):
+        for col in linha.index:
+            if str(col).strip().lower() == nome_coluna.strip().lower():
+                v = str(linha[col]).strip()
+                return v if v and v.lower() != 'nan' else '-'
+        return '-'
 
     m = folium.Map(location=SCS_COORDS, zoom_start=14)
     if not df.empty:
         for _, pet in df.iterrows():
             try:
-                if pet.get('Status', '').strip() == 'Perdido':
-                    esp = str(pet.get('Especie', '')).lower()
+                if pegar_dado(pet, 'Status') == 'Perdido':
+                    esp = pegar_dado(pet, 'Especie').lower()
                     icon_c = 'orange' if 'cão' in esp or 'cao' in esp else ('blue' if 'gato' in esp else 'green')
-                    folium.Marker([float(pet.get('Lat', 0)), float(pet.get('Lng', 0))], 
-                                  popup=f"{pet.get('Nome_Pet', 'Pet')}", 
+                    
+                    nome_mapa = pegar_dado(pet, 'Nome_Pet')
+                    nome_mapa = "Pet" if nome_mapa == '-' else nome_mapa
+                    
+                    folium.Marker([float(pegar_dado(pet, 'Lat')), float(pegar_dado(pet, 'Lng'))], 
+                                  popup=f"<b>{nome_mapa}</b>", 
                                   icon=folium.Icon(color=icon_c, icon='paw', prefix='fa')).add_to(m)
             except: continue
     st_folium(m, width=700, height=400)
 
     if st.session_state.logado:
-        # Correção do Callback de botão
         if st.button("🚨 REGISTRAR PET PERDIDO", type="primary", use_container_width=True):
             ir_para('perdi_pet')
 
     st.subheader("🔍 Mural de Desaparecidos")
     if not df.empty:
         for _, pet in df.iterrows():
-            if pet.get('Status', '').strip() == 'Perdido':
-                foto_src = str(pet.get('Foto', ''))
+            if pegar_dado(pet, 'Status') == 'Perdido':
+                
+                foto_src = pegar_dado(pet, 'Foto')
+                if foto_src == '-': foto_src = "" # Evita erro de imagem quebrada
+                
+                nome_pet = pegar_dado(pet, 'Nome_Pet')
+                nome_pet = "Pet sem nome" if nome_pet == '-' else nome_pet
                 
                 st.markdown(f'''
                     <div class="pet-card">
                         <div class="pet-card-header">
-                            <h3>{pet.get('Nome_Pet', 'Pet sem nome')}</h3>
+                            <h3>{nome_pet}</h3>
                         </div>
                         <div class="pet-card-body">
-                            <img src="{foto_src}" class="pet-card-foto">
+                            <img src="{foto_src}" class="pet-card-foto" onerror="this.style.display='none'">
                             <div class="pet-card-info">
-                                <p><b>Espécie:</b> {pet.get('Especie', '-')} | <b>Raça:</b> {pet.get('Raca', '-')}</p>
-                                <p><b>Cor:</b> {pet.get('Cor', '-')}</p>
-                                <p><b>Características:</b> {pet.get('Caracteristicas', '-')}</p>
+                                <p><b>Espécie:</b> {pegar_dado(pet, 'Especie')} | <b>Raça:</b> {pegar_dado(pet, 'Raca')}</p>
+                                <p><b>Cor:</b> {pegar_dado(pet, 'Cor')}</p>
+                                <p><b>Características:</b> {pegar_dado(pet, 'Caracteristicas')}</p>
                             </div>
                         </div>
                         <div class="pet-card-footer">
-                            <p>📍 <i>Desapareceu em: {pet.get('Data', '-')} - Visto em: {pet.get('Local_Desaparecimento', '-')}</i></p>
+                            <p>📍 <i>Desapareceu em: {pegar_dado(pet, 'Data')} - Visto em: {pegar_dado(pet, 'Local_Desaparecimento')}</i></p>
                         </div>
                     </div>
                 ''', unsafe_allow_html=True)
                 
                 c1, c2 = st.columns(2)
                 with c1:
-                    if st.button("🔍 Ver Foto Grande", key=f"z_{pet.get('ID', '0')}", use_container_width=True):
+                    if foto_src and st.button("🔍 Ver Foto Grande", key=f"z_{pegar_dado(pet, 'ID')}", use_container_width=True):
                         st.session_state.pagina_detalhes = foto_src
                         st.rerun()
                 with c2:
                     if st.session_state.logado:
-                        tel = "".join(filter(str.isdigit, str(pet.get('Tel_Tutor', ''))))
-                        st.link_button("🟢 WhatsApp", f"https://wa.me/55{tel}", use_container_width=True)
+                        tel_bruto = pegar_dado(pet, 'Tel_Tutor')
+                        tel = "".join(filter(str.isdigit, tel_bruto))
+                        if tel:
+                            st.link_button("🟢 WhatsApp", f"https://wa.me/55{tel}", use_container_width=True)
+                        else:
+                            st.button("🟢 Sem Contato", disabled=True, key=f"w_{pegar_dado(pet, 'ID')}", use_container_width=True)
                 st.write("")
-
 # --- PÁGINA: REGISTRO PET ---
 elif st.session_state.pagina == 'perdi_pet':
     st.header("🚨 Registrar Animal Perdido")
