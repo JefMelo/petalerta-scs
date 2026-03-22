@@ -41,64 +41,55 @@ from streamlit_gsheets import GSheetsConnection
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 # ==========================================
-# 🎨 FRONT-END: HEADER (MÉTODO HTML PURO)
+# 🎨 FRONT-END: HEADER (BANNER "Banner.png" 800x200)
 # ==========================================
 def renderizar_header():
-    # Caminho do banner PNG
-    banner_path = "assets/banner.png"
+    # AJUSTADO NOME DO ARQUIVO PARA Banner.png (com B maiúsculo)
+    banner_path = "assets/Banner.png"
     
     if os.path.exists(banner_path):
-        # Lê a imagem e converte para base64 para garantir transparência e caminho correto
-        with open(banner_path, "rb") as image_file:
-            encoded_string = base64.b64encode(image_file.read()).decode()
-        
-        # Injeta HTML puro para renderizar a imagem com a classe 'header-banner'
-        st.markdown(f'<img src="data:image/png;base64,{encoded_string}" class="header-banner">', unsafe_allow_html=True)
+        # Usamos use_container_width=True para alinhamento responsivo automático
+        st.image(banner_path, use_container_width=True)
     else:
-        st.info("Adicione o arquivo 'assets/banner.png' no GitHub para visualizar o cabeçalho.")
+        st.info("Arquivo 'assets/Banner.png' não encontrado no GitHub. Certifique-se de que o nome está correto (B maiúsculo) na pasta assets.")
     
     # Pequeno espaçamento antes do mapa
     st.write("")
 
-# --- CSS PARA ALINHAMENTO, REDIMENSIONAMENTO E TRANSPARÊNCIA ---
+# --- CSS PARA ALINHAMENTO PERFEITO (LARGURA) E TRANSPARÊNCIA FORÇADA ---
 st.markdown("""
 <style>
-    /* CSS EXPLICITO PARA O BANNER (Classe .header-banner que criamos acima) */
-    .header-banner {
+    /* 1. Alinhamento de Largura: Garante que Banner e Mapa tenham exatamente 100% da coluna central */
+    [data-testid="stImageWrapper"],
+    [data-testid="stFolium"] {
         width: 100% !important;
-        max-width: 800px !important; /* Capa a largura em 800px */
-        height: auto !important; /* Mantém a proporção de altura */
-        
-        /* IMPEDE O CORTE: Ajusta a imagem inteira dentro do container */
-        object-fit: scale-down !important; 
-        
-        /* GARANTE TRANSPARÊNCIA: Remove qualquer fundo do elemento da imagem */
-        background-color: transparent !important;
-        
-        border-radius: 12px !important;
-        border: none !important;
+        margin: 0 auto !important; /* Centraliza */
         display: block;
-        margin: 0 auto !important; /* Centraliza na página */
     }
 
-    /* Target direto nos containers de imagem do Streamlit para forçar transparência geral */
-    [data-testid="stImage"] {
+    /* 2. Forçar Transparência: Remove qualquer fundo do container gerado pelo Streamlit */
+    [data-testid="stImageWrapper"] {
         background-color: transparent !important;
-    }
-    [data-testid="stImage"] > img {
-        background-color: transparent !important;
-        object-fit: scale-down !important; /* Aplica também a st.image comuns */
     }
 
-    /* Estilização do Mapa (mesma largura do banner) */
-    .stFolium {
-        width: 100% !important;
+    /* 3. Estilo da Imagem (Banner): Ocupa container inteiro e arredonda cantos */
+    [data-testid="stImageWrapper"] > img {
+        width: 100% !important; /* Alinhamento visual */
+        height: auto !important; /* Mantém proporção */
+        object-fit: intrinsic !important; /* Rely on intrinsic width/height ratio, prevents cut */
+        background-color: transparent !important; /* Garante que transparência apareça */
         border-radius: 12px !important;
         border: none !important;
+    }
+
+    /* 4. Estilo do Mapa ( mesmalargura do banner) */
+    .stFolium {
+        border-radius: 12px !important;
         margin-bottom: 15px !important;
+        border: none !important;
     }
     
-    /* Ajuste de margem do topo da página */
+    /* 5. Ajuste de margem do topo da página */
     .block-container {
         padding-top: 2rem !important;
     }
@@ -211,7 +202,7 @@ with st.sidebar:
             ir_para('home')
 
 # ==========================================
-# 🚀 RENDERIZA O HEADER (Banner HTML Puro)
+# 🚀 RENDERIZA O HEADER (Banner 800x200 "Banner.png")
 # ==========================================
 renderizar_header()
 
@@ -295,10 +286,10 @@ if st.session_state.pagina == 'home':
                     with c2:
                         st.button("🔒 Login p/ Contato", key=f"log_btn_{pet_id}", disabled=True, width='stretch')
 
-# --- DEMAIS PÁGINAS MANTIDAS IGUAIS... ---
+# --- DEMAIS PÁGINAS MANTIDAS IGUAIS (PERDI_PET, NOVO_AVISTAMENTO, HALL_FAMA, CADASTRO, MEUS_PETS) ---
 elif st.session_state.pagina == 'perdi_pet':
     st.header("🚨 Registrar Pet Perdido")
-    if st.button("⬅️ Voltar", key="v_reg_p"): ir_para('home')
+    if st.button("⬅️ Voltar"): ir_para('home')
     m_reg = folium.Map(location=[st.session_state.user_lat, st.session_state.user_lng] if st.session_state.user_lat else SCS_COORDS, zoom_start=16)
     if st.session_state.temp_lat: folium.Marker([st.session_state.temp_lat, st.session_state.temp_lng], icon=folium.Icon(color='red')).add_to(m_reg)
     map_res = st_folium(m_reg, use_container_width=True, height=300, key="map_reg")
@@ -321,7 +312,7 @@ elif st.session_state.pagina == 'perdi_pet':
 elif st.session_state.pagina == 'novo_avistamento':
     pet = st.session_state.pet_foco
     st.header(f"👁️ Vi o pet: {valor_seguro(pet, 'Nome_Pet')}")
-    if st.button("⬅️ Voltar", key="v_av_p"): ir_para('home')
+    if st.button("⬅️ Voltar"): ir_para('home')
     m_avi = folium.Map(location=SCS_COORDS, zoom_start=15)
     if st.session_state.temp_lat: folium.Marker([st.session_state.temp_lat, st.session_state.temp_lng], icon=folium.Icon(color='red')).add_to(m_avi)
     map_res = st_folium(m_avi, use_container_width=True, height=300, key="map_avi")
@@ -339,7 +330,7 @@ elif st.session_state.pagina == 'novo_avistamento':
 elif st.session_state.pagina == 'historico_pet':
     pet = st.session_state.pet_foco
     st.header(f"🗺️ Rota: {valor_seguro(pet, 'Nome_Pet')}")
-    if st.button("⬅️ Voltar", key="v_rota_p"): ir_para('home')
+    if st.button("⬅️ Voltar"): ir_para('home')
     df_avis = ler_planilha_direto(ABA_AVISTAMENTOS)
     avis = df_avis[df_avis['ID_Pet'] == str(valor_seguro(pet, 'ID')).strip()]
     l_o, n_o = float(valor_seguro(pet, 'Lat')), float(valor_seguro(pet, 'Lng'))
@@ -376,7 +367,7 @@ elif st.session_state.pagina == 'meus_pets':
 
 elif st.session_state.pagina == 'cadastro_user':
     st.header("📝 Criar Conta")
-    if st.button("⬅️ Voltar", key="v_cad_u"): ir_para('home')
+    if st.button("⬅️ Voltar"): ir_para('home')
     with st.form("cad"):
         n, t, u, p = st.text_input("Nome"), st.text_input("Whats"), st.text_input("User"), st.text_input("Senha", type="password")
         end_user = st.text_input("Seu Endereço Completo (Rua, Número, Bairro, SCS)")
