@@ -50,21 +50,33 @@ def renderizar_header():
     if os.path.exists(banner_path):
         st.image(banner_path, use_container_width=True)
     else:
-        st.info("Arquivo 'assets/banner.png' não encontrado no GitHub.")
+        st.info("Arquivo 'assets/banner.png' não encontrado no GitHub. Adicione para ver o cabeçalho.")
     
     st.write("")
 
-# --- CSS PARA ALINHAMENTO ---
+# --- CSS PARA ALINHAMENTO E REDIMENSIONAMENTO SEM CORTES ---
 st.markdown("""
 <style>
-    .stImage img, .stFolium {
-        width: 100% !important;
+    /* MODIFICADO PARA GARANTIR REDIMENSIONAMENTO PROPORCIONAL SEM CORTES */
+    .stImage img {
+        max-width: 100% !important;
+        height: auto !important; /* Garante que a altura escale proporcionalmente */
+        object-fit: contain !important; /* Impede cortes, garante que a imagem caiba no container */
         border-radius: 12px !important;
         border: none !important;
+        margin: 0 auto; /* Centraliza, se necessário */
+        display: block;
     }
+
+    .stFolium {
+        width: 100% !important;
+        border-radius: 12px !important;
+    }
+
     .block-container {
         padding-top: 2rem !important;
     }
+
     [data-testid="stVerticalBlockBorderWrapper"] > div { 
         border-radius: 12px !important; 
         padding: 10px !important; 
@@ -140,7 +152,7 @@ if st.session_state.pagina_detalhes:
     st.stop()
 
 # ==========================================
-# 🛰️ GPS EM TEMPO REAL
+# 🛰️ GPS EM TEMPO REAL (BACKGROUND)
 # ==========================================
 loc_gps = streamlit_js_eval(js_expressions="new Promise(resolve => navigator.geolocation.getCurrentPosition(pos => resolve({lat: pos.coords.latitude, lng: pos.coords.longitude})))", key="gps_tracker")
 if loc_gps:
@@ -170,7 +182,9 @@ with st.sidebar:
             st.session_state.logado = False
             ir_para('home')
 
-# --- EXIBE O HEADER ---
+# ==========================================
+# 🚀 RENDERIZA O HEADER (Banner 800x200 PNG)
+# ==========================================
 renderizar_header()
 
 # --- PÁGINA: HOME ---
@@ -189,7 +203,7 @@ if st.session_state.pagina == 'home':
         if count_prox > 0:
             st.warning(f"🚨 Existem {count_prox} pets perdidos em um raio de 1km de você!")
 
-    # MAPA
+    # MAPA (Sempre abaixo do banner, com mesma largura)
     m = folium.Map(location=SCS_COORDS, zoom_start=14)
     if st.session_state.user_lat:
         folium.Circle(location=[st.session_state.user_lat, st.session_state.user_lng], radius=150, color='#3498db', fill=True, fill_opacity=0.2).add_to(m)
@@ -207,6 +221,7 @@ if st.session_state.pagina == 'home':
                 if l_p != '-':
                     folium.Marker([float(l_p), float(n_p)], popup=valor_seguro(pet, 'Nome_Pet'), icon=folium.Icon(color=icon_c, icon=icon_n, prefix='fa')).add_to(m)
     
+    # Renderiza mapa usando largura do container para alinhar com o banner
     st_folium(m, use_container_width=True, height=400)
     
     if st.session_state.logado:
@@ -219,10 +234,6 @@ if st.session_state.pagina == 'home':
             with st.container(border=True):
                 pet_id, nome = str(valor_seguro(pet, 'ID')).strip(), valor_seguro(pet, 'Nome_Pet')
                 loc = f"📍 <span class='avistamento-alerta'>Sumiu em:</span> {valor_seguro(pet, 'Local_Desaparecimento')} ({valor_seguro(pet, 'Data')})"
-                if not df_avis.empty:
-                    avis = df_avis[df_avis['ID_Pet'] == pet_id]
-                    if not avis.empty: loc = f"<span class='avistamento-alerta'>🚨 Último avistamento:</span> {avis.iloc[-1].get('Bairro', '')} ({avis.iloc[-1].get('Data_Hora', '')})"
-                
                 st.markdown(f'''<div class="html-card-wrapper"><img src="{valor_seguro(pet, 'Foto')}" class="foto-card" onerror="this.style.display='none'"><div style="flex: 1;"><h3 class="titulo-card">{nome}</h3><p class="texto-card"><b>Espécie:</b> {valor_seguro(pet, 'Especie')} | <b>Raça:</b> {valor_seguro(pet, 'Raca')}</p><p class="texto-card">{loc}</p></div></div>''', unsafe_allow_html=True)
                 
                 c1, c2, c3, c4 = st.columns(4)
@@ -250,10 +261,10 @@ if st.session_state.pagina == 'home':
                     with c2:
                         st.button("🔒 Login p/ Contato", key=f"log_btn_{pet_id}", disabled=True, width='stretch')
 
-# --- PÁGINAS RESTANTES MANTIDAS (PERDI_PET, NOVO_AVISTAMENTO, HALL_FAMA, CADASTRO, MEUS_PETS) ---
+# --- DEMAIS PÁGINAS MANTIDAS IGUAIS... ---
 elif st.session_state.pagina == 'perdi_pet':
     st.header("🚨 Registrar Pet Perdido")
-    if st.button("⬅️ Voltar"): ir_para('home')
+    if st.button("⬅️ Voltar", key="v_reg_p"): ir_para('home')
     m_reg = folium.Map(location=[st.session_state.user_lat, st.session_state.user_lng] if st.session_state.user_lat else SCS_COORDS, zoom_start=16)
     if st.session_state.temp_lat: folium.Marker([st.session_state.temp_lat, st.session_state.temp_lng], icon=folium.Icon(color='red')).add_to(m_reg)
     map_res = st_folium(m_reg, use_container_width=True, height=300, key="map_reg")
@@ -276,7 +287,7 @@ elif st.session_state.pagina == 'perdi_pet':
 elif st.session_state.pagina == 'novo_avistamento':
     pet = st.session_state.pet_foco
     st.header(f"👁️ Vi o pet: {valor_seguro(pet, 'Nome_Pet')}")
-    if st.button("⬅️ Voltar"): ir_para('home')
+    if st.button("⬅️ Voltar", key="v_av_p"): ir_para('home')
     m_avi = folium.Map(location=SCS_COORDS, zoom_start=15)
     if st.session_state.temp_lat: folium.Marker([st.session_state.temp_lat, st.session_state.temp_lng], icon=folium.Icon(color='red')).add_to(m_avi)
     map_res = st_folium(m_avi, use_container_width=True, height=300, key="map_avi")
@@ -290,6 +301,21 @@ elif st.session_state.pagina == 'novo_avistamento':
                 novo = {"ID_Pet": valor_seguro(pet, 'ID'), "Data_Hora": datetime.now().strftime('%d/%m/%Y %H:%M'), "Lat": str(st.session_state.temp_lat), "Lng": str(st.session_state.temp_lng), "Bairro": f"{end_r} - {ref}" if ref else end_r, "Observacao": obs, "Usuario": st.session_state.user.get('Usuario', '')}
                 conn.update(worksheet=ABA_AVISTAMENTOS, data=pd.concat([ler_planilha_direto(ABA_AVISTAMENTOS), pd.DataFrame([novo])], ignore_index=True))
                 st.cache_data.clear(); modal_sucesso("Avistamento registrado!")
+
+elif st.session_state.pagina == 'historico_pet':
+    pet = st.session_state.pet_foco
+    st.header(f"🗺️ Rota: {valor_seguro(pet, 'Nome_Pet')}")
+    if st.button("⬅️ Voltar", key="v_rota_p"): ir_para('home')
+    df_avis = ler_planilha_direto(ABA_AVISTAMENTOS)
+    avis = df_avis[df_avis['ID_Pet'] == str(valor_seguro(pet, 'ID')).strip()]
+    l_o, n_o = float(valor_seguro(pet, 'Lat')), float(valor_seguro(pet, 'Lng'))
+    m_h = folium.Map(location=[l_o, n_o], zoom_start=14)
+    pontos = [[l_o, n_o]]
+    folium.Marker([l_o, n_o], icon=folium.Icon(color='black', icon='home', prefix='fa')).add_to(m_h)
+    for _, av in avis.iterrows():
+        pontos.append([float(av['Lat']), float(av['Lng'])]); folium.Marker([float(av['Lat']), float(av['Lng'])], icon=folium.Icon(color='red', icon='eye', prefix='fa')).add_to(m_h)
+    folium.PolyLine(pontos, color="red").add_to(m_h)
+    st_folium(m_h, width='stretch', height=400)
 
 elif st.session_state.pagina == 'hall_fama':
     st.header("🏆 Hall da Fama")
@@ -316,10 +342,10 @@ elif st.session_state.pagina == 'meus_pets':
 
 elif st.session_state.pagina == 'cadastro_user':
     st.header("📝 Criar Conta")
-    if st.button("⬅️ Voltar"): ir_para('home')
+    if st.button("⬅️ Voltar", key="v_cad_u"): ir_para('home')
     with st.form("cad"):
         n, t, u, p = st.text_input("Nome"), st.text_input("Whats"), st.text_input("User"), st.text_input("Senha", type="password")
-        end_user = st.text_input("Seu Endereço (Rua, Número, Bairro, SCS)")
+        end_user = st.text_input("Seu Endereço Completo (Rua, Número, Bairro, SCS)")
         if st.form_submit_button("CADASTRAR"):
             l_u, n_u = 0, 0
             try:
