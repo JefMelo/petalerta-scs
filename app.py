@@ -41,46 +41,74 @@ from streamlit_gsheets import GSheetsConnection
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 # ==========================================
-# 🎨 FRONT-END: HEADER (BANNER 800x200 PNG)
+# 🎨 FRONT-END: HEADER (MÉTODO HTML PURO)
 # ==========================================
 def renderizar_header():
-    # AJUSTADO PARA .PNG CONFORME SOLICITADO
+    # Caminho do banner PNG
     banner_path = "assets/banner.png"
     
     if os.path.exists(banner_path):
-        st.image(banner_path, use_container_width=True)
+        # Lê a imagem e converte para base64 para garantir transparência e caminho correto
+        with open(banner_path, "rb") as image_file:
+            encoded_string = base64.b64encode(image_file.read()).decode()
+        
+        # Injeta HTML puro para renderizar a imagem com a classe 'header-banner'
+        st.markdown(f'<img src="data:image/png;base64,{encoded_string}" class="header-banner">', unsafe_allow_html=True)
     else:
-        st.info("Arquivo 'assets/banner.png' não encontrado no GitHub. Adicione para ver o cabeçalho.")
+        st.info("Adicione o arquivo 'assets/banner.png' no GitHub para visualizar o cabeçalho.")
     
+    # Pequeno espaçamento antes do mapa
     st.write("")
 
-# --- CSS PARA ALINHAMENTO E REDIMENSIONAMENTO SEM CORTES ---
+# --- CSS PARA ALINHAMENTO, REDIMENSIONAMENTO E TRANSPARÊNCIA ---
 st.markdown("""
 <style>
-    /* MODIFICADO PARA GARANTIR REDIMENSIONAMENTO PROPORCIONAL SEM CORTES */
-    .stImage img {
-        max-width: 100% !important;
-        height: auto !important; /* Garante que a altura escale proporcionalmente */
-        object-fit: contain !important; /* Impede cortes, garante que a imagem caiba no container */
+    /* CSS EXPLICITO PARA O BANNER (Classe .header-banner que criamos acima) */
+    .header-banner {
+        width: 100% !important;
+        max-width: 800px !important; /* Capa a largura em 800px */
+        height: auto !important; /* Mantém a proporção de altura */
+        
+        /* IMPEDE O CORTE: Ajusta a imagem inteira dentro do container */
+        object-fit: scale-down !important; 
+        
+        /* GARANTE TRANSPARÊNCIA: Remove qualquer fundo do elemento da imagem */
+        background-color: transparent !important;
+        
         border-radius: 12px !important;
         border: none !important;
-        margin: 0 auto; /* Centraliza, se necessário */
         display: block;
+        margin: 0 auto !important; /* Centraliza na página */
     }
 
+    /* Target direto nos containers de imagem do Streamlit para forçar transparência geral */
+    [data-testid="stImage"] {
+        background-color: transparent !important;
+    }
+    [data-testid="stImage"] > img {
+        background-color: transparent !important;
+        object-fit: scale-down !important; /* Aplica também a st.image comuns */
+    }
+
+    /* Estilização do Mapa (mesma largura do banner) */
     .stFolium {
         width: 100% !important;
         border-radius: 12px !important;
+        border: none !important;
+        margin-bottom: 15px !important;
     }
-
+    
+    /* Ajuste de margem do topo da página */
     .block-container {
         padding-top: 2rem !important;
     }
 
+    /* Estilo dos containers de cards */
     [data-testid="stVerticalBlockBorderWrapper"] > div { 
         border-radius: 12px !important; 
         padding: 10px !important; 
     }
+    
     .html-card-wrapper { display: flex; gap: 15px; align-items: flex-start; }
     .titulo-card { margin: 0px !important; font-size: 1.3rem !important; font-weight: bold !important; }
     .texto-card { margin: 2px 0px !important; font-size: 0.95rem !important; line-height: 1.2 !important; }
@@ -183,7 +211,7 @@ with st.sidebar:
             ir_para('home')
 
 # ==========================================
-# 🚀 RENDERIZA O HEADER (Banner 800x200 PNG)
+# 🚀 RENDERIZA O HEADER (Banner HTML Puro)
 # ==========================================
 renderizar_header()
 
@@ -191,6 +219,7 @@ renderizar_header()
 if st.session_state.pagina == 'home':
     df, df_avis = ler_planilha_direto(ABA_PETS), ler_planilha_direto(ABA_AVISTAMENTOS)
     
+    # 🚨 RADAR DE PROXIMIDADE (1KM)
     if st.session_state.user_lat and not df.empty:
         count_prox = 0
         user_pos = (st.session_state.user_lat, st.session_state.user_lng)
@@ -221,7 +250,7 @@ if st.session_state.pagina == 'home':
                 if l_p != '-':
                     folium.Marker([float(l_p), float(n_p)], popup=valor_seguro(pet, 'Nome_Pet'), icon=folium.Icon(color=icon_c, icon=icon_n, prefix='fa')).add_to(m)
     
-    # Renderiza mapa usando largura do container para alinhar com o banner
+    # Renderiza mapa usando container_width para alinhar com o banner
     st_folium(m, use_container_width=True, height=400)
     
     if st.session_state.logado:
@@ -234,6 +263,11 @@ if st.session_state.pagina == 'home':
             with st.container(border=True):
                 pet_id, nome = str(valor_seguro(pet, 'ID')).strip(), valor_seguro(pet, 'Nome_Pet')
                 loc = f"📍 <span class='avistamento-alerta'>Sumiu em:</span> {valor_seguro(pet, 'Local_Desaparecimento')} ({valor_seguro(pet, 'Data')})"
+                if not df_avis.empty:
+                    avis = df_avis[df_avis['ID_Pet'] == pet_id]
+                    if not avis.empty: loc = f"<span class='avistamento-alerta'>🚨 Último avistamento:</span> {avis.iloc[-1].get('Bairro', '')} ({avis.iloc[-1].get('Data_Hora', '')})"
+                
+                # Cards do mural também usam onerror para esconder imagem se falhar
                 st.markdown(f'''<div class="html-card-wrapper"><img src="{valor_seguro(pet, 'Foto')}" class="foto-card" onerror="this.style.display='none'"><div style="flex: 1;"><h3 class="titulo-card">{nome}</h3><p class="texto-card"><b>Espécie:</b> {valor_seguro(pet, 'Especie')} | <b>Raça:</b> {valor_seguro(pet, 'Raca')}</p><p class="texto-card">{loc}</p></div></div>''', unsafe_allow_html=True)
                 
                 c1, c2, c3, c4 = st.columns(4)
