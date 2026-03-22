@@ -55,7 +55,7 @@ def renderizar_header():
         with col_logo:
             # Solicitado 800x800. St.image vai limitar ao tamanho da coluna central, 
             # garantindo que não quebre o layout responsivo, mas tentará preencher.
-            st.image(logo_path, width=800)
+            st.image(logo_path, width=500)
     else:
         # Fallback caso não tenha logo: mostra emoji centralizado
         st.markdown("<h1 style='text-align: center; font-size: 80px; margin:0;'>🐾</h1>", unsafe_allow_html=True)
