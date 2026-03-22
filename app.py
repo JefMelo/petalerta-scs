@@ -41,40 +41,43 @@ from streamlit_gsheets import GSheetsConnection
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 # ==========================================
-# 🎨 FRONT-END: HEADER AJUSTADO (800x200)
+# 🎨 FRONT-END: HEADER MASSIVO (800x800)
 # ==========================================
 def renderizar_header():
     logo_path = "assets/logo.png"
     banner_path = "assets/banner.jpg"
 
-    # Cabeçalho com Logo e Título
-    col_logo, col_txt = st.columns([1, 4])
-    with col_logo:
-        if os.path.exists(logo_path):
-            st.image(logo_path, width=100)
-        else:
-            st.markdown("<h1 style='font-size: 60px; margin:0;'>🐾</h1>", unsafe_allow_html=True)
+    # Container Centralizado para o Logo Massivo
+    if os.path.exists(logo_path):
+        # Usamos colunas vazias nas pontas para centralizar o conteúdo no meio
+        # col1=10%, col_logo=80%, col3=10%
+        col1, col_logo, col3 = st.columns([1, 8, 1])
+        with col_logo:
+            # Solicitado 800x800. St.image vai limitar ao tamanho da coluna central, 
+            # garantindo que não quebre o layout responsivo, mas tentará preencher.
+            st.image(logo_path, width=800)
+    else:
+        # Fallback caso não tenha logo: mostra emoji centralizado
+        st.markdown("<h1 style='text-align: center; font-size: 80px; margin:0;'>🐾</h1>", unsafe_allow_html=True)
     
-    with col_txt:
-        st.markdown(f"""
-            <div style='margin-top: 5px;'>
-                <h1 style='margin: 0; color: var(--text-color); font-size: 2.2rem;'>PetAlerta SCS</h1>
-                <p style='margin: 0; opacity: 0.8; font-size: 1rem;'>Unindo vizinhos para proteger nossos pets em Santa Cruz do Sul</p>
-            </div>
-        """, unsafe_allow_html=True)
+    # Texto do Header (Centralizado abaixo do logo massivo)
+    st.markdown(f"""
+        <div style='text-align: center; margin-top: 5px; margin-bottom: 10px;'>
+            <h1 style='margin: 0; color: var(--text-color); font-size: 2.2rem;'>PetAlerta SCS</h1>
+            <p style='margin: 0; opacity: 0.8; font-size: 1rem;'>Unindo vizinhos para proteger nossos pets em Santa Cruz do Sul</p>
+        </div>
+    """, unsafe_allow_html=True)
     
-    # Banner com tamanho fixo sugerido (800px)
+    # Banner Principal (Mantido responsivo abaixo)
     if os.path.exists(banner_path):
-        # Usamos use_container_width para ser responsivo no celular, 
-        # mas a imagem original deve ter 800x200 para manter a proporção.
-        st.image(banner_path, use_container_width=True) 
+        st.image(banner_path, use_container_width=True)
     st.divider()
 
 # --- CSS ADAPTÁVEL ---
 st.markdown("""
 <style>
     [data-testid="stVerticalBlockBorderWrapper"] > div { border-radius: 12px !important; padding: 10px !important; margin-bottom: 15px !important; }
-    .stImage img { border-radius: 10px !important; width: 100% !important; max-width: 800px !important; margin: 0 auto !important; display: block !important; }
+    # .stImage img { border-radius: 10px !important; } /* Comentado para o logo gigante ficar mais limpo */
     .html-card-wrapper { display: flex; gap: 15px; align-items: flex-start; color: var(--text-color) !important; font-family: var(--font) !important; }
     .titulo-card { color: var(--text-color) !important; margin: 0px !important; line-height: 1.0 !important; font-size: 1.3rem !important; font-weight: bold !important; }
     .texto-card { color: var(--text-color) !important; margin: 2px 0px !important; font-size: 0.95rem !important; line-height: 1.2 !important; }
@@ -99,7 +102,8 @@ def ler_planilha_direto(nome_aba):
     try:
         df = conn.read(worksheet=nome_aba, ttl=15, dtype=str)
         return df.dropna(how='all').fillna("")
-    except: return pd.DataFrame()
+    except:
+        return pd.DataFrame()
 
 def fazer_upload_imgbb(arquivo):
     if arquivo:
@@ -176,7 +180,9 @@ with st.sidebar:
             st.session_state.logado = False
             ir_para('home')
 
-# --- EXIBE O HEADER ---
+# ==========================================
+# 🚀 RENDERIZA O HEADER (Sempre no topo)
+# ==========================================
 renderizar_header()
 
 # --- PÁGINA: HOME ---
@@ -195,6 +201,7 @@ if st.session_state.pagina == 'home':
         if count_prox > 0:
             st.warning(f"🚨 **RADAR:** Existem {count_prox} pets perdidos em um raio de 1km de você! Fique atento(a).")
 
+    # MAPA
     m = folium.Map(location=SCS_COORDS, zoom_start=14)
     if st.session_state.user_lat:
         folium.Circle(location=[st.session_state.user_lat, st.session_state.user_lng], radius=150, color='#3498db', fill=True, fill_opacity=0.2).add_to(m)
@@ -253,7 +260,7 @@ if st.session_state.pagina == 'home':
                     with c2:
                         st.button("🔒 Login p/ Contato", key=f"log_btn_{pet_id}", disabled=True, width='stretch')
 
-# --- PÁGINAS RESTANTES (PERDI_PET, NOVO_AVISTAMENTO, HALL_FAMA, CADASTRO, MEUS_PETS) MANTIDAS IGUAIS ---
+# --- PÁGINAS RESTANTES (PERDI_PET, NOVO_AVISTAMENTO, HALL_FAMA, CADASTRO, MEUS_PETS) MANTIDAS IGUAIS...
 elif st.session_state.pagina == 'perdi_pet':
     st.header("🚨 Registrar Pet Perdido")
     if st.button("⬅️ Voltar", key="v_reg_p"): ir_para('home')
@@ -291,7 +298,8 @@ elif st.session_state.pagina == 'novo_avistamento':
             if st.session_state.temp_lat:
                 end_r = obter_endereco(st.session_state.temp_lat, st.session_state.temp_lng)
                 novo = {"ID_Pet": valor_seguro(pet, 'ID'), "Data_Hora": datetime.now().strftime('%d/%m/%Y %H:%M'), "Lat": str(st.session_state.temp_lat), "Lng": str(st.session_state.temp_lng), "Bairro": f"{end_r} - {ref}" if ref else end_r, "Observacao": obs, "Usuario": st.session_state.user.get('Usuario', '')}
-                conn.update(worksheet=ABA_AVISTAMENTOS, data=pd.concat([ler_planilha_direto(ABA_AVISTAMENTOS), pd.DataFrame([novo])], ignore_index=True))
+                df_av = ler_planilha_direto(ABA_AVISTAMENTOS)
+                conn.update(worksheet=ABA_AVISTAMENTOS, data=pd.concat([df_av, pd.DataFrame([novo])], ignore_index=True))
                 st.cache_data.clear(); modal_sucesso("Avistamento registrado!")
 
 elif st.session_state.pagina == 'historico_pet':
