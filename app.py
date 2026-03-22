@@ -41,40 +41,34 @@ from streamlit_gsheets import GSheetsConnection
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 # ==========================================
-# 🎨 FRONT-END: HEADER (BANNER 800x200)
+# 🎨 FRONT-END: HEADER (BANNER 800x200 PNG)
 # ==========================================
 def renderizar_header():
-    banner_path = "assets/banner.jpg"
+    # AJUSTADO PARA .PNG CONFORME SOLICITADO
+    banner_path = "assets/banner.png"
     
-    # Exibe apenas o banner. Se não existir, mostra uma divisória discreta.
     if os.path.exists(banner_path):
         st.image(banner_path, use_container_width=True)
     else:
-        st.info("Adicione o arquivo 'assets/banner.jpg' para visualizar o cabeçalho.")
+        st.info("Arquivo 'assets/banner.png' não encontrado no GitHub.")
     
-    # Pequeno espaçamento antes do mapa
     st.write("")
 
-# --- CSS PARA ALINHAMENTO DO BANNER E MAPA ---
+# --- CSS PARA ALINHAMENTO ---
 st.markdown("""
 <style>
-    /* Estilização das imagens e do mapa para ocuparem 100% do container */
     .stImage img, .stFolium {
         width: 100% !important;
         border-radius: 12px !important;
         border: none !important;
     }
-    
-    /* Remove margens excessivas do topo */
     .block-container {
         padding-top: 2rem !important;
     }
-
     [data-testid="stVerticalBlockBorderWrapper"] > div { 
         border-radius: 12px !important; 
         padding: 10px !important; 
     }
-    
     .html-card-wrapper { display: flex; gap: 15px; align-items: flex-start; }
     .titulo-card { margin: 0px !important; font-size: 1.3rem !important; font-weight: bold !important; }
     .texto-card { margin: 2px 0px !important; font-size: 0.95rem !important; line-height: 1.2 !important; }
@@ -176,16 +170,13 @@ with st.sidebar:
             st.session_state.logado = False
             ir_para('home')
 
-# ==========================================
-# 🚀 RENDERIZA O HEADER (Banner 800x200)
-# ==========================================
+# --- EXIBE O HEADER ---
 renderizar_header()
 
 # --- PÁGINA: HOME ---
 if st.session_state.pagina == 'home':
     df, df_avis = ler_planilha_direto(ABA_PETS), ler_planilha_direto(ABA_AVISTAMENTOS)
     
-    # 🚨 RADAR DE PROXIMIDADE (1KM)
     if st.session_state.user_lat and not df.empty:
         count_prox = 0
         user_pos = (st.session_state.user_lat, st.session_state.user_lng)
@@ -198,7 +189,7 @@ if st.session_state.pagina == 'home':
         if count_prox > 0:
             st.warning(f"🚨 Existem {count_prox} pets perdidos em um raio de 1km de você!")
 
-    # MAPA (Sempre abaixo do banner)
+    # MAPA
     m = folium.Map(location=SCS_COORDS, zoom_start=14)
     if st.session_state.user_lat:
         folium.Circle(location=[st.session_state.user_lat, st.session_state.user_lng], radius=150, color='#3498db', fill=True, fill_opacity=0.2).add_to(m)
@@ -216,7 +207,6 @@ if st.session_state.pagina == 'home':
                 if l_p != '-':
                     folium.Marker([float(l_p), float(n_p)], popup=valor_seguro(pet, 'Nome_Pet'), icon=folium.Icon(color=icon_c, icon=icon_n, prefix='fa')).add_to(m)
     
-    # Renderiza mapa com mesma largura do banner
     st_folium(m, use_container_width=True, height=400)
     
     if st.session_state.logado:
@@ -260,7 +250,7 @@ if st.session_state.pagina == 'home':
                     with c2:
                         st.button("🔒 Login p/ Contato", key=f"log_btn_{pet_id}", disabled=True, width='stretch')
 
-# --- PÁGINAS RESTANTES (PERDI_PET, NOVO_AVISTAMENTO, HALL_FAMA, CADASTRO, MEUS_PETS) MANTIDAS ---
+# --- PÁGINAS RESTANTES MANTIDAS (PERDI_PET, NOVO_AVISTAMENTO, HALL_FAMA, CADASTRO, MEUS_PETS) ---
 elif st.session_state.pagina == 'perdi_pet':
     st.header("🚨 Registrar Pet Perdido")
     if st.button("⬅️ Voltar"): ir_para('home')
