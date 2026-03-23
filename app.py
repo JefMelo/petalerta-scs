@@ -8,6 +8,7 @@ from streamlit_folium import st_folium
 from streamlit_js_eval import streamlit_js_eval
 from geopy.geocoders import Nominatim
 import os
+import re
 
 # 1. CONFIGURAÇÃO DA PÁGINA
 st.set_page_config(page_title="PetAlerta SCS", page_icon="🐾", layout="centered")
@@ -15,7 +16,7 @@ st.set_page_config(page_title="PetAlerta SCS", page_icon="🐾", layout="centere
 # --- CREDENCIAIS E APIS ---
 IMGBB_API_KEY = "54494e69c28056a133620f4e8be0ab72"
 ABA_USUARIOS, ABA_PETS, ABA_AVISTAMENTOS, ABA_ADOCAO = "Usuarios", "Dados", "Avistamentos", "Adocao"
-geolocator = Nominatim(user_agent="PetAlertaSCS_V3_Final")
+geolocator = Nominatim(user_agent="PetAlertaSCS_Final_v4")
 SCS_COORDS = [-29.7182, -52.4306]
 
 # --- CONEXÃO G-SHEETS ---
@@ -36,11 +37,9 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
     html, body, [class*="css"] { font-family: 'Poppins', sans-serif; }
 
-    /* BANNER SUPERIOR */
     .banner-container-final { width: 100%; display: flex; justify-content: center; margin-bottom: 25px; }
     .header-banner-final-impl { width: 100%; height: auto; aspect-ratio: 4 / 1; object-fit: contain; border-radius: 18px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); }
 
-    /* CARD COM ALTURA RÍGIDA 300PX */
     [data-testid="stVerticalBlockBorderWrapper"] {
         background-color: var(--secondary-background-color) !important;
         border: 1px solid rgba(128, 128, 128, 0.1) !important;
@@ -51,16 +50,15 @@ st.markdown("""
     }
     [data-testid="stVerticalBlockBorderWrapper"]:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(0,0,0,0.12) !important; border: 1px solid #ff4b4b !important; }
 
-    /* FOTO FIXA 120PX */
     [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stImage"] img { 
         border-radius: 12px !important; height: 120px !important; min-height: 120px !important; max-height: 120px !important; object-fit: cover !important; width: 100% !important;
     }
     
-    .nome-pet { color: var(--text-color) !important; font-size: 1.2rem !important; font-weight: 600 !important; margin: 0; }
+    .nome-pet { color: var(--text-color) !important; font-size: 1.15rem !important; font-weight: 600 !important; margin: 0; }
     .tag-status { background-color: #ff4b4b; color: white; padding: 2px 8px; border-radius: 6px; font-size: 0.6rem; font-weight: 700; margin-left: 8px; vertical-align: middle; }
     .tag-adocao { background-color: #4b9fff; color: white; padding: 2px 8px; border-radius: 6px; font-size: 0.6rem; font-weight: 700; margin-left: 8px; vertical-align: middle; }
     
-    .info-container { font-size: 0.85rem !important; color: var(--text-color); margin-top: 5px; height: 65px !important; overflow: hidden !important; }
+    .info-container { font-size: 0.82rem !important; color: var(--text-color); margin-top: 5px; height: 60px !important; overflow: hidden !important; }
     .info-label { opacity: 0.6; font-weight: 400; }
     .info-valor { font-weight: 500; }
 
@@ -74,6 +72,9 @@ st.markdown("""
 def ler_planilha(aba):
     try: return conn.read(worksheet=aba, ttl=5).dropna(how='all').fillna("")
     except: return pd.DataFrame()
+
+def limpar_telefone(tel):
+    return re.sub(r'\D', '', str(tel))
 
 def fazer_upload_imgbb(arquivo):
     if not arquivo: return "https://via.placeholder.com/300?text=Sem+Foto"
@@ -124,6 +125,7 @@ with st.sidebar:
             else: st.error("Login inválido")
     else:
         st.success(f"Olá, {st.session_state.user['Nome'].split()[0]}")
+        if st.button("👤 Meus Dados", use_container_width=True): ir_para('meus_dados')
         if st.button("⚙️ Gerenciar Meus Pets", use_container_width=True): ir_para('meus_pets')
         if st.button("🚪 Sair", use_container_width=True): st.session_state.logado = False; ir_para('home')
 
@@ -134,16 +136,43 @@ if os.path.exists(banner_path):
     st.markdown(f'<div class="banner-container-final"><img src="data:image/png;base64,{data}" class="header-banner-final-impl"></div>', unsafe_allow_html=True)
 
 # ==========================================
+# 👤 PÁGINA: MEUS DADOS (EDIÇÃO)
+# ==========================================
+if st.session_state.pagina == 'meus_dados':
+    st.header("👤 Meus Dados")
+    st.write("Mantenha seu contato atualizado para facilitar reencontros.")
+    
+    df_usuarios = ler_planilha(ABA_USUARIOS)
+    u_logado = st.session_state.user['Usuario']
+    
+    with st.form("edit_perfil"):
+        novo_nome = st.text_input("Nome Completo", value=st.session_state.user['Nome'])
+        nova_senha = st.text_input("Nova Senha", value=st.session_state.user['Senha'], type="password")
+        novo_whats = st.text_input("WhatsApp (com DDD)", value=st.session_state.user['Telefone'])
+        
+        if st.form_submit_button("💾 SALVAR ALTERAÇÕES"):
+            # Localiza a linha do usuário na planilha
+            idx = df_usuarios.index[df_usuarios['Usuario'] == u_logado].tolist()[0]
+            df_usuarios.at[idx, 'Nome'] = novo_nome
+            df_usuarios.at[idx, 'Senha'] = nova_senha
+            df_usuarios.at[idx, 'Telefone'] = novo_whats
+            
+            # Atualiza G-Sheets e Session State
+            conn.update(worksheet=ABA_USUARIOS, data=df_usuarios)
+            st.session_state.user = df_usuarios.loc[idx].to_dict()
+            modal_sucesso("Seus dados foram atualizados!", 'home')
+
+# ==========================================
 # 🏠 PÁGINA 1: PERDIDOS (HOME)
 # ==========================================
-if st.session_state.pagina == 'home':
+elif st.session_state.pagina == 'home':
     df_p, df_a = ler_planilha(ABA_PETS), ler_planilha(ABA_AVISTAMENTOS)
     m = folium.Map(location=SCS_COORDS, zoom_start=14, tiles='cartodbpositron')
     for _, pet in df_p[df_p['Status'] == 'Perdido'].iterrows():
         folium.Marker([pet['Lat'], pet['Lng']], popup=pet['Nome_Pet'], icon=folium.Icon(color='orange', icon='paw', prefix='fa')).add_to(m)
     st_folium(m, use_container_width=True, height=350)
     
-    st.subheader("🔍 Desaparecidos em Santa Cruz")
+    st.subheader("🔍 Desaparecidos em SCS")
     for _, pet in df_p[df_p['Status'] == 'Perdido'].iterrows():
         p_id = str(pet['ID'])
         with st.container(border=True):
@@ -157,7 +186,9 @@ if st.session_state.pagina == 'home':
                 with b2: st.button("🗺️ Rota", key=f"r_{p_id}", on_click=lambda p=pet: st.session_state.update({"pet_foco": p, "pagina": "historico_pet"}))
                 with b3: st.button("👁️ Vi!", key=f"vi_{p_id}", on_click=lambda p=pet: st.session_state.update({"pet_foco": p, "pagina": "novo_avistamento"}) if st.session_state.logado else modal_login_requerido())
                 with b4: 
-                    if st.session_state.logado: st.link_button("🟢 Zap", f"https://wa.me/55{pet['Tel_Tutor']}")
+                    if st.session_state.logado: 
+                        tel_limpo = limpar_telefone(pet['Tel_Tutor'])
+                        st.link_button("🟢 Zap", f"https://wa.me/55{tel_limpo}")
                     else: st.button("🔒 Zap", key=f"w_{p_id}", on_click=modal_login_requerido)
 
 # ==========================================
@@ -175,7 +206,9 @@ elif st.session_state.pagina == 'adocao_mural':
                     st.image(pet['Foto'], use_container_width=True)
                     st.markdown(f"<div><span class='nome-pet'>{pet['Nome_Pet']}</span><span class='tag-adocao'>ADOÇÃO</span></div>", unsafe_allow_html=True)
                     st.markdown(f"<div class='info-container'><span class='info-label'>🐾 {pet['Especie']} | {pet['Raca']}</span><br><span class='info-label'>🎂 Idade:</span> {pet['Idade']}</div>", unsafe_allow_html=True)
-                    if st.session_state.logado: st.link_button("🎁 Quero Adotar", f"https://wa.me/55{pet['WhatsApp']}")
+                    if st.session_state.logado:
+                        tel_adocao = limpar_telefone(pet['WhatsApp'])
+                        st.link_button("🎁 Quero Adotar", f"https://wa.me/55{tel_adocao}")
                     else: st.button("🔒 Quero Adotar", key=f"ad_{idx}", on_click=modal_login_requerido)
 
 # ==========================================
@@ -200,7 +233,7 @@ elif st.session_state.pagina == 'adocao_form':
                     "Nome_Pet": nome_p, "Especie": esp, "Raca": raca, "Cor": cor,
                     "Idade": idade, "Observacoes": obs, 
                     "Tutor": st.session_state.user['Nome'], 
-                    "WhatsApp": st.session_state.user['Telefone'], 
+                    "WhatsApp": limpar_telefone(st.session_state.user['Telefone']), 
                     "User_Vinculo": st.session_state.user['Usuario'],
                     "Foto": url_f
                 }])
@@ -213,7 +246,6 @@ elif st.session_state.pagina == 'adocao_form':
 elif st.session_state.pagina == 'meus_pets':
     st.header("⚙️ Gerenciar Meus Pets")
     
-    # SEÇÃO 1: PERDIDOS
     st.subheader("📍 Meus Pets Perdidos")
     df_p = ler_planilha(ABA_PETS)
     meus_p = df_p[(df_p['User_Vinculo'] == st.session_state.user['Usuario']) & (df_p['Status'] == 'Perdido')]
@@ -226,11 +258,10 @@ elif st.session_state.pagina == 'meus_pets':
                 conn.update(worksheet=ABA_PETS, data=df_p)
                 modal_sucesso("Parabéns!", 'meus_pets')
 
-    # SEÇÃO 2: ADOÇÃO
     st.subheader("🎁 Meus Anúncios de Adoção")
     df_ad = ler_planilha(ABA_ADOCAO)
     meus_ad = df_ad[df_ad['User_Vinculo'] == st.session_state.user['Usuario']]
-    if meus_ad.empty: st.write("Você não tem pets para adoção cadastrados.")
+    if meus_ad.empty: st.write("Você não tem pets para adoção.")
     for idx, pet in meus_ad.iterrows():
         with st.container(border=True):
             st.write(f"🏠 {pet['Nome_Pet']}")
@@ -249,5 +280,7 @@ elif st.session_state.pagina == 'cadastro_user':
     with st.form("c"):
         n, u, p, t = st.text_input("Nome"), st.text_input("Usuário"), st.text_input("Senha", type="password"), st.text_input("WhatsApp")
         if st.form_submit_button("CADASTRAR"):
-            conn.update(worksheet=ABA_USUARIOS, data=pd.concat([ler_planilha(ABA_USUARIOS), pd.DataFrame([{"Usuario":u, "Senha":p, "Nome":n, "Telefone":t}])], ignore_index=True))
+            # Limpa o telefone antes de salvar no cadastro inicial
+            t_limpo = limpar_telefone(t)
+            conn.update(worksheet=ABA_USUARIOS, data=pd.concat([ler_planilha(ABA_USUARIOS), pd.DataFrame([{"Usuario":u, "Senha":p, "Nome":n, "Telefone":t_limpo}])], ignore_index=True))
             modal_sucesso("Conta criada!")
