@@ -16,7 +16,7 @@ st.set_page_config(page_title="PetAlerta SCS", page_icon="🐾", layout="centere
 # --- CREDENCIAIS E APIS ---
 IMGBB_API_KEY = "54494e69c28056a133620f4e8be0ab72"
 ABA_USUARIOS, ABA_PETS, ABA_AVISTAMENTOS = "Usuarios", "Dados", "Avistamentos"
-geolocator = Nominatim(user_agent="PetAlertaSCS_Final_Design")
+geolocator = Nominatim(user_agent="PetAlertaSCS_Final_Stable")
 SCS_COORDS = [-29.7182, -52.4306]
 
 # --- CONEXÃO G-SHEETS ---
@@ -30,38 +30,32 @@ for key in ['pagina', 'logado', 'user', 'user_lat', 'user_lng', 'temp_lat', 'tem
 if not st.session_state.pagina: st.session_state.pagina = 'home'
 
 # ==========================================
-# 🎨 CSS PREMIUM FINAL (DESIGN REFINADO)
+# 🎨 CSS PREMIUM FINAL (FOCO NO BANNER)
 # ==========================================
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
     html, body, [class*="css"] { font-family: 'Poppins', sans-serif; }
 
-    /* --- BANNER COM SOMBRA E SEM CORTES --- */
-    [data-testid="stImageWrapper"] { 
-        background-color: transparent !important; 
-        display: flex;
-        justify-content: center;
-    }
-    [data-testid="stImageWrapper"] > img {
-        width: 100% !important; 
-        max-width: 800px !important;
-        border-radius: 18px !important;
-        margin-bottom: 25px;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.15) !important; /* Sombra Premium */
-        object-fit: contain !important; 
+    /* --- BANNER: REDIMENSIONAMENTO AUTOMÁTICO SEM CORTE --- */
+    [data-testid="stImage"] img {
+        width: 100% !important;
         height: auto !important;
-        max-height: 220px !important; /* Evita corte na altura */
-        background-color: transparent !important;
+        object-fit: contain !important;
+        border-radius: 18px !important;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15) !important;
+        margin-bottom: 20px;
+        /* Garante a proporção 4:1 (800x200) sem forçar altura fixa */
+        aspect-ratio: 4 / 1; 
     }
 
-    /* --- CARD PREMIUM COM ALTURA AMPLIADA --- */
+    /* --- CARD PREMIUM (ALTURA FIXA 310px PRESERVADA) --- */
     [data-testid="stVerticalBlockBorderWrapper"] {
         background-color: var(--secondary-background-color) !important;
         border: 1px solid rgba(128, 128, 128, 0.1) !important;
         border-radius: 25px !important;
         padding: 18px !important;
-        height: 310px !important; /* Altura aumentada para evitar cortes de texto */
+        height: 310px !important; 
         display: flex; flex-direction: column; justify-content: space-between;
         transition: all 0.3s ease-in-out;
         box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important;
@@ -72,23 +66,22 @@ st.markdown("""
         box-shadow: 0 12px 24px rgba(0,0,0,0.1) !important;
     }
 
-    .stImage img { border-radius: 15px !important; height: 110px !important; object-fit: cover !important; }
+    .stImage img:not(.header-banner) { border-radius: 15px !important; height: 110px !important; object-fit: cover !important; }
     .nome-pet { color: var(--text-color) !important; font-size: 1.4rem !important; font-weight: 600 !important; margin: 0; }
     .tag-status { background-color: #ff4b4b; color: white; padding: 3px 10px; border-radius: 8px; font-size: 0.7rem; font-weight: 700; margin-left: 8px; vertical-align: middle; }
     
-    /* --- INFORMAÇÕES DO CARD --- */
+    /* --- INFORMAÇÕES DO CARD (MAIOR E LEGÍVEL) --- */
     .info-container { font-size: 0.95rem !important; color: var(--text-color); margin-top: 8px; height: 75px; overflow-y: auto; }
     .info-label { opacity: 0.6; font-weight: 400; }
     .info-valor { font-weight: 500; }
 
-    /* Botões */
     .stButton>button { border-radius: 12px !important; font-size: 0.7rem !important; height: 35px !important; font-weight: 600 !important; }
     .stFolium { border-radius: 20px !important; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
 </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 🛠️ FUNÇÕES DE APOIO
+# 🛠️ FUNÇÕES DE APOIO (PRESERVADAS)
 # ==========================================
 def ler_planilha(aba):
     try: return conn.read(worksheet=aba, ttl=5).dropna(how='all').fillna("")
@@ -129,7 +122,7 @@ def modal_sucesso(msg, p='home'):
     if st.button("OK", use_container_width=True): ir_para(p)
 
 # ==========================================
-# 🛰️ GPS E SIDEBAR
+# 🛰️ GPS E SIDEBAR (PRESERVADOS)
 # ==========================================
 loc_gps = streamlit_js_eval(js_expressions="new Promise(resolve => navigator.geolocation.getCurrentPosition(pos => resolve({lat: pos.coords.latitude, lng: pos.coords.longitude})))", key="gps")
 if loc_gps: st.session_state.user_lat, st.session_state.user_lng = loc_gps['lat'], loc_gps['lng']
@@ -153,7 +146,7 @@ with st.sidebar:
         if st.button("🐾 Meus Pets", use_container_width=True): ir_para('meus_pets')
         if st.button("🚪 Sair", use_container_width=True): st.session_state.logado = False; st.rerun()
 
-# --- RENDERIZAÇÃO DO BANNER ---
+# --- RENDERIZAÇÃO DO BANNER (FIXO) ---
 if os.path.exists("assets/Banner.png"):
     st.image("assets/Banner.png", use_container_width=True)
 
@@ -165,7 +158,7 @@ if st.session_state.pagina_detalhes:
     st.stop()
 
 # ==========================================
-# 🏠 PÁGINA: HOME (MURAL)
+# 🏠 PÁGINA: HOME (PRESERVADA)
 # ==========================================
 if st.session_state.pagina == 'home':
     df_p = ler_planilha(ABA_PETS)
@@ -221,9 +214,7 @@ if st.session_state.pagina == 'home':
                             st.markdown(f'<meta http-equiv="refresh" content="0; url=https://wa.me/55{tel}">', unsafe_allow_html=True)
                         else: modal_login_requerido()
 
-# ==========================================
-# 🚨 PÁGINAS TÉCNICAS
-# ==========================================
+# --- PÁGINAS TÉCNICAS (PRESERVADAS) ---
 elif st.session_state.pagina == 'perdi_pet':
     st.header("🚨 Registrar Pet Perdido")
     if st.button("⬅️ Voltar"): ir_para('home')
