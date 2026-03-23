@@ -16,7 +16,7 @@ st.set_page_config(page_title="PetAlerta SCS", page_icon="🐾", layout="centere
 # --- CREDENCIAIS E APIS ---
 IMGBB_API_KEY = "54494e69c28056a133620f4e8be0ab72"
 ABA_USUARIOS, ABA_PETS, ABA_AVISTAMENTOS = "Usuarios", "Dados", "Avistamentos"
-geolocator = Nominatim(user_agent="PetAlertaSCS_Address_Update")
+geolocator = Nominatim(user_agent="PetAlertaSCS_Fixed_300px")
 SCS_COORDS = [-29.7182, -52.4306]
 
 # --- CONEXÃO G-SHEETS ---
@@ -30,7 +30,7 @@ for key in ['pagina', 'logado', 'user', 'user_lat', 'user_lng', 'temp_lat', 'tem
 if not st.session_state.pagina: st.session_state.pagina = 'home'
 
 # ==========================================
-# 🎨 CSS PREMIUM FINAL (SOMBRAS E SIMETRIA)
+# 🎨 CSS PREMIUM - TRAVA TOTAL 300PX
 # ==========================================
 st.markdown("""
 <style>
@@ -47,29 +47,51 @@ st.markdown("""
         box-shadow: 0 10px 25px rgba(0,0,0,0.15) !important;
     }
 
-    /* CARD COM ALTURA FIXA E SOMBRA */
+    /* CARD COM ALTURA RÍGIDA 300PX */
     [data-testid="stVerticalBlockBorderWrapper"] {
         background-color: var(--secondary-background-color) !important;
         border: 1px solid rgba(128, 128, 128, 0.1) !important;
-        border-radius: 22px !important; padding: 15px !important;
-        height: 300px !important; min-height: 300px !important; max-height: 300px !important;
-        display: flex; flex-direction: column; justify-content: space-between;
-        transition: all 0.3s ease; box-shadow: 0 8px 20px rgba(0,0,0,0.08) !important;
+        border-radius: 22px !important; padding: 12px !important;
+        
+        /* TRAVA ABSOLUTA */
+        height: 300px !important; 
+        min-height: 300px !important; 
+        max-height: 300px !important;
+        overflow: hidden !important; /* Impede que o conteúdo estique o card */
+        
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
+        transition: all 0.3s ease; 
+        box-shadow: 0 8px 20px rgba(0,0,0,0.08) !important;
     }
     [data-testid="stVerticalBlockBorderWrapper"]:hover { 
         transform: translateY(-4px); box-shadow: 0 12px 30px rgba(0,0,0,0.12) !important; border: 1px solid #ff4b4b !important;
     }
 
-    /* FOTO DO PET COM ALTURA FIXA */
+    /* FOTO DO PET COM ALTURA RÍGIDA 120PX */
     [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stImage"] img { 
-        border-radius: 12px !important; height: 120px !important; 
-        min-height: 120px !important; max-height: 120px !important;
-        object-fit: cover !important; width: 100% !important;
+        border-radius: 12px !important; 
+        height: 120px !important; 
+        min-height: 120px !important; 
+        max-height: 120px !important;
+        object-fit: cover !important; 
+        width: 100% !important;
     }
     
-    .nome-pet { color: var(--text-color) !important; font-size: 1.25rem !important; font-weight: 600 !important; margin: 0; }
-    .tag-status { background-color: #ff4b4b; color: white; padding: 2px 8px; border-radius: 6px; font-size: 0.65rem; font-weight: 700; margin-left: 8px; vertical-align: middle; }
-    .info-container { font-size: 0.85rem !important; color: var(--text-color); margin-top: 5px; height: 55px !important; overflow: hidden; }
+    .nome-pet { color: var(--text-color) !important; font-size: 1.2rem !important; font-weight: 600 !important; margin: 0; }
+    .tag-status { background-color: #ff4b4b; color: white; padding: 2px 8px; border-radius: 6px; font-size: 0.6rem; font-weight: 700; margin-left: 8px; vertical-align: middle; }
+    
+    /* CONTAINER DE INFORMAÇÃO COM ALTURA FIXA */
+    .info-container { 
+        font-size: 0.85rem !important; 
+        color: var(--text-color); 
+        margin-top: 5px; 
+        height: 65px !important; 
+        min-height: 65px !important;
+        max-height: 65px !important;
+        overflow: hidden !important; /* Corta texto extra para manter a simetria */
+    }
     .info-label { opacity: 0.6; font-weight: 400; }
     .info-valor { font-weight: 500; }
 
@@ -230,7 +252,6 @@ elif st.session_state.pagina == 'perdi_pet':
         with st.spinner("Buscando endereço..."): st.session_state.map_address = obter_endereco(st.session_state.temp_lat, st.session_state.temp_lng)
         st.rerun()
     
-    # EXIBE ENDEREÇO LOGO ABAIXO DO MAPA
     if st.session_state.map_address:
         st.success(f"📍 **Local selecionado:** {st.session_state.map_address}")
         with st.form("f_pet"):
@@ -260,11 +281,10 @@ elif st.session_state.pagina == 'novo_avistamento':
         with st.spinner("Buscando endereço..."): st.session_state.map_address = obter_endereco(st.session_state.temp_lat, st.session_state.temp_lng)
         st.rerun()
 
-    # EXIBE ENDEREÇO LOGO ABAIXO DO MAPA
     if st.session_state.map_address:
         st.info(f"📍 **Local do avistamento:** {st.session_state.map_address}")
         with st.form("f_av"):
-            obs = st.text_area("Alguma observação? (ex: estava mancando, correu para a direita)")
+            obs = st.text_area("Alguma observação?")
             if st.form_submit_button("📍 SALVAR AVISTAMENTO"):
                 novo = pd.DataFrame([{"ID_Pet": p['ID'], "Data_Hora": datetime.now().strftime('%d/%m/%Y %H:%M'), "Lat": st.session_state.temp_lat, "Lng": st.session_state.temp_lng, "Bairro": st.session_state.map_address, "Usuario": st.session_state.user['Usuario']}])
                 conn.update(worksheet=ABA_AVISTAMENTOS, data=pd.concat([ler_planilha(ABA_AVISTAMENTOS), novo], ignore_index=True))
