@@ -16,7 +16,7 @@ st.set_page_config(page_title="PetAlerta SCS", page_icon="🐾", layout="centere
 # --- CREDENCIAIS E APIS ---
 IMGBB_API_KEY = "54494e69c28056a133620f4e8be0ab72"
 ABA_USUARIOS, ABA_PETS, ABA_AVISTAMENTOS = "Usuarios", "Dados", "Avistamentos"
-geolocator = Nominatim(user_agent="PetAlertaSCS_Final_Stable")
+geolocator = Nominatim(user_agent="PetAlertaSCS_Final_Stable_V2")
 SCS_COORDS = [-29.7182, -52.4306]
 
 # --- CONEXÃO G-SHEETS ---
@@ -30,23 +30,35 @@ for key in ['pagina', 'logado', 'user', 'user_lat', 'user_lng', 'temp_lat', 'tem
 if not st.session_state.pagina: st.session_state.pagina = 'home'
 
 # ==========================================
-# 🎨 CSS PREMIUM FINAL (FOCO NO BANNER)
+# 🎨 CSS PREMIUM FINAL (FOCO NO BANNER E ALINHAMENTO)
 # ==========================================
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
     html, body, [class*="css"] { font-family: 'Poppins', sans-serif; }
 
-    /* --- BANNER: REDIMENSIONAMENTO AUTOMÁTICO SEM CORTE --- */
-    [data-testid="stImage"] img {
+    /* --- BANNER SUPERIOR: LARGURA DO MAPA E CENTRALIZADO (MÉTODO HTML) --- */
+    .banner-container-final {
         width: 100% !important;
-        height: auto !important;
-        object-fit: contain !important;
+        display: flex !important;
+        justify-content: center !important; /* Centraliza a imagem no container */
+        margin-bottom: 25px !important;
+        padding: 0 !important;
+    }
+
+    .header-banner-final-impl {
+        /* Força a largura para ocupar o container (centralizado pelo Streamlit) */
+        width: 100% !important; 
+        height: auto !important; /* Mantém a proporção */
+        
+        /* Garante proporção 4:1 sem cortes (object-fit contain) */
+        aspect-ratio: 4 / 1 !important; 
+        object-fit: contain !important; 
+        background-color: transparent !important; /* Evita fundo branco se imagem for menor */
+        
         border-radius: 18px !important;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.15) !important;
-        margin-bottom: 20px;
-        /* Garante a proporção 4:1 (800x200) sem forçar altura fixa */
-        aspect-ratio: 4 / 1; 
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15) !important; /* Sombra estilo site mandado */
+        border: none !important;
     }
 
     /* --- CARD PREMIUM (ALTURA FIXA 310px PRESERVADA) --- */
@@ -66,7 +78,15 @@ st.markdown("""
         box-shadow: 0 12px 24px rgba(0,0,0,0.1) !important;
     }
 
-    .stImage img:not(.header-banner) { border-radius: 15px !important; height: 110px !important; object-fit: cover !important; }
+    /* Foto do Pet no Card (Específico para st.image dentro do card) */
+    [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stImage"] img { 
+        border-radius: 15px !important; 
+        height: 110px !important; 
+        object-fit: cover !important; 
+        width: 100% !important;
+        aspect-ratio: auto !important; /* Remove forcing de proporção anterior */
+    }
+    
     .nome-pet { color: var(--text-color) !important; font-size: 1.4rem !important; font-weight: 600 !important; margin: 0; }
     .tag-status { background-color: #ff4b4b; color: white; padding: 3px 10px; border-radius: 8px; font-size: 0.7rem; font-weight: 700; margin-left: 8px; vertical-align: middle; }
     
@@ -111,7 +131,7 @@ def ir_para(p):
 # --- MODAIS ---
 @st.dialog("Acesso Restrito 🔒")
 def modal_login_requerido():
-    st.warning("Esta ação é exclusiva para membros da comunidade PetAlerta.")
+    st.warning("Esta ação é exclusiva para membros da comunidade PetAlerta SCS.")
     if st.button("Criar Conta Agora", use_container_width=True, type="primary"):
         ir_para('cadastro_user')
     st.info("Se já possui conta, faça login no menu lateral.")
@@ -146,11 +166,20 @@ with st.sidebar:
         if st.button("🐾 Meus Pets", use_container_width=True): ir_para('meus_pets')
         if st.button("🚪 Sair", use_container_width=True): st.session_state.logado = False; st.rerun()
 
-# --- RENDERIZAÇÃO DO BANNER (FIXO) ---
-if os.path.exists("assets/Banner.png"):
-    st.image("assets/Banner.png", use_container_width=True)
+# --- RENDERIZAÇÃO DO BANNER (FIXO NO TOPO - MÉTODO HTML PARA ALINHAMENTO) ---
+banner_path = "assets/Banner.png"
+if os.path.exists(banner_path):
+    # Lê a imagem e converte para base64 para injetar no HTML puro
+    with open(banner_path, "rb") as image_file:
+        encoded_string = base64.b64encode(image_file.read()).decode()
+    
+    # Injeta HTML puro para renderizar a imagem com a classe 'header-banner-final-impl' e container
+    st.markdown(
+        f'<div class="banner-container-final"><img src="data:image/png;base64,{encoded_string}" class="header-banner-final-impl"></div>', 
+        unsafe_allow_html=True
+    )
 
-# ZOOM FOTO
+# ZOOM FOTO (MODAL)
 if st.session_state.pagina_detalhes:
     st.image(st.session_state.pagina_detalhes, use_container_width=True)
     if st.button("⬅️ VOLTAR AO MURAL", type="primary", use_container_width=True):
@@ -175,12 +204,14 @@ if st.session_state.pagina == 'home':
             lat, lng, cor = ultimo['Lat'], ultimo['Lng'], 'red'
         folium.Marker([lat, lng], popup=pet['Nome_Pet'], icon=folium.Icon(color=cor, icon=ic, prefix='fa')).add_to(m)
     
+    # Renderiza mapa alinhado com o container
     st_folium(m, use_container_width=True, height=350)
 
     if st.session_state.logado:
-        if st.button("🚨 REGISTRAR PET PERDIDO", type="primary", use_container_width=True): ir_para('perdi_pet')
+        st.write("")
+        if st.button("🚨 REGISTRAR MEU PET PERDIDO", type="primary", use_container_width=True): ir_para('perdi_pet')
 
-    st.subheader("🔍 Desaparecidos em Santa Cruz")
+    st.subheader("🔍 Desaparecidos em Santa Cruz do Sul")
     for _, pet in df_p[df_p['Status'] == 'Perdido'].iterrows():
         p_id = str(pet['ID'])
         avis_pet = df_a[df_a['ID_Pet'].astype(str) == p_id]
@@ -191,7 +222,7 @@ if st.session_state.pagina == 'home':
             with c_img: st.image(pet['Foto'], use_container_width=True)
             with c_txt:
                 st.markdown(f"<div><span class='nome-pet'>{pet['Nome_Pet']}</span><span class='tag-status'>PERDIDO</span></div>", unsafe_allow_html=True)
-                st.markdown(f"<div class='info-container'><span class='info-label'>{label_loc}</span> <span class='info-valor'>{valor_loc}</span><br><span class='info-label'>🐾 Raça:</span> <span class='info-valor'>{pet['Raca']} ({pet['Cor']})</span></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='info-container'><span class='info-label'>{label_loc}</span> <span class='info-valor'>{valor_loc}</span><br><span class='info-label'>🐾 Info:</span> <span class='info-valor'>{pet['Especie']} | {pet['Raca']} ({pet['Cor']})</span></div>", unsafe_allow_html=True)
                 
                 # 4 BOTÕES LADO A LADO
                 st.write("")
@@ -214,7 +245,9 @@ if st.session_state.pagina == 'home':
                             st.markdown(f'<meta http-equiv="refresh" content="0; url=https://wa.me/55{tel}">', unsafe_allow_html=True)
                         else: modal_login_requerido()
 
-# --- PÁGINAS TÉCNICAS (PRESERVADAS) ---
+# ==========================================
+# 🚨 PÁGINAS TÉCNICAS (PRESERVADAS)
+# ==========================================
 elif st.session_state.pagina == 'perdi_pet':
     st.header("🚨 Registrar Pet Perdido")
     if st.button("⬅️ Voltar"): ir_para('home')
