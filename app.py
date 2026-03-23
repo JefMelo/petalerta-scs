@@ -16,7 +16,7 @@ st.set_page_config(page_title="PetAlerta SCS", page_icon="🐾", layout="centere
 # --- CREDENCIAIS E APIS ---
 IMGBB_API_KEY = "54494e69c28056a133620f4e8be0ab72"
 ABA_USUARIOS, ABA_PETS, ABA_AVISTAMENTOS = "Usuarios", "Dados", "Avistamentos"
-geolocator = Nominatim(user_agent="PetAlertaSCS_Final_Stable_V2")
+geolocator = Nominatim(user_agent="PetAlertaSCS_Final_Shadow_v1")
 SCS_COORDS = [-29.7182, -52.4306]
 
 # --- CONEXÃO G-SHEETS ---
@@ -30,78 +30,87 @@ for key in ['pagina', 'logado', 'user', 'user_lat', 'user_lng', 'temp_lat', 'tem
 if not st.session_state.pagina: st.session_state.pagina = 'home'
 
 # ==========================================
-# 🎨 CSS PREMIUM FINAL (FOCO NO BANNER E ALINHAMENTO)
+# 🎨 CSS PREMIUM FINAL (SOMBRAS E ALTURA 300)
 # ==========================================
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
     html, body, [class*="css"] { font-family: 'Poppins', sans-serif; }
 
-    /* --- BANNER SUPERIOR: LARGURA DO MAPA E CENTRALIZADO (MÉTODO HTML) --- */
+    /* --- BANNER SUPERIOR: ALINHAMENTO E SOMBRA --- */
     .banner-container-final {
         width: 100% !important;
         display: flex !important;
-        justify-content: center !important; /* Centraliza a imagem no container */
+        justify-content: center !important;
         margin-bottom: 25px !important;
-        padding: 0 !important;
     }
-
     .header-banner-final-impl {
-        /* Força a largura para ocupar o container (centralizado pelo Streamlit) */
         width: 100% !important; 
-        height: auto !important; /* Mantém a proporção */
-        
-        /* Garante proporção 4:1 sem cortes (object-fit contain) */
+        height: auto !important; 
         aspect-ratio: 4 / 1 !important; 
         object-fit: contain !important; 
-        background-color: transparent !important; /* Evita fundo branco se imagem for menor */
-        
+        background-color: transparent !important;
         border-radius: 18px !important;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.15) !important; /* Sombra estilo site mandado */
-        border: none !important;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15) !important;
     }
 
-    /* --- CARD PREMIUM (ALTURA FIXA 310px PRESERVADA) --- */
+    /* --- CARD PREMIUM (ALTURA FIXA 300px COM SOMBRA) --- */
     [data-testid="stVerticalBlockBorderWrapper"] {
         background-color: var(--secondary-background-color) !important;
         border: 1px solid rgba(128, 128, 128, 0.1) !important;
         border-radius: 25px !important;
         padding: 18px !important;
-        height: 310px !important; 
+        
+        /* ALTURA FIXA 300px */
+        height: 300px !important; 
+        
         display: flex; flex-direction: column; justify-content: space-between;
         transition: all 0.3s ease-in-out;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important;
+        
+        /* SOMBRA DO CARD */
+        box-shadow: 0 8px 20px rgba(0,0,0,0.08) !important;
     }
     [data-testid="stVerticalBlockBorderWrapper"]:hover { 
         transform: translateY(-5px); 
         border: 1px solid #ff4b4b !important;
-        box-shadow: 0 12px 24px rgba(0,0,0,0.1) !important;
+        box-shadow: 0 12px 30px rgba(0,0,0,0.12) !important;
     }
 
-    /* Foto do Pet no Card (Específico para st.image dentro do card) */
+    /* Imagens nos Cards */
     [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stImage"] img { 
-        border-radius: 15px !important; 
-        height: 110px !important; 
-        object-fit: cover !important; 
-        width: 100% !important;
-        aspect-ratio: auto !important; /* Remove forcing de proporção anterior */
+        border-radius: 15px !important; height: 110px !important; object-fit: cover !important; 
     }
     
     .nome-pet { color: var(--text-color) !important; font-size: 1.4rem !important; font-weight: 600 !important; margin: 0; }
     .tag-status { background-color: #ff4b4b; color: white; padding: 3px 10px; border-radius: 8px; font-size: 0.7rem; font-weight: 700; margin-left: 8px; vertical-align: middle; }
     
-    /* --- INFORMAÇÕES DO CARD (MAIOR E LEGÍVEL) --- */
-    .info-container { font-size: 0.95rem !important; color: var(--text-color); margin-top: 8px; height: 75px; overflow-y: auto; }
+    .info-container { font-size: 0.95rem !important; color: var(--text-color); margin-top: 8px; height: 70px; overflow-y: auto; }
     .info-label { opacity: 0.6; font-weight: 400; }
     .info-valor { font-weight: 500; }
 
-    .stButton>button { border-radius: 12px !important; font-size: 0.7rem !important; height: 35px !important; font-weight: 600 !important; }
+    /* BOTÕES COM SOMBRA */
+    .stButton>button, .stLinkButton>a { 
+        border-radius: 12px !important; 
+        font-size: 0.65rem !important; 
+        height: 35px !important; 
+        font-weight: 600 !important; 
+        display: flex; align-items: center; justify-content: center;
+        /* SOMBRA DOS BOTÕES */
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
+        border: none !important;
+        transition: 0.2s;
+    }
+    .stButton>button:hover, .stLinkButton>a:hover {
+        box-shadow: 0 6px 12px rgba(0,0,0,0.15) !important;
+        transform: scale(1.02);
+    }
+
     .stFolium { border-radius: 20px !important; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
 </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 🛠️ FUNÇÕES DE APOIO (PRESERVADAS)
+# 🛠️ FUNÇÕES DE APOIO
 # ==========================================
 def ler_planilha(aba):
     try: return conn.read(worksheet=aba, ttl=5).dropna(how='all').fillna("")
@@ -142,7 +151,7 @@ def modal_sucesso(msg, p='home'):
     if st.button("OK", use_container_width=True): ir_para(p)
 
 # ==========================================
-# 🛰️ GPS E SIDEBAR (PRESERVADOS)
+# 🛰️ GPS E SIDEBAR
 # ==========================================
 loc_gps = streamlit_js_eval(js_expressions="new Promise(resolve => navigator.geolocation.getCurrentPosition(pos => resolve({lat: pos.coords.latitude, lng: pos.coords.longitude})))", key="gps")
 if loc_gps: st.session_state.user_lat, st.session_state.user_lng = loc_gps['lat'], loc_gps['lng']
@@ -166,20 +175,16 @@ with st.sidebar:
         if st.button("🐾 Meus Pets", use_container_width=True): ir_para('meus_pets')
         if st.button("🚪 Sair", use_container_width=True): st.session_state.logado = False; st.rerun()
 
-# --- RENDERIZAÇÃO DO BANNER (FIXO NO TOPO - MÉTODO HTML PARA ALINHAMENTO) ---
+# --- RENDERIZAÇÃO DO BANNER ---
 banner_path = "assets/Banner.png"
 if os.path.exists(banner_path):
-    # Lê a imagem e converte para base64 para injetar no HTML puro
     with open(banner_path, "rb") as image_file:
         encoded_string = base64.b64encode(image_file.read()).decode()
-    
-    # Injeta HTML puro para renderizar a imagem com a classe 'header-banner-final-impl' e container
     st.markdown(
         f'<div class="banner-container-final"><img src="data:image/png;base64,{encoded_string}" class="header-banner-final-impl"></div>', 
         unsafe_allow_html=True
     )
 
-# ZOOM FOTO (MODAL)
 if st.session_state.pagina_detalhes:
     st.image(st.session_state.pagina_detalhes, use_container_width=True)
     if st.button("⬅️ VOLTAR AO MURAL", type="primary", use_container_width=True):
@@ -187,7 +192,7 @@ if st.session_state.pagina_detalhes:
     st.stop()
 
 # ==========================================
-# 🏠 PÁGINA: HOME (PRESERVADA)
+# 🏠 PÁGINA: HOME (MURAL)
 # ==========================================
 if st.session_state.pagina == 'home':
     df_p = ler_planilha(ABA_PETS)
@@ -204,7 +209,6 @@ if st.session_state.pagina == 'home':
             lat, lng, cor = ultimo['Lat'], ultimo['Lng'], 'red'
         folium.Marker([lat, lng], popup=pet['Nome_Pet'], icon=folium.Icon(color=cor, icon=ic, prefix='fa')).add_to(m)
     
-    # Renderiza mapa alinhado com o container
     st_folium(m, use_container_width=True, height=350)
 
     if st.session_state.logado:
@@ -222,9 +226,9 @@ if st.session_state.pagina == 'home':
             with c_img: st.image(pet['Foto'], use_container_width=True)
             with c_txt:
                 st.markdown(f"<div><span class='nome-pet'>{pet['Nome_Pet']}</span><span class='tag-status'>PERDIDO</span></div>", unsafe_allow_html=True)
-                st.markdown(f"<div class='info-container'><span class='info-label'>{label_loc}</span> <span class='info-valor'>{valor_loc}</span><br><span class='info-label'>🐾 Info:</span> <span class='info-valor'>{pet['Especie']} | {pet['Raca']} ({pet['Cor']})</span></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='info-container'><span class='info-label'>{label_loc}</span> <span class='info-valor'>{valor_loc}</span><br><span class='info-label'>🐾 Raça:</span> <span class='info-valor'>{pet['Raca']} ({pet['Cor']})</span></div>", unsafe_allow_html=True)
                 
-                # 4 BOTÕES LADO A LADO
+                # 🛠️ 4 BOTÕES LADO A LADO
                 st.write("")
                 b1, b2, b3, b4 = st.columns(4)
                 with b1:
@@ -239,15 +243,14 @@ if st.session_state.pagina == 'home':
                             st.session_state.pet_foco = pet; ir_para('novo_avistamento')
                         else: modal_login_requerido()
                 with b4:
-                    if st.button("🟢 Zap", key=f"wa_{p_id}", use_container_width=True):
-                        if st.session_state.logado:
-                            tel = "".join(filter(str.isdigit, str(pet['Tel_Tutor'])))
-                            st.markdown(f'<meta http-equiv="refresh" content="0; url=https://wa.me/55{tel}">', unsafe_allow_html=True)
-                        else: modal_login_requerido()
+                    if st.session_state.logado:
+                        tel = "".join(filter(str.isdigit, str(pet['Tel_Tutor'])))
+                        st.link_button("🟢 Whats", f"https://wa.me/55{tel}", use_container_width=True)
+                    else:
+                        if st.button("🔒 Whats", key=f"wa_lock_{p_id}", use_container_width=True):
+                            modal_login_requerido()
 
-# ==========================================
-# 🚨 PÁGINAS TÉCNICAS (PRESERVADAS)
-# ==========================================
+# --- PÁGINAS TÉCNICAS (PRESERVADAS) ---
 elif st.session_state.pagina == 'perdi_pet':
     st.header("🚨 Registrar Pet Perdido")
     if st.button("⬅️ Voltar"): ir_para('home')
