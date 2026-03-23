@@ -16,7 +16,7 @@ st.set_page_config(page_title="PetAlerta SCS", page_icon="🐾", layout="centere
 # --- CREDENCIAIS E APIS ---
 IMGBB_API_KEY = "54494e69c28056a133620f4e8be0ab72"
 ABA_USUARIOS, ABA_PETS, ABA_AVISTAMENTOS = "Usuarios", "Dados", "Avistamentos"
-geolocator = Nominatim(user_agent="PetAlertaSCS_Final_Fix")
+geolocator = Nominatim(user_agent="PetAlertaSCS_Final_Design")
 SCS_COORDS = [-29.7182, -52.4306]
 
 # --- CONEXÃO G-SHEETS ---
@@ -30,42 +30,60 @@ for key in ['pagina', 'logado', 'user', 'user_lat', 'user_lng', 'temp_lat', 'tem
 if not st.session_state.pagina: st.session_state.pagina = 'home'
 
 # ==========================================
-# 🎨 CSS PREMIUM FINAL (CORREÇÕES DE UI)
+# 🎨 CSS PREMIUM FINAL (DESIGN REFINADO)
 # ==========================================
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
     html, body, [class*="css"] { font-family: 'Poppins', sans-serif; }
 
-    /* --- BANNER SEM CORTES --- */
-    [data-testid="stImageWrapper"] { background-color: transparent !important; }
+    /* --- BANNER COM SOMBRA E SEM CORTES --- */
+    [data-testid="stImageWrapper"] { 
+        background-color: transparent !important; 
+        display: flex;
+        justify-content: center;
+    }
     [data-testid="stImageWrapper"] > img {
-        width: 100% !important; border-radius: 15px !important;
-        object-fit: contain !important; height: auto !important;
+        width: 100% !important; 
+        max-width: 800px !important;
+        border-radius: 18px !important;
+        margin-bottom: 25px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15) !important; /* Sombra Premium */
+        object-fit: contain !important; 
+        height: auto !important;
+        max-height: 220px !important; /* Evita corte na altura */
         background-color: transparent !important;
     }
 
-    /* --- CARD PREMIUM ALTURA FIXA --- */
+    /* --- CARD PREMIUM COM ALTURA AMPLIADA --- */
     [data-testid="stVerticalBlockBorderWrapper"] {
         background-color: var(--secondary-background-color) !important;
         border: 1px solid rgba(128, 128, 128, 0.1) !important;
-        border-radius: 20px !important;
-        padding: 15px !important;
-        height: 275px !important; /* Altura para acomodar texto maior e 4 botões */
+        border-radius: 25px !important;
+        padding: 18px !important;
+        height: 310px !important; /* Altura aumentada para evitar cortes de texto */
         display: flex; flex-direction: column; justify-content: space-between;
-        transition: 0.3s ease;
+        transition: all 0.3s ease-in-out;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important;
+    }
+    [data-testid="stVerticalBlockBorderWrapper"]:hover { 
+        transform: translateY(-5px); 
+        border: 1px solid #ff4b4b !important;
+        box-shadow: 0 12px 24px rgba(0,0,0,0.1) !important;
     }
 
-    .stImage img { border-radius: 12px !important; height: 110px !important; object-fit: cover !important; }
-    .nome-pet { color: var(--text-color) !important; font-size: 1.3rem !important; font-weight: 600 !important; margin: 0; }
-    .tag-status { background-color: #ff4b4b; color: white; padding: 2px 8px; border-radius: 6px; font-size: 0.65rem; font-weight: 700; margin-left: 8px; vertical-align: middle; }
+    .stImage img { border-radius: 15px !important; height: 110px !important; object-fit: cover !important; }
+    .nome-pet { color: var(--text-color) !important; font-size: 1.4rem !important; font-weight: 600 !important; margin: 0; }
+    .tag-status { background-color: #ff4b4b; color: white; padding: 3px 10px; border-radius: 8px; font-size: 0.7rem; font-weight: 700; margin-left: 8px; vertical-align: middle; }
     
-    /* --- FONTE DAS INFORMAÇÕES (MAIOR E LEGÍVEL) --- */
-    .info-container { font-size: 0.9rem !important; color: var(--text-color); margin-top: 5px; height: 60px; overflow-y: auto; }
+    /* --- INFORMAÇÕES DO CARD --- */
+    .info-container { font-size: 0.95rem !important; color: var(--text-color); margin-top: 8px; height: 75px; overflow-y: auto; }
     .info-label { opacity: 0.6; font-weight: 400; }
     .info-valor { font-weight: 500; }
 
-    .stButton>button { border-radius: 10px !important; font-size: 0.65rem !important; height: 32px !important; padding: 0px !important; }
+    /* Botões */
+    .stButton>button { border-radius: 12px !important; font-size: 0.7rem !important; height: 35px !important; font-weight: 600 !important; }
+    .stFolium { border-radius: 20px !important; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
 </style>
 """, unsafe_allow_html=True)
 
@@ -97,13 +115,13 @@ def ir_para(p):
     st.session_state.pagina = p
     st.rerun()
 
-# --- POP-UPS (MODAIS) ---
+# --- MODAIS ---
 @st.dialog("Acesso Restrito 🔒")
 def modal_login_requerido():
-    st.warning("Ação restrita para membros logados por segurança.")
+    st.warning("Esta ação é exclusiva para membros da comunidade PetAlerta.")
     if st.button("Criar Conta Agora", use_container_width=True, type="primary"):
         ir_para('cadastro_user')
-    st.info("Ou faça login pelo menu lateral.")
+    st.info("Se já possui conta, faça login no menu lateral.")
 
 @st.dialog("Sucesso!")
 def modal_sucesso(msg, p='home'):
@@ -117,7 +135,7 @@ loc_gps = streamlit_js_eval(js_expressions="new Promise(resolve => navigator.geo
 if loc_gps: st.session_state.user_lat, st.session_state.user_lng = loc_gps['lat'], loc_gps['lng']
 
 with st.sidebar:
-    st.markdown("### 🐾 PetAlerta SCS")
+    st.markdown("## 🐾 PetAlerta SCS")
     if st.button("🏠 Mural de Início", use_container_width=True): ir_para('home')
     if st.button("🏆 Hall da Fama", use_container_width=True): ir_para('hall_fama')
     st.divider()
@@ -135,14 +153,14 @@ with st.sidebar:
         if st.button("🐾 Meus Pets", use_container_width=True): ir_para('meus_pets')
         if st.button("🚪 Sair", use_container_width=True): st.session_state.logado = False; st.rerun()
 
-# --- HEADER (BANNER) ---
+# --- RENDERIZAÇÃO DO BANNER ---
 if os.path.exists("assets/Banner.png"):
     st.image("assets/Banner.png", use_container_width=True)
 
 # ZOOM FOTO
 if st.session_state.pagina_detalhes:
     st.image(st.session_state.pagina_detalhes, use_container_width=True)
-    if st.button("⬅️ VOLTAR", type="primary", use_container_width=True):
+    if st.button("⬅️ VOLTAR AO MURAL", type="primary", use_container_width=True):
         st.session_state.pagina_detalhes = None; st.rerun()
     st.stop()
 
@@ -169,7 +187,7 @@ if st.session_state.pagina == 'home':
     if st.session_state.logado:
         if st.button("🚨 REGISTRAR PET PERDIDO", type="primary", use_container_width=True): ir_para('perdi_pet')
 
-    st.subheader("🔍 Desaparecidos em SCS")
+    st.subheader("🔍 Desaparecidos em Santa Cruz")
     for _, pet in df_p[df_p['Status'] == 'Perdido'].iterrows():
         p_id = str(pet['ID'])
         avis_pet = df_a[df_a['ID_Pet'].astype(str) == p_id]
@@ -182,7 +200,8 @@ if st.session_state.pagina == 'home':
                 st.markdown(f"<div><span class='nome-pet'>{pet['Nome_Pet']}</span><span class='tag-status'>PERDIDO</span></div>", unsafe_allow_html=True)
                 st.markdown(f"<div class='info-container'><span class='info-label'>{label_loc}</span> <span class='info-valor'>{valor_loc}</span><br><span class='info-label'>🐾 Raça:</span> <span class='info-valor'>{pet['Raca']} ({pet['Cor']})</span></div>", unsafe_allow_html=True)
                 
-                # 4 BOTÕES ALINHADOS
+                # 4 BOTÕES LADO A LADO
+                st.write("")
                 b1, b2, b3, b4 = st.columns(4)
                 with b1:
                     if st.button("🔍 Foto", key=f"f_{p_id}", use_container_width=True):
@@ -203,7 +222,7 @@ if st.session_state.pagina == 'home':
                         else: modal_login_requerido()
 
 # ==========================================
-# 🚨 DEMAIS PÁGINAS (PÁGINAS TÉCNICAS)
+# 🚨 PÁGINAS TÉCNICAS
 # ==========================================
 elif st.session_state.pagina == 'perdi_pet':
     st.header("🚨 Registrar Pet Perdido")
@@ -223,7 +242,7 @@ elif st.session_state.pagina == 'perdi_pet':
                 url_f = fazer_upload_imgbb(foto)
                 novo = pd.DataFrame([{"ID": str(int(datetime.now().timestamp())), "Status": "Perdido", "Data": datetime.now().strftime('%d/%m/%Y'), "Especie": esp, "Nome_Pet": n_p, "Raca": raca, "Cor": cor, "Local_Desaparecimento": st.session_state.map_address, "Lat": st.session_state.temp_lat, "Lng": st.session_state.temp_lng, "Foto": url_f, "User_Vinculo": st.session_state.user['Usuario'], "Tel_Tutor": st.session_state.user['Telefone']}])
                 conn.update(worksheet=ABA_PETS, data=pd.concat([ler_planilha(ABA_PETS), novo], ignore_index=True))
-                modal_sucesso("Pet publicado!")
+                modal_sucesso("Publicado com sucesso!")
 
 elif st.session_state.pagina == 'novo_avistamento':
     p = st.session_state.pet_foco
@@ -241,7 +260,7 @@ elif st.session_state.pagina == 'novo_avistamento':
                 end_r = obter_endereco(st.session_state.temp_lat, st.session_state.temp_lng)
                 novo = pd.DataFrame([{"ID_Pet": p['ID'], "Data_Hora": datetime.now().strftime('%d/%m/%Y %H:%M'), "Lat": st.session_state.temp_lat, "Lng": st.session_state.temp_lng, "Bairro": end_r, "Usuario": st.session_state.user['Usuario']}])
                 conn.update(worksheet=ABA_AVISTAMENTOS, data=pd.concat([ler_planilha(ABA_AVISTAMENTOS), novo], ignore_index=True))
-                modal_sucesso("Obrigado por ajudar!")
+                modal_sucesso("Agradecemos sua ajuda!")
 
 elif st.session_state.pagina == 'historico_pet':
     p = st.session_state.pet_foco
@@ -255,7 +274,7 @@ elif st.session_state.pagina == 'historico_pet':
     for _, a in avis.iterrows():
         pontos.append([a['Lat'], a['Lng']])
         folium.Marker([a['Lat'], a['Lng']], popup=a['Data_Hora'], icon=folium.Icon(color='red', icon='eye')).add_to(m_h)
-    folium.PolyLine(pontos, color="red", weight=2.5).add_to(m_h)
+    folium.PolyLine(pontos, color="red", weight=3).add_to(m_h)
     st_folium(m_h, use_container_width=True, height=400)
 
 elif st.session_state.pagina == 'hall_fama':
@@ -274,8 +293,8 @@ elif st.session_state.pagina == 'meus_pets':
     for idx, pet in meus.iterrows():
         with st.container(border=True):
             st.write(f"**{pet['Nome_Pet']}**")
-            if pet['Status'] == 'Perdido' and st.button(f"🎉 Marcar como Encontrado", key=f"enc_{idx}"):
-                df.at[idx, 'Status'] = 'Encontrado'; conn.update(worksheet=ABA_PETS, data=df); modal_sucesso("Boa notícia!", 'meus_pets')
+            if pet['Status'] == 'Perdido' and st.button(f"🎉 Encontrado", key=f"e_{idx}"):
+                df.at[idx, 'Status'] = 'Encontrado'; conn.update(worksheet=ABA_PETS, data=df); modal_sucesso("Parabéns!", 'meus_pets')
 
 elif st.session_state.pagina == 'cadastro_user':
     st.header("📝 Criar Conta")
