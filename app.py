@@ -16,7 +16,7 @@ st.set_page_config(page_title="PetAlerta SCS", page_icon="🐾", layout="centere
 # --- CONFIGURAÇÕES TÉCNICAS ---
 IMGBB_API_KEY = "54494e69c28056a133620f4e8be0ab72"
 ABA_USUARIOS, ABA_PETS, ABA_AVISTAMENTOS = "Usuarios", "Dados", "Avistamentos"
-geolocator = Nominatim(user_agent="PetAlertaSCS_Final")
+geolocator = Nominatim(user_agent="PetAlertaSCS_Secure")
 SCS_COORDS = [-29.7182, -52.4306]
 
 # --- CONEXÃO G-SHEETS ---
@@ -30,7 +30,7 @@ for key in ['pagina', 'logado', 'user', 'user_lat', 'user_lng', 'temp_lat', 'tem
 if not st.session_state.pagina: st.session_state.pagina = 'home'
 
 # ==========================================
-# 🎨 FRONT-END: CSS PREMIUM FINAL
+# 🎨 FRONT-END: CSS PREMIUM COMPACTO
 # ==========================================
 st.markdown("""
 <style>
@@ -44,21 +44,21 @@ st.markdown("""
         background-color: var(--secondary-background-color) !important;
         border: 1px solid rgba(128, 128, 128, 0.1) !important;
         border-radius: 20px !important;
-        padding: 15px !important;
-        height: 235px !important; /* Altura ideal para caber tudo */
+        padding: 12px !important;
+        height: 250px !important; /* Ajustado para caber as 2 linhas de botões */
         display: flex; flex-direction: column; justify-content: space-between;
         transition: 0.3s ease;
     }
     [data-testid="stVerticalBlockBorderWrapper"]:hover { transform: translateY(-3px); border: 1px solid #ff4b4b !important; }
 
-    .stImage img { border-radius: 12px !important; height: 110px !important; object-fit: cover !important; }
+    .stImage img { border-radius: 12px !important; height: 100px !important; object-fit: cover !important; }
     .nome-pet { color: var(--text-color) !important; font-size: 1.2rem !important; font-weight: 600 !important; margin: 0; }
     .tag-status { background-color: #ff4b4b; color: white; padding: 1px 8px; border-radius: 6px; font-size: 0.6rem; font-weight: 700; margin-left: 8px; vertical-align: middle; }
-    .info-container { font-size: 0.78rem; color: var(--text-color); margin-top: 4px; overflow: hidden; }
+    .info-container { font-size: 0.78rem; color: var(--text-color); margin-top: 4px; overflow: hidden; height: 50px; }
     .info-label { opacity: 0.6; font-weight: 400; }
     .info-valor { font-weight: 500; }
 
-    .stButton>button { border-radius: 12px !important; font-size: 0.7rem !important; height: 32px !important; }
+    .stButton>button { border-radius: 10px !important; font-size: 0.65rem !important; height: 30px !important; }
     .stFolium { border-radius: 20px !important; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
 </style>
 """, unsafe_allow_html=True)
@@ -128,7 +128,6 @@ with st.sidebar:
 
 renderizar_header()
 
-# PÁGINA DE ZOOM (MODAL DE FOTO)
 if st.session_state.pagina_detalhes:
     st.image(st.session_state.pagina_detalhes, use_container_width=True)
     if st.button("⬅️ VOLTAR AO MURAL", use_container_width=True, type="primary"):
@@ -142,6 +141,7 @@ if st.session_state.pagina == 'home':
     df_p = ler_planilha(ABA_PETS)
     df_a = ler_planilha(ABA_AVISTAMENTOS)
 
+    # MAPA
     m = folium.Map(location=SCS_COORDS, zoom_start=14, tiles='cartodbpositron')
     for _, pet in df_p[df_p['Status'] == 'Perdido'].iterrows():
         esp = str(pet['Especie']).lower()
@@ -155,9 +155,6 @@ if st.session_state.pagina == 'home':
     
     st_folium(m, use_container_width=True, height=350)
 
-    if st.session_state.logado:
-        if st.button("🚨 REGISTRAR NOVO PET PERDIDO", type="primary", use_container_width=True): ir_para('perdi_pet')
-
     st.subheader("🔍 Mural de Desaparecidos")
     for _, pet in df_p[df_p['Status'] == 'Perdido'].iterrows():
         p_id = str(pet['ID'])
@@ -170,26 +167,37 @@ if st.session_state.pagina == 'home':
             with c_txt:
                 st.markdown(f"<div><span class='nome-pet'>{pet['Nome_Pet']}</span><span class='tag-status'>PERDIDO</span></div>", unsafe_allow_html=True)
                 st.markdown(f"<div class='info-container'><span class='info-label'>{label_loc}</span> <span class='info-valor'>{valor_loc}</span><br><span class='info-label'>🐾 Raça:</span> <span class='info-valor'>{pet['Raca']} ({pet['Cor']})</span></div>", unsafe_allow_html=True)
-                b1, b2, b3 = st.columns(3)
-                with b1: 
-                    if st.button("👁️ Vi!", key=f"vi_{p_id}", use_container_width=True): 
-                        st.session_state.pet_foco = pet; ir_para('novo_avistamento')
-                with b2: 
-                    if st.button("🔍 Foto", key=f"f_{p_id}", use_container_width=True): 
+                
+                # LINHA 1 DE BOTÕES (Foto e Rota - Abertos)
+                b1, b2 = st.columns(2)
+                with b1:
+                    if st.button("🔍 Ver Foto", key=f"f_{p_id}", use_container_width=True): 
                         st.session_state.pagina_detalhes = pet['Foto']; st.rerun()
-                with b3: 
-                    if st.button("🗺️ Rota", key=f"r_{p_id}", use_container_width=True): 
+                with b2:
+                    if st.button("🗺️ Ver Rota", key=f"r_{p_id}", use_container_width=True): 
                         st.session_state.pet_foco = pet; ir_para('historico_pet')
-                if st.session_state.logado:
-                    tel = "".join(filter(str.isdigit, str(pet['Tel_Tutor'])))
-                    st.link_button("🟢 WhatsApp Tutor", f"https://wa.me/55{tel}", use_container_width=True)
+                
+                # LINHA 2 DE BOTÕES (Vi este pet! e Contato - Restritos)
+                b3, b4 = st.columns(2)
+                with b3:
+                    if st.session_state.logado:
+                        if st.button("👁️ Vi este pet!", key=f"vi_{p_id}", use_container_width=True):
+                            st.session_state.pet_foco = pet; ir_para('novo_avistamento')
+                    else:
+                        st.button("🔒 Login p/ Vi!", key=f"vi_lock_{p_id}", use_container_width=True, disabled=True)
+                
+                with b4:
+                    if st.session_state.logado:
+                        tel = "".join(filter(str.isdigit, str(pet['Tel_Tutor'])))
+                        st.link_button("🟢 WhatsApp", f"https://wa.me/55{tel}", use_container_width=True)
+                    else:
+                        st.button("🔒 Login p/ Whats", key=f"wa_lock_{p_id}", use_container_width=True, disabled=True)
 
 # ==========================================
-# 🚨 PÁGINA: REGISTRAR PERDIDO
+# 🚨 DEMAIS PÁGINAS (RESTRESTAS POR LÓGICA DE NAVEGAÇÃO)
 # ==========================================
 elif st.session_state.pagina == 'perdi_pet':
     st.header("🚨 Registrar Pet Perdido")
-    st.info("Clique no mapa para marcar onde o pet sumiu.")
     if st.button("⬅️ Voltar"): ir_para('home')
     m_reg = folium.Map(location=SCS_COORDS, zoom_start=15)
     if st.session_state.temp_lat: folium.Marker([st.session_state.temp_lat, st.session_state.temp_lng], icon=folium.Icon(color='red')).add_to(m_reg)
@@ -197,7 +205,6 @@ elif st.session_state.pagina == 'perdi_pet':
     if map_res and map_res.get("last_clicked"):
         st.session_state.temp_lat, st.session_state.temp_lng = map_res["last_clicked"]["lat"], map_res["last_clicked"]["lng"]
         st.session_state.map_address = obter_endereco(st.session_state.temp_lat, st.session_state.temp_lng); st.rerun()
-    
     if st.session_state.map_address: st.success(f"📍 Local: {st.session_state.map_address}")
     with st.form("f_pet"):
         n_p, esp = st.text_input("Nome do Pet*"), st.selectbox("Espécie", ["Cão", "Gato"])
@@ -209,9 +216,6 @@ elif st.session_state.pagina == 'perdi_pet':
                 conn.update(worksheet=ABA_PETS, data=pd.concat([ler_planilha(ABA_PETS), novo], ignore_index=True))
                 modal_sucesso("Pet publicado no mural!")
 
-# ==========================================
-# 👁️ PÁGINA: REGISTRAR AVISTAMENTO
-# ==========================================
 elif st.session_state.pagina == 'novo_avistamento':
     p = st.session_state.pet_foco
     st.header(f"👁️ Vi o pet: {p['Nome_Pet']}")
@@ -222,49 +226,17 @@ elif st.session_state.pagina == 'novo_avistamento':
     if map_res and map_res.get("last_clicked"):
         st.session_state.temp_lat, st.session_state.temp_lng = map_res["last_clicked"]["lat"], map_res["last_clicked"]["lng"]; st.rerun()
     with st.form("f_av"):
-        obs = st.text_area("Observações (Ex: Estava mancando, correu para tal rua)")
-        if st.form_submit_button("📍 SALVAR AVISTAMENTO"):
+        obs = st.text_area("Observações importantes")
+        if st.form_submit_button("📍 SALVAR"):
             if st.session_state.temp_lat:
                 end_r = obter_endereco(st.session_state.temp_lat, st.session_state.temp_lng)
-                novo = pd.DataFrame([{"ID_Pet": p['ID'], "Data_Hora": datetime.now().strftime('%d/%m/%Y %H:%M'), "Lat": st.session_state.temp_lat, "Lng": st.session_state.temp_lng, "Bairro": end_r, "Usuario": st.session_state.user.get('Usuario', 'Anônimo')}])
+                novo = pd.DataFrame([{"ID_Pet": p['ID'], "Data_Hora": datetime.now().strftime('%d/%m/%Y %H:%M'), "Lat": st.session_state.temp_lat, "Lng": st.session_state.temp_lng, "Bairro": end_r, "Usuario": st.session_state.user.get('Usuario', 'Membro')}])
                 conn.update(worksheet=ABA_AVISTAMENTOS, data=pd.concat([ler_planilha(ABA_AVISTAMENTOS), novo], ignore_index=True))
-                modal_sucesso("Obrigado! O tutor será avisado.")
-
-# ==========================================
-# 🏆 HALL DA FAMA / MEUS PETS / CADASTRO USER
-# ==========================================
-elif st.session_state.pagina == 'hall_fama':
-    st.header("🏆 Hall da Fama - Pets Encontrados")
-    if st.button("⬅️ Voltar"): ir_para('home')
-    df = ler_planilha(ABA_PETS)
-    for _, pet in df[df['Status'] == 'Encontrado'].iterrows():
-        with st.container(border=True):
-            st.image(pet['Foto'], width=150); st.subheader(f"🎉 {pet['Nome_Pet']} já está em casa!")
-
-elif st.session_state.pagina == 'meus_pets':
-    st.header("🐾 Meus Pets Cadastrados")
-    if st.button("⬅️ Voltar"): ir_para('home')
-    df = ler_planilha(ABA_PETS)
-    meus = df[df['User_Vinculo'] == st.session_state.user['Usuario']]
-    for idx, pet in meus.iterrows():
-        with st.container(border=True):
-            st.write(f"**{pet['Nome_Pet']}** - Status: {pet['Status']}")
-            if pet['Status'] == 'Perdido' and st.button(f"🎉 Marcar {pet['Nome_Pet']} como Encontrado", key=f"enc_{idx}"):
-                df.at[idx, 'Status'] = 'Encontrado'; conn.update(worksheet=ABA_PETS, data=df); modal_sucesso("Parabéns! Que ótima notícia!", 'meus_pets')
-
-elif st.session_state.pagina == 'cadastro_user':
-    st.header("📝 Criar Conta")
-    if st.button("⬅️ Voltar"): ir_para('home')
-    with st.form("c_user"):
-        n, u, p, t = st.text_input("Nome Completo"), st.text_input("Usuário"), st.text_input("Senha", type="password"), st.text_input("WhatsApp")
-        if st.form_submit_button("CADASTRAR"):
-            novo = pd.DataFrame([{"Usuario":u, "Senha":p, "Nome":n, "Telefone":t}])
-            conn.update(worksheet=ABA_USUARIOS, data=pd.concat([ler_planilha(ABA_USUARIOS), novo], ignore_index=True))
-            modal_sucesso("Conta criada com sucesso!")
+                modal_sucesso("Obrigado por ajudar!")
 
 elif st.session_state.pagina == 'historico_pet':
     p = st.session_state.pet_foco
-    st.header(f"🗺️ Rota de Avistamentos: {p['Nome_Pet']}")
+    st.header(f"🗺️ Rota: {p['Nome_Pet']}")
     if st.button("⬅️ Voltar"): ir_para('home')
     df_a = ler_planilha(ABA_AVISTAMENTOS)
     avis = df_a[df_a['ID_Pet'].astype(str) == str(p['ID'])]
@@ -274,5 +246,34 @@ elif st.session_state.pagina == 'historico_pet':
     for _, a in avis.iterrows():
         pontos.append([a['Lat'], a['Lng']])
         folium.Marker([a['Lat'], a['Lng']], popup=a['Data_Hora'], icon=folium.Icon(color='red', icon='eye')).add_to(m_h)
-    folium.PolyLine(pontos, color="red", weight=2.5, opacity=1).add_to(m_h)
+    folium.PolyLine(pontos, color="red", weight=2.5).add_to(m_h)
     st_folium(m_h, use_container_width=True, height=400)
+
+elif st.session_state.pagina == 'hall_fama':
+    st.header("🏆 Hall da Fama")
+    if st.button("⬅️ Voltar"): ir_para('home')
+    df = ler_planilha(ABA_PETS)
+    for _, pet in df[df['Status'] == 'Encontrado'].iterrows():
+        with st.container(border=True):
+            st.image(pet['Foto'], width=150); st.subheader(f"🎉 {pet['Nome_Pet']} está em casa!")
+
+elif st.session_state.pagina == 'meus_pets':
+    st.header("🐾 Meus Pets")
+    if st.button("⬅️ Voltar"): ir_para('home')
+    df = ler_planilha(ABA_PETS)
+    meus = df[df['User_Vinculo'] == st.session_state.user['Usuario']]
+    for idx, pet in meus.iterrows():
+        with st.container(border=True):
+            st.write(f"**{pet['Nome_Pet']}**")
+            if pet['Status'] == 'Perdido' and st.button(f"🎉 Marcar como Encontrado", key=f"e_{idx}"):
+                df.at[idx, 'Status'] = 'Encontrado'; conn.update(worksheet=ABA_PETS, data=df); modal_sucesso("Ótima notícia!", 'meus_pets')
+
+elif st.session_state.pagina == 'cadastro_user':
+    st.header("📝 Criar Conta")
+    if st.button("⬅️ Voltar"): ir_para('home')
+    with st.form("c_user"):
+        n, u, p, t = st.text_input("Nome"), st.text_input("Usuário"), st.text_input("Senha", type="password"), st.text_input("Whats")
+        if st.form_submit_button("CADASTRAR"):
+            novo = pd.DataFrame([{"Usuario":u, "Senha":p, "Nome":n, "Telefone":t}])
+            conn.update(worksheet=ABA_USUARIOS, data=pd.concat([ler_planilha(ABA_USUARIOS), novo], ignore_index=True))
+            modal_sucesso("Conta criada!")
