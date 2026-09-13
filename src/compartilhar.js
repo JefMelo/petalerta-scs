@@ -1,6 +1,6 @@
 /* =============================================================================
-   Farejo — página de compartilhamento  (Cloudflare Pages Function)
-   Responde em  /c/<id-do-caso>
+   Farejo — página de compartilhamento
+   Serve o conteúdo de  /c/<id-do-caso>  (ver worker.js)
 
    POR QUE ISTO EXISTE
    O app roteia por hash (#/post/<id>) e o hash NUNCA é enviado ao servidor.
@@ -144,20 +144,4 @@ ${corpo}
 <script>location.replace(${JSON.stringify(destino)});</script>
 </body>
 </html>`;
-}
-
-export async function onRequest({ params, request, env }) {
-  const id = params.id;
-  const origem = new URL(request.url).origin;
-  const caso = await buscarCaso(id, env).catch(() => null);
-  const { status, html } = paginaDeCompartilhamento(caso, id, origem, env);
-
-  return new Response(html, {
-    status,
-    headers: {
-      'content-type': 'text/html; charset=utf-8',
-      // Curto: um caso pode ser encerrado a qualquer momento.
-      'cache-control': 'public, max-age=120, s-maxage=120',
-    },
-  });
 }

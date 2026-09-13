@@ -37,7 +37,9 @@ web/js/dados.js          acesso ao Supabase (RPC, PostgREST, auth, storage)
 web/js/formularios.js    folhas de conta, publicar, avistar e raio
 web/js/mapa.js           mapa dos pets procurados
 web/js/perfil.js         perfil próprio e dos outros
-functions/c/[id].js      página de compartilhamento (Cloudflare Pages Function)
+worker.js                Worker: roteia /c/<id>, o resto vai para os assets
+wrangler.jsonc           configuração do Cloudflare
+src/compartilhar.js      monta o HTML com as meta tags og:
 web/js/app.js            feed, detalhe, rastro, mapa
 legado/app.py            o protótipo Streamlit, guardado para consulta
 legado/dados-falso.js    o adaptador de dados em memória, guardado para consulta
@@ -144,24 +146,31 @@ O mapa inclui dois tipos, porque os dois são "pet perdido" para quem olha:
 anel laranja = procurado pelo tutor; anel azul = visto solto e ainda sem dono
 reclamando.
 
-## Deploy (Cloudflare Pages ligado ao GitHub) — ainda não feito
+## Deploy (Cloudflare Workers ligado ao GitHub)
 
-**Não existe `dist/` neste projeto.** Não há compilação: `web/` já é o diretório
-de saída. O Pages conectado ao repositório publica a cada push.
+**Não existe `dist/`.** Não há compilação: `web/` é servido como está pela camada
+de assets do Cloudflare. O `wrangler.jsonc` diz tudo:
 
-Criar um projeto Pages **novo**, separado do VadeOn, apontando para
-`JefMelo/petalerta-scs`:
+| Chave | Valor | Por quê |
+|---|---|---|
+| `main` | `worker.js` | o Worker só existe para `/c/<id>` |
+| `assets.directory` | `./web` | o site |
+| `assets.run_worker_first` | `["/c/*"]` | todo o resto vai direto dos assets |
+| `assets.not_found_handling` | `single-page-application` | caminho desconhecido cai no app |
 
-| Campo | Valor |
-|---|---|
-| Framework preset | None |
-| Build command | *(vazio — não há build)* |
-| Build output directory | `web` |
-| Root directory | `/` |
+O comando de deploy do projeto é `npx wrangler deploy`, o padrão dos Workers
+Builds. Não mexer nele.
 
-A pasta `functions/` fica na **raiz do repositório**, não dentro de `web/` — é
-onde o Pages procura. Conferir no primeiro deploy se o painel lista a função
-`/c/[id]`; sem ela, o link compartilhado não gera prévia no WhatsApp.
+### Por que o primeiro deploy falhou (13/09/2026)
+
+O código novo ainda não estava no GitHub — a `main` tinha só o protótipo de
+março. O Cloudflare clonou aquilo, viu `requirements.txt` na raiz, concluiu que
+era projeto Python e instalou o Streamlit; depois o `wrangler deploy` não achou
+pasta de estáticos e parou com *"Could not detect a directory containing static
+files"*.
+
+Três arquivos do protótipo foram para `legado/` justamente para a detecção não
+se confundir de novo: `requirements.txt`, `app.py` e `.devcontainer/`.
 
 ## O que falta
 

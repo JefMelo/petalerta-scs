@@ -1,0 +1,20 @@
+{
+  // Farejo — Cloudflare Workers com assets estáticos.
+  // Não há build: web/ é servido como está.
+  "name": "petalerta-scs",
+  "main": "worker.js",
+  "compatibility_date": "2026-09-01",
+
+  "assets": {
+    "directory": "./web",
+    "binding": "ASSETS",
+
+    // Só /c/* passa pelo Worker (a prévia de link). Todo o resto é servido
+    // direto dos assets, sem invocar código.
+    "run_worker_first": ["/c/*"],
+
+    // Caminho desconhecido cai no app em vez de um 404 seco. Não afeta /c/*,
+    // que é resolvido antes pelo run_worker_first.
+    "not_found_handling": "single-page-application"
+  }
+}
