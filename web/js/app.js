@@ -8,10 +8,10 @@ import { ORIGEM, feedPorRaio, postPorId, rastroDoPost, contatoDoPost,
          conviteDispensado, dispensarConvite,
          registrarCompartilhamento, minhasNovidades,
          novidadesVistasEm, marcarNovidadesVistas, CENTRO,
-         aoRecuperarSenha } from './dados.js?v=31';
-import * as form from './formularios.js?v=31';
-import * as mapaTela from './mapa.js?v=31';
-import * as perfilTela from './perfil.js?v=31';
+         aoRecuperarSenha } from './dados.js?v=32';
+import * as form from './formularios.js?v=32';
+import * as mapaTela from './mapa.js?v=32';
+import * as perfilTela from './perfil.js?v=32';
 
 // MARCA — nome de trabalho. Trocar aqui e em .marca no CSS/HTML. -------------
 export const MARCA = { nome: 'Faro', cidade: 'Santa Cruz do Sul' };

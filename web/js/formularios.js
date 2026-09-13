@@ -3,7 +3,7 @@
    Uma folha por vez, sobe de baixo. Toda a escrita no banco passa por aqui.
    ============================================================================= */
 
-import * as dados from './dados.js?v=31';
+import * as dados from './dados.js?v=32';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) =>
@@ -20,8 +20,15 @@ let mapaForm = null;
    ainda preenchidos, confirmar uma folha reenviava a anterior. Dava post duplicado. */
 let controle = null;
 
+/* Conta qual folha está em cena. Serve para o confirmar() não fechar uma folha
+   que não é a dele: se o aoConfirmar abriu OUTRA folha (um aviso, por exemplo),
+   o número mudou e o fechamento é abandonado. Sem isso, a folha nova era
+   aberta e derrubada no mesmo instante — e a mensagem nunca aparecia. */
+let numeroDaFolha = 0;
+
 function abrir({ titulo, corpo, acao, aoConfirmar, aoAbrir }) {
   fechar();
+  const minhaFolha = ++numeroDaFolha;
   controle = new AbortController();
   const { signal } = controle;
   const f = $('#folha-form');
@@ -62,7 +69,7 @@ function abrir({ titulo, corpo, acao, aoConfirmar, aoAbrir }) {
     if (botao) { botao.disabled = true; botao.dataset.antes = botao.textContent; botao.textContent = 'Enviando…'; }
     try {
       await aoConfirmar(form);
-      fechar();
+      if (numeroDaFolha === minhaFolha) fechar();   // outra folha assumiu: deixa
     } catch (e) {
       erro.textContent = e.message || String(e);
       erro.hidden = false;
@@ -305,7 +312,6 @@ export function abrirEsqueci(email = '') {
       const e = valor(form, 'email');
       if (!e) throw new Error('Escreva o e-mail da conta.');
       await dados.pedirNovaSenha(e);
-      fechar();
       abrirRecado('Verifique o seu e-mail',
         `Se existir uma conta em ${e}, o link de recuperação chegou lá. ` +
         'Ele vale por uma hora. Olhe também o lixo eletrônico.');
@@ -327,9 +333,8 @@ export function abrirNovaSenha() {
       const a = valor(form, 'senha'), b = valor(form, 'senha2');
       if (a !== b) throw new Error('As duas senhas não são iguais.');
       await dados.trocarSenha(a);
-      fechar();
-      abrirRecado('Senha trocada', 'Pronto. Você já está usando a senha nova.');
       aoMudar();
+      abrirRecado('Senha trocada', 'Pronto. Você já está usando a senha nova.');
     },
   });
 }
@@ -346,7 +351,6 @@ export function abrirTrocarSenha() {
       const a = valor(form, 'senha'), b = valor(form, 'senha2');
       if (a !== b) throw new Error('As duas senhas não são iguais.');
       await dados.trocarSenha(a);
-      fechar();
       abrirRecado('Senha trocada', 'Pronto.');
     },
   });
