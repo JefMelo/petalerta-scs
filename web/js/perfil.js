@@ -4,7 +4,8 @@
    de ações: quem é dono vê "Sair"; as ações de cada caso ficam no detalhe.
    ============================================================================= */
 
-import { ORIGEM, perfilPublico, postsDoPerfil, meuId, sair } from './dados.js?v=25';
+import { ORIGEM, perfilPublico, postsDoPerfil, meuId, sair, meuPerfil } from './dados.js?v=30';
+import { abrirEditarPerfil } from './formularios.js?v=30';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) =>
@@ -107,7 +108,9 @@ export async function abrir(id) {
 
   $('#perfil-corpo').innerHTML = `
     <header class="perfil-topo">
-      <span class="perfil-avatar" style="--av:${corAvatar(perfil.nome)}" aria-hidden="true">${esc(iniciais(perfil.nome))}</span>
+      <span class="perfil-avatar" ${perfil.avatar ? 'data-foto' : ''}
+            style="--av:${corAvatar(perfil.nome)};${perfil.avatar ? ` background-image:url('${esc(perfil.avatar)}');` : ''}"
+            aria-hidden="true">${esc(iniciais(perfil.nome))}</span>
       <dl class="perfil-numeros">
         <div><dt>casos</dt><dd>${perfil.n_casos}</dd></div>
         <div><dt>avisos</dt><dd>${perfil.n_avistamentos}</dd></div>
@@ -123,6 +126,7 @@ export async function abrir(id) {
 
     ${souEu ? `
       <div class="perfil-acoes">
+        <button class="botao-fraco" type="button" data-acao="editar-perfil">Editar perfil</button>
         <button class="botao-fraco" type="button" data-acao="sair">Sair da conta</button>
       </div>
     ` : `
@@ -146,6 +150,10 @@ export async function abrir(id) {
       $('#perfil-corpo').querySelectorAll('[data-filtro]').forEach((b) =>
         b.setAttribute('aria-pressed', b === aba));
       pintarGrade();
+      return;
+    }
+    if (ev.target.closest('[data-acao="editar-perfil"]')) {
+      meuPerfil().then((eu) => abrirEditarPerfil(eu, { aoSalvar: recarregar }));
       return;
     }
     if (ev.target.closest('[data-acao="sair"]')) {

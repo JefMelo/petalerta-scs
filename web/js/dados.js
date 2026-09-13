@@ -4,7 +4,7 @@
    ============================================================================= */
 
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-import { SUPABASE_URL, SUPABASE_ANON } from './config.js?v=25';
+import { SUPABASE_URL, SUPABASE_ANON } from './config.js?v=30';
 
 export const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
@@ -89,7 +89,7 @@ export async function feedPorRaio({ lat, lng, raioM = 3000, tipos = null } = {})
     ...(tipos ? { p_tipos: tipos } : {}),
   });
   if (error) throw error;
-  return data.map(normalizar);
+  return data.map((r) => ({ ...normalizar(r), autor_avatar: montarFoto(r.autor_avatar) }));
 }
 
 /** mapa_perdidos() — um ponto por caso aberto, na última localização conhecida. */
@@ -106,7 +106,7 @@ export async function postPorId(id) {
     .from('posts')
     // A relação precisa ser nomeada: o PostgREST enxerga tanto
     // posts.autor_id -> profiles quanto o caminho indireto por pets (PGRST201).
-    .select('*, post_fotos(path, ordem), profiles!posts_autor_id_fkey(nome)')
+    .select('*, post_fotos(path, ordem), profiles!posts_autor_id_fkey(nome, avatar_path)')
     .eq('id', id)
     .single();
   if (error) throw error;
@@ -114,6 +114,7 @@ export async function postPorId(id) {
   return {
     ...data,
     autor_nome: data.profiles?.nome ?? '',
+    autor_avatar: montarFoto(data.profiles?.avatar_path),
     fotos: fotos.map((f) => montarFoto(f.path)),
     // o caminho cru também: a edição precisa devolvê-lo ao banco, não a URL
     fotos_path: fotos.map((f) => f.path),
@@ -139,7 +140,29 @@ export async function contatoDoPost(id) {
 export async function perfilPublico(id) {
   const { data, error } = await sb.rpc('perfil_publico', { p_id: id });
   if (error) throw new Error(error.message);
-  return data?.[0] || null;
+  const p = data?.[0];
+  return p ? { ...p, avatar: montarFoto(p.avatar_path) } : null;
+}
+
+/** Nome, WhatsApp e foto. A política profiles_self_update cuida do dono. */
+export async function atualizarPerfil({ nome, whatsapp, avatarPath }) {
+  const { error } = await sb.rpc('atualizar_perfil', {
+    p_nome: nome, p_whatsapp: whatsapp || null, p_avatar_path: avatarPath || null,
+  });
+  if (error) throw new Error(error.message);
+  // mantém o nome do menu em dia sem precisar recarregar a página
+  await sb.auth.updateUser({ data: { nome: (nome || '').trim() } });
+}
+
+/* Vai por RPC, não por select direto: o schema-02 tirou a coluna whatsapp do
+   alcance da API para ninguém ler o telefone alheio — e isso alcança o dono
+   também. meu_perfil() é security definer e só enxerga a linha de quem chama. */
+export async function meuPerfil() {
+  if (!meuId()) return null;
+  const { data, error } = await sb.rpc('meu_perfil');
+  if (error) throw new Error(error.message);
+  const p = data?.[0];
+  return p ? { ...p, avatar: montarFoto(p.avatar_path) } : null;
 }
 
 export async function postsDoPerfil(id, origem = ORIGEM) {

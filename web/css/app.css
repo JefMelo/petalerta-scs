@@ -69,9 +69,17 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 }
 .topo__faixa .marca { margin-right: auto; }
 
-.marca { display: flex; align-items: center; gap: 8px; text-decoration: none; }
-.marca__simbolo { height: 27px; width: auto; flex: none; }
-.marca__nome { height: 21px; width: auto; flex: none; }
+/* Alinhamento ÓTICO, não geométrico.
+   Medido nos arquivos: o centro do pino cai a 53,0% da altura da marca; o
+   centro das letras, a 62,9% da altura do wordmark. Centralizando as caixas,
+   o nome fica visivelmente baixo. O empurrão corrige a diferença:
+       0,129 × 21px  −  0,030 × 34px  ≈  1,7px  */
+.marca { display: flex; align-items: center; gap: 9px; text-decoration: none; }
+.marca__simbolo { height: 34px; width: auto; flex: none; }
+.marca__nome {
+  height: 21px; width: auto; flex: none;
+  transform: translateY(-1.7px);
+}
 
 /* Chip de lugar: diz de onde se mede e até onde se olha. */
 .lugar-chip {
@@ -809,8 +817,8 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .perfil-id strong { display: block; font-size: .95rem; }
 .perfil-id span { font-size: .82rem; color: var(--tinta-2); }
 
-.perfil-acoes { padding: 14px 16px 4px; }
-.perfil-acoes .botao-fraco { margin: 0; }
+.perfil-acoes { padding: 14px 16px 4px; display: flex; gap: 8px; }
+.perfil-acoes .botao-fraco { margin: 0; flex: 1; }
 
 .perfil-ajuda {
   margin: 12px 16px 0;
@@ -1025,3 +1033,62 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
   transition: opacity .18s ease, transform .18s ease;
 }
 .recado--visivel { opacity: 1; transform: translate(-50%, 0); }
+
+/* =============================================================================
+   PORTA DE ENTRADA (login e cadastro)
+   Quem chega aqui muitas vezes não sabe o que é o app. Antes de pedir e-mail,
+   diga o que ele faz — e por que a conta é necessária.
+   ============================================================================= */
+
+.porta { text-align: center; padding: 4px 0 6px; }
+
+.porta__logo {
+  height: 132px; width: auto;
+  margin: 0 auto 18px;
+}
+
+.porta__frase {
+  margin: 0 auto;
+  max-width: 34ch;
+  font-size: 1.02rem;
+  line-height: 1.45;
+}
+
+.porta__porque {
+  margin: 14px auto 0;
+  max-width: 38ch;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--toque);
+  font-size: .85rem;
+  color: var(--tinta-2);
+  text-align: left;
+}
+.porta__porque strong { color: var(--tinta); font-weight: 650; }
+
+/* =============================================================================
+   FOTO DE PERFIL
+   ============================================================================= */
+
+.foto-perfil { display: flex; align-items: center; gap: 16px; }
+
+.foto-perfil__previa {
+  width: 82px; height: 82px; flex: none;
+  border-radius: 50%;
+  background: var(--toque) center/cover no-repeat;
+  border: 1px solid var(--fio);
+  display: grid; place-items: center;
+  font-size: 1.5rem; font-weight: 700;
+  color: var(--tinta-2);
+}
+
+.foto-perfil__acoes { display: flex; flex-direction: column; gap: 7px; }
+.foto-perfil__acoes .botao-fraco { margin: 0; width: auto; padding: 8px 14px; }
+.foto-perfil__tirar { color: #A32020; }
+.foto-perfil__tirar:hover { background: #FDECEC; }
+
+/* O avatar do feed e do perfil aceita foto; sem foto, continua nas iniciais. */
+.avatar[data-foto], .perfil-avatar[data-foto] {
+  background-size: cover; background-position: center;
+  color: transparent;
+}

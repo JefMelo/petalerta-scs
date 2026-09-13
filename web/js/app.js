@@ -7,10 +7,10 @@ import { ORIGEM, feedPorRaio, postPorId, rastroDoPost, contatoDoPost,
          aplicarOrigem, localGuardado, permissaoDeLocal, adotarMinhaLocalizacao,
          conviteDispensado, dispensarConvite,
          registrarCompartilhamento, minhasNovidades,
-         novidadesVistasEm, marcarNovidadesVistas, CENTRO } from './dados.js?v=25';
-import * as form from './formularios.js?v=25';
-import * as mapaTela from './mapa.js?v=25';
-import * as perfilTela from './perfil.js?v=25';
+         novidadesVistasEm, marcarNovidadesVistas, CENTRO } from './dados.js?v=30';
+import * as form from './formularios.js?v=30';
+import * as mapaTela from './mapa.js?v=30';
+import * as perfilTela from './perfil.js?v=30';
 
 // MARCA — nome de trabalho. Trocar aqui e em .marca no CSS/HTML. -------------
 export const MARCA = { nome: 'Faro', cidade: 'Santa Cruz do Sul' };
@@ -183,6 +183,16 @@ document.addEventListener('scroll', (ev) => {
   }
 }, true);
 
+/* Avatar: foto quando existe, iniciais quando não. As iniciais continuam no
+   HTML mesmo com foto — se a imagem falhar, sobra algo legível. */
+function avatarHTML(nome, foto, classe = 'avatar') {
+  const fundo = foto
+    ? ` background-image:url('${esc(foto)}');`
+    : '';
+  return `<span class="${classe}" ${foto ? 'data-foto' : ''}
+                style="--av:${corAvatar(nome)};${fundo}" aria-hidden="true">${esc(iniciais(nome))}</span>`;
+}
+
 /* Quem publicou é um link para o perfil. O "..." só aparece para o dono. */
 function cabecalhoHTML(p, comMenu = false) {
   const dono = comMenu && p.autor_id && p.autor_id === meuId();
@@ -190,7 +200,7 @@ function cabecalhoHTML(p, comMenu = false) {
     <header class="post__quem">
       <button class="post__autor-link" type="button" data-perfil="${p.autor_id || ''}"
               aria-label="Ver o perfil de ${esc(p.autor_nome)}">
-        <span class="avatar" style="--av:${corAvatar(p.autor_nome)}" aria-hidden="true">${esc(iniciais(p.autor_nome))}</span>
+        ${avatarHTML(p.autor_nome, p.autor_avatar)}
         <span class="post__id">
           <span class="post__autor">${esc(p.autor_nome)}</span>
           <span class="post__local">${esc(p.endereco || MARCA.cidade)}</span>

@@ -3,7 +3,7 @@
    Uma folha por vez, sobe de baixo. Toda a escrita no banco passa por aqui.
    ============================================================================= */
 
-import * as dados from './dados.js?v=25';
+import * as dados from './dados.js?v=30';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) =>
@@ -239,6 +239,19 @@ export function abrirConta(modo = 'entrar') {
     titulo: entrando ? 'Entrar' : 'Criar conta',
     acao: entrando ? 'Entrar' : 'Criar',
     corpo: `
+      <div class="porta">
+        <img class="porta__logo" src="img/faro.png" alt="Faro" width="640" height="853">
+        <p class="porta__frase">
+          Pets perdidos, avistados e para adoção em Santa Cruz do Sul,
+          na ordem de quem está mais perto de você.
+        </p>
+        <p class="porta__porque">
+          A conta serve para duas coisas: <strong>te avisar quando alguém vir o
+          seu pet</strong> e mostrar o seu WhatsApp a quem encontrar.
+          Para só olhar o mural, não precisa de conta.
+        </p>
+      </div>
+
       ${entrando ? '' : campo('nome', 'Seu nome', 'required autocomplete="name"')}
       ${entrando ? '' : campo('whatsapp', 'WhatsApp', 'inputmode="tel" autocomplete="tel"',
         'É por aqui que quem achar o seu pet vai te chamar.')}
@@ -405,6 +418,85 @@ function abrirCaso(centro, post) {
     },
   });
 }
+
+/* Editar perfil: foto, nome e WhatsApp.
+   O WhatsApp entra junto porque é o dado que mais precisa de conserto — é por
+   ele que alguém devolve um pet, e um número errado torna o caso inútil. */
+export function abrirEditarPerfil(perfil, { aoSalvar } = {}) {
+  abrir({
+    titulo: 'Editar perfil',
+    acao: 'Salvar',
+    corpo: `
+      <div class="foto-perfil">
+        <input type="file" name="avatar" accept="image/*" hidden>
+        <span class="foto-perfil__previa" data-previa
+              ${perfil.avatar ? `style="background-image:url('${esc(perfil.avatar)}')"` : ''}>
+          ${perfil.avatar ? '' : esc(iniciaisDe(perfil.nome))}
+        </span>
+        <div class="foto-perfil__acoes">
+          <button class="botao-fraco" type="button" data-trocar-foto>
+            ${perfil.avatar ? 'Trocar foto' : 'Escolher foto'}
+          </button>
+          <button class="botao-fraco foto-perfil__tirar" type="button" data-tirar-foto
+                  ${perfil.avatar ? '' : 'hidden'}>Remover</button>
+        </div>
+      </div>
+
+      ${campo('nome', 'Seu nome', 'required maxlength="60"')}
+      ${campo('whatsapp', 'WhatsApp', 'inputmode="tel" autocomplete="tel"',
+              'É por aqui que quem achar o seu pet vai te chamar.')}`,
+
+    aoAbrir: (f) => {
+      f._avatar = perfil.avatar_path ? { path: perfil.avatar_path } : null;
+      $('[name=nome]', f).value = perfil.nome || '';
+      $('[name=whatsapp]', f).value = perfil.whatsapp || '';
+
+      const previa = $('[data-previa]', f);
+      const tirar = $('[data-tirar-foto]', f);
+      const input = $('[name=avatar]', f);
+
+      $('[data-trocar-foto]', f).addEventListener('click', () => input.click());
+      input.addEventListener('change', () => {
+        const arq = input.files?.[0];
+        if (!arq) return;
+        f._avatar = arq;
+        previa.style.backgroundImage = `url('${URL.createObjectURL(arq)}')`;
+        previa.textContent = '';
+        tirar.hidden = false;
+        $('[data-trocar-foto]', f).textContent = 'Trocar foto';
+      });
+      tirar.addEventListener('click', () => {
+        f._avatar = null;
+        previa.style.backgroundImage = '';
+        previa.textContent = iniciaisDe($('[name=nome]', f).value);
+        tirar.hidden = true;
+        input.value = '';
+        $('[data-trocar-foto]', f).textContent = 'Escolher foto';
+      });
+    },
+
+    aoConfirmar: async (form) => {
+      const f = $('#folha-form');
+      const nome = valor(form, 'nome');
+      if (!nome) throw new Error('Diga o seu nome.');
+
+      let avatarPath = null;
+      if (f._avatar instanceof File) avatarPath = await dados.enviarFoto(f._avatar);
+      else if (f._avatar) avatarPath = f._avatar.path;
+
+      await dados.atualizarPerfil({ nome, whatsapp: valor(form, 'whatsapp'), avatarPath });
+
+      // a foto antiga sai do bucket quando foi trocada ou removida
+      if (perfil.avatar_path && perfil.avatar_path !== avatarPath) {
+        await dados.apagarFotosDoBucket([perfil.avatar_path]);
+      }
+      aoMudar(); aoSalvar?.();
+    },
+  });
+}
+
+const iniciaisDe = (nome) => (nome || '?').trim().split(/\s+/).slice(0, 2)
+  .map((n) => n[0]).join('').toUpperCase();
 
 /* Menu do dono. Fica no detalhe do caso, como o "..." do Instagram. */
 export async function abrirAcoesDoDono(post, { aoApagar } = {}) {

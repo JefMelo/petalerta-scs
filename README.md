@@ -80,6 +80,8 @@ Um **feed**, não um painel. As decisões que tiram a cara de "app gerado":
 | `schema-08.sql` | perfil: `perfil_publico`, `posts_do_perfil`, `editar_post`, `apagar_post`, `reabrir_post` |
 | `schema-09.sql` | nova ordem do feed: nota de urgência contínua, com última atividade |
 | `schema-10.sql` | farejadores (pessoas distintas ajudando) e `minhas_novidades` |
+| `schema-11.sql` | foto do autor no feed (`autor_avatar`) |
+| `schema-12.sql` | `meu_perfil` e `atualizar_perfil`: o dono lê e edita o próprio |
 | `seed-teste.sql` | 6 casos + 3 avistamentos + 3 usuários `@teste.farejo.local` |
 
 ## Rodar
@@ -115,6 +117,7 @@ Conta de teste: `jeferson@teste.farejo.local` / `teste-1234`.
   ("Ajude a achar o Thor") em vez de rótulo descritivo
 - **Farejadores**: contador de pessoas ajudando cada caso
 - **Novidades**: sino no topo com os avistamentos nos seus casos
+- **Foto de perfil**, com nome e WhatsApp editáveis na mesma folha
 - **Localização real**: o app convida antes de disparar o pedido do navegador,
   guarda a última posição e diz de onde mediu — "de você" ou "do Centro"
 
@@ -128,6 +131,24 @@ ser achado, isso custa caro.
 `functions/c/[id].js` responde em `/c/<id>` com as meta tags `og:` preenchidas a
 partir do caso, e manda a pessoa para `/#/post/<id>` em seguida. Roda só no
 Cloudflare Pages — no `http.server` local esse caminho não existe.
+
+### O logo na barra
+
+Alinhamento **ótico**, não geométrico. Medido nos arquivos: o centro do pino cai
+a 53,0% da altura da marca, o centro das letras a 62,9% da altura do wordmark.
+Centralizando as caixas, o nome fica visivelmente baixo — daí o empurrão de
+1,7px para cima no CSS.
+
+Os PNGs foram recortados com limiar de alfa > 30, não com `getbbox()`: o método
+conta pixels de alfa 1 (fantasmas de antisserrilhado) e inchava a caixa em 32%
+da largura, o que era a causa real do desalinhamento.
+
+### Por que o dono lê o próprio perfil por RPC
+
+O `schema-02` tirou a coluna `whatsapp` do alcance da API para ninguém ler o
+telefone alheio — e isso alcançava o dono também, que não conseguia editar o
+seu. A saída não foi devolver o `grant`, e sim `meu_perfil()`, uma função
+`security definer` que enxerga só a linha de quem chama.
 
 ### A barra de cima
 
@@ -264,8 +285,7 @@ se confundir de novo: `requirements.txt`, `app.py` e `.devcontainer/`.
 3. Recuperar senha
 4. Imagem de reserva para a prévia de link quando o caso não tem foto
    (hoje o WhatsApp mostra um cartão só de texto)
-5. Editar o próprio perfil (nome, WhatsApp, foto)
-6. Faxina de fotos órfãs no bucket: a limpeza existe no front (ao editar e ao
+5. Faxina de fotos órfãs no bucket: a limpeza existe no front (ao editar e ao
    apagar), mas quem mexer no banco por fora deixa arquivo para trás
 
 ## Versões dos módulos
