@@ -4,7 +4,7 @@
    ============================================================================= */
 
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-import { SUPABASE_URL, SUPABASE_ANON } from './config.js?v=30';
+import { SUPABASE_URL, SUPABASE_ANON } from './config.js?v=31';
 
 export const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
@@ -288,7 +288,14 @@ export const aoMudarSessao = (fn) => { ouvintes.add(fn); fn(sessao); };
 const avisar = () => ouvintes.forEach((fn) => fn(sessao));
 
 sb.auth.getSession().then(({ data }) => { sessao = data.session; avisar(); });
-sb.auth.onAuthStateChange((_e, s) => { sessao = s; avisar(); });
+sb.auth.onAuthStateChange((evento, s) => {
+  sessao = s;
+  avisar();
+  if (evento === 'PASSWORD_RECOVERY') {
+    if (ouvintesRecuperacao.size) ouvintesRecuperacao.forEach((fn) => fn());
+    else recuperacaoPendente = true;
+  }
+});
 
 export const estaLogado = () => !!sessao;
 export const meuId = () => sessao?.user?.id || null;
@@ -312,6 +319,36 @@ export async function criarConta({ nome, whatsapp, email, senha }) {
   return sessao;                       // null se o projeto exigir confirmar e-mail
 }
 
+/* Manda o e-mail com o link de volta. redirectTo precisa estar na lista de
+   permitidos do projeto (Auth → URL Configuration), senão o link é recusado. */
+export async function pedirNovaSenha(email) {
+  const { error } = await sb.auth.resetPasswordForEmail((email || '').trim(), {
+    redirectTo: `${location.origin}${location.pathname}`,
+  });
+  if (error) throw new Error(traduzErroAuth(error.message));
+}
+
+/** Vale tanto para quem voltou pelo link quanto para quem já está logado. */
+export async function trocarSenha(nova) {
+  if (!nova || nova.length < 6) throw new Error('A senha precisa de pelo menos 6 caracteres.');
+  const { error } = await sb.auth.updateUser({ password: nova });
+  if (error) throw new Error(traduzErroAuth(error.message));
+}
+
+/* O Supabase avisa com um evento próprio quando a pessoa chega pelo link de
+   recuperação. É por aqui que a tela de nova senha aparece — não dá para
+   detectar pela URL, porque a biblioteca já a limpou quando o app carrega. */
+const ouvintesRecuperacao = new Set();
+let recuperacaoPendente = false;
+
+/* Se o evento chegar antes do app registrar o ouvinte, ele fica guardado e é
+   entregue na inscrição. Sem isso a tela de nova senha poderia simplesmente
+   não aparecer, num fluxo que a pessoa só percorre uma vez e às cegas. */
+export const aoRecuperarSenha = (fn) => {
+  ouvintesRecuperacao.add(fn);
+  if (recuperacaoPendente) { recuperacaoPendente = false; fn(); }
+};
+
 export async function sair() {
   await sb.auth.signOut();
   sessao = null; avisar();
@@ -324,5 +361,11 @@ function traduzErroAuth(msg = '') {
   if (m.includes('already registered')) return 'Esse e-mail já tem conta. Tente entrar.';
   if (m.includes('password') && m.includes('6')) return 'A senha precisa de pelo menos 6 caracteres.';
   if (m.includes('email') && m.includes('invalid')) return 'Esse e-mail não parece válido.';
+  if (m.includes('rate limit') || m.includes('too many'))
+    return 'Muitas tentativas em pouco tempo. Espere alguns minutos.';
+  if (m.includes('should be different') || m.includes('same as the old'))
+    return 'A senha nova precisa ser diferente da antiga.';
+  if (m.includes('redirect') && m.includes('not allowed'))
+    return 'O endereço de retorno não está liberado no projeto.';
   return msg;
 }

@@ -3,7 +3,7 @@
    Uma folha por vez, sobe de baixo. Toda a escrita no banco passa por aqui.
    ============================================================================= */
 
-import * as dados from './dados.js?v=30';
+import * as dados from './dados.js?v=31';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) =>
@@ -259,10 +259,15 @@ export function abrirConta(modo = 'entrar') {
       ${campo('senha', 'Senha', `type="password" required autocomplete="${entrando ? 'current' : 'new'}-password"`)}
       <button class="botao-fraco" type="button" data-trocar>
         ${entrando ? 'Ainda não tenho conta' : 'Já tenho conta'}
-      </button>`,
+      </button>
+      ${entrando ? '<button class="elo" type="button" data-esqueci>Esqueci minha senha</button>' : ''}`,
     aoAbrir: (f) => {
       $('[data-trocar]', f).addEventListener('click', () => {
         fechar(); abrirConta(entrando ? 'criar' : 'entrar');
+      });
+      $('[data-esqueci]', f)?.addEventListener('click', () => {
+        const email = $('[name=email]', f).value;
+        fechar(); abrirEsqueci(email);
       });
     },
     aoConfirmar: async (form) => {
@@ -278,6 +283,82 @@ export function abrirConta(modo = 'entrar') {
       }
       aoMudar();
     },
+  });
+}
+
+/* Pedir o link por e-mail. A mensagem de sucesso NÃO confirma se o e-mail
+   existe — dizer "não achamos essa conta" entrega a estranhos quem tem cadastro. */
+export function abrirEsqueci(email = '') {
+  abrir({
+    titulo: 'Recuperar senha',
+    acao: 'Enviar link',
+    corpo: `
+      <p class="folha__ajuda">Mandamos um link para o seu e-mail. Ao abrir,
+        você define uma senha nova.</p>
+      ${campo('email', 'E-mail da conta', 'type="email" required autocomplete="email"')}
+      <button class="elo" type="button" data-voltar-entrar>Voltar para entrar</button>`,
+    aoAbrir: (f) => {
+      $('[name=email]', f).value = email;
+      $('[data-voltar-entrar]', f).addEventListener('click', () => { fechar(); abrirConta('entrar'); });
+    },
+    aoConfirmar: async (form) => {
+      const e = valor(form, 'email');
+      if (!e) throw new Error('Escreva o e-mail da conta.');
+      await dados.pedirNovaSenha(e);
+      fechar();
+      abrirRecado('Verifique o seu e-mail',
+        `Se existir uma conta em ${e}, o link de recuperação chegou lá. ` +
+        'Ele vale por uma hora. Olhe também o lixo eletrônico.');
+    },
+  });
+}
+
+/* Chamada quando a pessoa volta pelo link. Nesse momento ela já está com uma
+   sessão temporária, então basta gravar a senha nova. */
+export function abrirNovaSenha() {
+  abrir({
+    titulo: 'Nova senha',
+    acao: 'Salvar',
+    corpo: `
+      <p class="folha__ajuda">Escolha uma senha nova para a sua conta.</p>
+      ${campo('senha', 'Nova senha', 'type="password" required autocomplete="new-password" minlength="6"')}
+      ${campo('senha2', 'Repita a senha', 'type="password" required autocomplete="new-password"')}`,
+    aoConfirmar: async (form) => {
+      const a = valor(form, 'senha'), b = valor(form, 'senha2');
+      if (a !== b) throw new Error('As duas senhas não são iguais.');
+      await dados.trocarSenha(a);
+      fechar();
+      abrirRecado('Senha trocada', 'Pronto. Você já está usando a senha nova.');
+      aoMudar();
+    },
+  });
+}
+
+/** Trocar a senha estando logado. Abre a partir do Editar perfil. */
+export function abrirTrocarSenha() {
+  abrir({
+    titulo: 'Trocar senha',
+    acao: 'Salvar',
+    corpo: `
+      ${campo('senha', 'Nova senha', 'type="password" required autocomplete="new-password" minlength="6"')}
+      ${campo('senha2', 'Repita a senha', 'type="password" required autocomplete="new-password"')}`,
+    aoConfirmar: async (form) => {
+      const a = valor(form, 'senha'), b = valor(form, 'senha2');
+      if (a !== b) throw new Error('As duas senhas não são iguais.');
+      await dados.trocarSenha(a);
+      fechar();
+      abrirRecado('Senha trocada', 'Pronto.');
+    },
+  });
+}
+
+/** Folha só de aviso, sem formulário. */
+export function abrirRecado(titulo, texto) {
+  abrir({
+    titulo,
+    corpo: `<p class="folha__ajuda">${esc(texto)}</p>
+            <button class="botao-fraco" type="button" data-fechar>Entendi</button>`,
+    aoConfirmar: async () => {},
   });
 }
 
@@ -444,9 +525,11 @@ export function abrirEditarPerfil(perfil, { aoSalvar } = {}) {
 
       ${campo('nome', 'Seu nome', 'required maxlength="60"')}
       ${campo('whatsapp', 'WhatsApp', 'inputmode="tel" autocomplete="tel"',
-              'É por aqui que quem achar o seu pet vai te chamar.')}`,
+              'É por aqui que quem achar o seu pet vai te chamar.')}
+      <button class="botao-fraco" type="button" data-trocar-senha>Trocar senha</button>`,
 
     aoAbrir: (f) => {
+      $('[data-trocar-senha]', f).addEventListener('click', () => { fechar(); abrirTrocarSenha(); });
       f._avatar = perfil.avatar_path ? { path: perfil.avatar_path } : null;
       $('[name=nome]', f).value = perfil.nome || '';
       $('[name=whatsapp]', f).value = perfil.whatsapp || '';

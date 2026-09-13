@@ -1092,3 +1092,13 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
   background-size: cover; background-position: center;
   color: transparent;
 }
+
+/* Link discreto dentro de formulário (esqueci a senha, voltar para entrar). */
+.elo {
+  display: block; width: 100%;
+  margin-top: 2px; padding: 10px;
+  font-size: .85rem; font-weight: 600;
+  color: var(--acento);
+  text-align: center;
+}
+.elo:hover { text-decoration: underline; }

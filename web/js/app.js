@@ -7,10 +7,11 @@ import { ORIGEM, feedPorRaio, postPorId, rastroDoPost, contatoDoPost,
          aplicarOrigem, localGuardado, permissaoDeLocal, adotarMinhaLocalizacao,
          conviteDispensado, dispensarConvite,
          registrarCompartilhamento, minhasNovidades,
-         novidadesVistasEm, marcarNovidadesVistas, CENTRO } from './dados.js?v=30';
-import * as form from './formularios.js?v=30';
-import * as mapaTela from './mapa.js?v=30';
-import * as perfilTela from './perfil.js?v=30';
+         novidadesVistasEm, marcarNovidadesVistas, CENTRO,
+         aoRecuperarSenha } from './dados.js?v=31';
+import * as form from './formularios.js?v=31';
+import * as mapaTela from './mapa.js?v=31';
+import * as perfilTela from './perfil.js?v=31';
 
 // MARCA — nome de trabalho. Trocar aqui e em .marca no CSS/HTML. -------------
 export const MARCA = { nome: 'Faro', cidade: 'Santa Cruz do Sul' };
@@ -777,6 +778,9 @@ window.addEventListener('hashchange', rotear);
 // --- início -------------------------------------------------------------------
 
 document.title = `${MARCA.nome} — pets perdidos em ${MARCA.cidade}`;
+
+// Quem volta pelo link do e-mail cai direto na tela de nova senha.
+aoRecuperarSenha(() => form.abrirNovaSenha());
 
 form.configurar({ aoMudar: () => {
   pintarFeed();

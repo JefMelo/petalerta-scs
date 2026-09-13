@@ -4,8 +4,8 @@
    de ações: quem é dono vê "Sair"; as ações de cada caso ficam no detalhe.
    ============================================================================= */
 
-import { ORIGEM, perfilPublico, postsDoPerfil, meuId, sair, meuPerfil } from './dados.js?v=30';
-import { abrirEditarPerfil } from './formularios.js?v=30';
+import { ORIGEM, perfilPublico, postsDoPerfil, meuId, sair, meuPerfil } from './dados.js?v=31';
+import { abrirEditarPerfil } from './formularios.js?v=31';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) =>

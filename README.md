@@ -143,6 +143,23 @@ Os PNGs foram recortados com limiar de alfa > 30, não com `getbbox()`: o métod
 conta pixels de alfa 1 (fantasmas de antisserrilhado) e inchava a caixa em 32%
 da largura, o que era a causa real do desalinhamento.
 
+### Senha
+
+Recuperar: a tela pede o e-mail e o Supabase manda o link. Quem volta por ele
+chega com uma sessão temporária, e o evento `PASSWORD_RECOVERY` abre a tela de
+nova senha — não dá para detectar pela URL, porque a biblioteca já a limpou
+quando o app carrega. O ouvinte guarda o evento se ele chegar antes da
+inscrição, senão a tela poderia simplesmente não aparecer num fluxo que a
+pessoa percorre uma vez e às cegas.
+
+A mensagem de sucesso **não confirma se o e-mail existe** ("se existir uma conta
+em X, o link chegou lá"): dizer "não achamos essa conta" entregaria a estranhos
+quem tem cadastro.
+
+Depende de `Auth → URL Configuration` no painel: `site_url` e a lista de
+redirecionamentos permitidos. Estavam em `localhost:3000` e vazia — o link
+seria recusado.
+
 ### Por que o dono lê o próprio perfil por RPC
 
 O `schema-02` tirou a coluna `whatsapp` do alcance da API para ninguém ler o
@@ -282,9 +299,9 @@ se confundir de novo: `requirements.txt`, `app.py` e `.devcontainer/`.
 
 1. Filtrar o mapa por espécie e por quão recente é o avistamento
 2. PWA: manifest, service worker, web push
-3. Recuperar senha
-4. Imagem de reserva para a prévia de link quando o caso não tem foto
-   (hoje o WhatsApp mostra um cartão só de texto)
+3. **SMTP próprio.** O Supabase manda no máximo 2 e-mails por hora pelo
+   servidor embutido — suficiente para testar, impossível para lançar.
+   Recuperação de senha e confirmação de cadastro dependem disso.
 5. Faxina de fotos órfãs no bucket: a limpeza existe no front (ao editar e ao
    apagar), mas quem mexer no banco por fora deixa arquivo para trás
 
