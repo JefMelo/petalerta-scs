@@ -344,26 +344,38 @@ se confundir de novo: `requirements.txt`, `app.py` e `.devcontainer/`.
 
 ## O que falta
 
-1. Filtrar o mapa por espécie e por quão recente é o avistamento
-2. PWA: manifest, service worker, web push
-3. **SMTP próprio** — ver a seção abaixo. Destrava o volume E o português.
-5. Faxina de fotos órfãs no bucket: a limpeza existe no front (ao editar e ao
-   apagar), mas quem mexer no banco por fora deixa arquivo para trás
+### Travado no domínio (uma coisa depende da outra)
 
-## Versões dos módulos
-
-Todo `?v=` em `web/` tem de ser o **mesmo número**:
-
-```bash
-node tools/versionar.js       # confere
-node tools/versionar.js 16    # carimba 16 em tudo
+```
+domínio próprio
+   └─ SMTP próprio  (sem domínio, e-mail de @gmail cai no spam)
+        ├─ e-mails em português   (o Supabase só deixa personalizar com SMTP próprio)
+        ├─ volume de verdade      (hoje: 2 e-mails por hora)
+        └─ CADASTRO FUNCIONANDO   ← ver abaixo
 ```
 
-Para o navegador, `dados.js?v=8` e `dados.js?v=9` são **módulos diferentes**: ele
-instancia o arquivo duas vezes, com estado separado. Isso já aconteceu aqui —
-dois clientes Supabase, duas sessões e dois `ORIGEM`, o que fazia o "centralizar
-em mim" do mapa não mexer nas distâncias do feed. Bumpar à mão, arquivo por
-arquivo, é o que causa.
+**Ninguém consegue criar conta hoje.** O projeto exige confirmação por e-mail
+(`mailer_autoconfirm` desligado) e o servidor embutido manda 2 por hora. As
+contas de teste não revelaram isso porque foram criadas pela API de
+administração, que pula a confirmação.
+
+Há uma saída provisória, se for preciso testar com gente antes do domínio:
+ligar `mailer_autoconfirm`, e a conta passa a valer sem confirmar o e-mail. O
+custo é aceitar e-mail não verificado — no Faro o contato que importa é o
+WhatsApp, não o e-mail, que serve só para entrar e recuperar a senha. É uma
+decisão do fundador, não foi tomada.
+
+Quando o domínio existir: `./tools/configurar-email.sh` e o checklist de
+"Ao trocar de endereço" mais acima.
+
+### Independentes do domínio
+
+1. Filtrar o mapa por espécie e por quão recente é o avistamento
+2. PWA: manifest, service worker, web push
+3. Faxina de fotos órfãs no bucket: a limpeza existe no front (ao editar e ao
+   apagar), mas quem mexer no banco por fora deixa arquivo para trás
+4. Limpar os dados de teste antes de mostrar a alguém — hoje o feed tem
+   "Pipoca (editada)", fotos de placeholder e três contas `@teste.farejo.local`
 
 ## Armadilhas encontradas, para não repetir
 
