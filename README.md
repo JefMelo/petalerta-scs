@@ -146,6 +146,12 @@ O mapa inclui dois tipos, porque os dois são "pet perdido" para quem olha:
 anel laranja = procurado pelo tutor; anel azul = visto solto e ainda sem dono
 reclamando.
 
+## No ar
+
+<https://petalerta-scs.melo-jeferson.workers.dev>
+
+Publica sozinho a cada push na `main`.
+
 ## Deploy (Cloudflare Workers ligado ao GitHub)
 
 **Não existe `dist/`.** Não há compilação: `web/` é servido como está pela camada
@@ -160,6 +166,12 @@ de assets do Cloudflare. O `wrangler.jsonc` diz tudo:
 
 O comando de deploy do projeto é `npx wrangler deploy`, o padrão dos Workers
 Builds. Não mexer nele.
+
+### Verificado em produção (13/09/2026)
+
+Site e assets em 200 servindo v=16; mapa com 5 alfinetes; perfil de outro
+usuário sem o botão "Sair"; e a prévia de link respondendo com
+`summary_large_image`, `og:image` que abre em 200, e 404 para id inexistente.
 
 ### Por que o primeiro deploy falhou (13/09/2026)
 
