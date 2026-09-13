@@ -106,6 +106,8 @@ Conta de teste: `jeferson@teste.farejo.local` / `teste-1234`.
   pessoa publicou, incluindo os avisos que deu nos casos alheios
 - **Editar, encerrar, reabrir e apagar** os próprios casos, pelo "···" do post
 - **Prévia de link** para WhatsApp e redes, via `/c/<id>`
+- **Localização real**: o app convida antes de disparar o pedido do navegador,
+  guarda a última posição e diz de onde mediu — "de você" ou "do Centro"
 
 ### Por que o link compartilhado é /c/&lt;id&gt; e não #/post/&lt;id&gt;
 
@@ -188,13 +190,11 @@ se confundir de novo: `requirements.txt`, `app.py` e `.devcontainer/`.
 
 1. Filtrar o mapa por espécie e por quão recente é o avistamento
 2. PWA: manifest, service worker, web push
-3. `ORIGEM` do feed ainda é fixa no Centro. O GPS já funciona no mapa e nos
-   formulários, falta pedir a permissão na abertura do app
-4. Recuperar senha
-5. Imagem de reserva para a prévia de link quando o caso não tem foto
+3. Recuperar senha
+4. Imagem de reserva para a prévia de link quando o caso não tem foto
    (hoje o WhatsApp mostra um cartão só de texto)
-6. Editar o próprio perfil (nome, WhatsApp, foto)
-7. Faxina de fotos órfãs no bucket: a limpeza existe no front (ao editar e ao
+5. Editar o próprio perfil (nome, WhatsApp, foto)
+6. Faxina de fotos órfãs no bucket: a limpeza existe no front (ao editar e ao
    apagar), mas quem mexer no banco por fora deixa arquivo para trás
 
 ## Versões dos módulos

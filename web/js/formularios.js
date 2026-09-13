@@ -3,7 +3,7 @@
    Uma folha por vez, sobe de baixo. Toda a escrita no banco passa por aqui.
    ============================================================================= */
 
-import * as dados from './dados.js?v=16';
+import * as dados from './dados.js?v=17';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) =>
@@ -158,7 +158,7 @@ function montarMapa(f, centro) {
     const b = ev.currentTarget;
     b.disabled = true; b.textContent = 'Procurando…';
     try {
-      const p = await dados.usarMinhaLocalizacao();
+      const p = await dados.usarMinhaLocalizacao({ preciso: true });
       mapaForm.setView([p.lat, p.lng], 17);
       const end = await enderecoDe(p);
       if (end && !$('[name=endereco]', f).value) $('[name=endereco]', f).value = end;

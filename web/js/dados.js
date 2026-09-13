@@ -4,18 +4,70 @@
    ============================================================================= */
 
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-import { SUPABASE_URL, SUPABASE_ANON } from './config.js?v=16';
+import { SUPABASE_URL, SUPABASE_ANON } from './config.js?v=17';
 
 export const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
-// Onde o usuário está. Começa no Centro e é trocado pelo GPS quando permitido.
-export const ORIGEM = { lat: -29.7182, lng: -52.4306 };
+/* Onde o usuário está.
+   ehReal diz se veio do GPS ou se ainda é o palpite do Centro. Importa: sem
+   isso o feed escreve "310 m de você" para quem pode estar a 5 km dali. */
+export const ORIGEM = { lat: -29.7182, lng: -52.4306, ehReal: false };
 
-export async function usarMinhaLocalizacao() {
+const GUARDADO = 'farejo:local';
+const DISPENSADO = 'farejo:local-dispensado';
+
+export function aplicarOrigem({ lat, lng }, ehReal = true) {
+  ORIGEM.lat = lat; ORIGEM.lng = lng; ORIGEM.ehReal = ehReal;
+  if (ehReal) {
+    try { localStorage.setItem(GUARDADO, JSON.stringify({ lat, lng, em: Date.now() })); }
+    catch { /* navegador sem armazenamento: só não guarda */ }
+  }
+}
+
+/** Última posição conhecida, se recente. Evita esperar o GPS a cada abertura. */
+export function localGuardado(validadeHoras = 12) {
+  try {
+    const g = JSON.parse(localStorage.getItem(GUARDADO) || 'null');
+    if (!g || Date.now() - g.em > validadeHoras * 3600e3) return null;
+    return { lat: g.lat, lng: g.lng };
+  } catch { return null; }
+}
+
+export const conviteDispensado = () => {
+  try { return localStorage.getItem(DISPENSADO) === '1'; } catch { return false; }
+};
+export const dispensarConvite = () => {
+  try { localStorage.setItem(DISPENSADO, '1'); } catch { /* ok */ }
+};
+
+/** Estado da permissão SEM disparar o pedido do navegador. */
+export async function permissaoDeLocal() {
+  if (!navigator.permissions?.query) return 'desconhecida';
+  try {
+    const s = await navigator.permissions.query({ name: 'geolocation' });
+    return s.state;                       // granted | denied | prompt
+  } catch { return 'desconhecida'; }
+}
+
+/* preciso=false usa a rede: responde em segundos e erra por alguns quarteirões,
+   o bastante para "o que está perto de mim". O formulário, que marca o ponto
+   exato onde o pet foi visto, pede preciso=true e aceita esperar. */
+export async function usarMinhaLocalizacao({ preciso = false } = {}) {
   if (!navigator.geolocation) throw new Error('Este navegador não informa a localização.');
   const pos = await new Promise((ok, erro) =>
-    navigator.geolocation.getCurrentPosition(ok, erro, { timeout: 8000, maximumAge: 60000 }));
+    navigator.geolocation.getCurrentPosition(ok, erro, {
+      enableHighAccuracy: preciso,
+      timeout: preciso ? 15000 : 8000,
+      maximumAge: preciso ? 0 : 120000,
+    }));
   return { lat: pos.coords.latitude, lng: pos.coords.longitude };
+}
+
+/** Pede, adota como origem do app e guarda. É o caminho usado pelo convite. */
+export async function adotarMinhaLocalizacao(opcoes) {
+  const p = await usarMinhaLocalizacao(opcoes);
+  aplicarOrigem(p, true);
+  return p;
 }
 
 /* Fotos: o banco guarda o caminho dentro do bucket 'fotos'. Os dados de teste

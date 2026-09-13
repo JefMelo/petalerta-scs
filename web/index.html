@@ -12,7 +12,7 @@
 <!-- Uma família só. Duas fontes + uma mono era o que dava cara de painel. -->
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400..800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="css/app.css?v=16">
+<link rel="stylesheet" href="css/app.css?v=17">
 </head>
 <body>
 
@@ -37,6 +37,22 @@
     <button type="button" data-tipo="adocao">Adoção</button>
   </nav>
 </header>
+
+<!-- Convite de localização. Pergunta dentro do app ANTES de disparar o pedido
+     do navegador: prompt frio costuma ser negado, e negado é difícil de reverter. -->
+<div class="convite" id="convite-local" hidden>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M12 22s7-6.1 7-11a7 7 0 1 0-14 0c0 4.9 7 11 7 11Z"/><circle cx="12" cy="11" r="2.6"/></svg>
+  <p class="convite__texto">
+    <strong>Ver a distância real até cada pet</strong>
+    As distâncias abaixo são medidas a partir do Centro.
+  </p>
+  <div class="convite__acoes">
+    <button type="button" data-acao="usar-local">Usar minha localização</button>
+    <button type="button" class="convite__nao" data-acao="dispensar-local">Agora não</button>
+  </div>
+</div>
 
 <main id="feed" class="feed" aria-live="polite"></main>
 
@@ -128,6 +144,6 @@
 </nav>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script type="module" src="js/app.js?v=16"></script>
+<script type="module" src="js/app.js?v=17"></script>
 </body>
 </html>

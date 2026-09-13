@@ -4,7 +4,7 @@
    alfinete abre um cartão; tocar no cartão abre o caso inteiro.
    ============================================================================= */
 
-import { ORIGEM, mapaPerdidos, usarMinhaLocalizacao } from './dados.js?v=16';
+import { ORIGEM, mapaPerdidos, adotarMinhaLocalizacao } from './dados.js?v=17';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) =>
@@ -82,7 +82,7 @@ function mostrarCartao(p) {
         <strong class="cartao__nome">${esc(p.titulo)}</strong>
         <span class="cartao__tracos">${esc(tracos(p))}</span>
         <span class="cartao__onde">${quando} · ${esc(p.endereco || '')}</span>
-        <span class="cartao__dist">${fmtDistancia(p.distancia_m)} de você${
+        <span class="cartao__dist">${fmtDistancia(p.distancia_m)} ${ORIGEM.ehReal ? 'de você' : 'do Centro'}${
           p.n_avistados > 0 ? ` · ${p.n_avistados} ${p.n_avistados === 1 ? 'avistamento' : 'avistamentos'}` : ''}</span>
       </span>
       <svg class="cartao__seta" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -171,8 +171,9 @@ export async function centralizarEmMim(botao) {
   const antes = botao?.getAttribute('aria-label');
   botao?.classList.add('procurando');
   try {
-    const p = await usarMinhaLocalizacao();
-    ORIGEM.lat = p.lat; ORIGEM.lng = p.lng;   // vale também para o feed
+    // adotar em vez de só ler: grava a posição e marca ORIGEM.ehReal,
+    // para o feed passar a dizer "de você" em vez de "do Centro".
+    const p = await adotarMinhaLocalizacao();
     mapa.setView([p.lat, p.lng], 15);
     desenharVoce();
     await carregarPets();

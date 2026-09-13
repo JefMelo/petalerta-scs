@@ -838,3 +838,36 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 
 .opcao--perigo { color: #A32020; }
 .opcao--perigo:hover { color: #7A1414; }
+
+/* =============================================================================
+   CONVITE DE LOCALIZAÇÃO
+   Pergunta dentro do app antes de disparar o pedido do navegador.
+   ============================================================================= */
+
+.convite {
+  max-width: var(--coluna);
+  margin: 0 auto;
+  padding: 14px 16px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  align-items: start;
+  border-bottom: 1px solid var(--fio);
+  background: #FFF9F4;
+}
+.convite > svg { width: 21px; height: 21px; color: var(--perdido); margin-top: 1px; }
+
+.convite__texto { margin: 0; font-size: .84rem; color: var(--tinta-2); }
+.convite__texto strong { display: block; color: var(--tinta); font-size: .88rem; }
+
+.convite__acoes { grid-column: 2; display: flex; gap: 8px; margin-top: 9px; }
+.convite__acoes button {
+  padding: 8px 13px;
+  border-radius: 8px;
+  font-size: .83rem; font-weight: 650;
+  background: var(--tinta);
+  color: var(--papel);
+}
+.convite__acoes button:hover { background: #26343C; }
+.convite__nao { background: transparent !important; color: var(--tinta-2) !important; }
+.convite__nao:hover { color: var(--tinta) !important; background: var(--toque) !important; }

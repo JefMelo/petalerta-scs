@@ -3,10 +3,12 @@
    ============================================================================= */
 
 import { ORIGEM, feedPorRaio, postPorId, rastroDoPost, contatoDoPost,
-         aoMudarSessao, estaLogado, meuId, meuNome } from './dados.js?v=16';
-import * as form from './formularios.js?v=16';
-import * as mapaTela from './mapa.js?v=16';
-import * as perfilTela from './perfil.js?v=16';
+         aoMudarSessao, estaLogado, meuId, meuNome,
+         aplicarOrigem, localGuardado, permissaoDeLocal, adotarMinhaLocalizacao,
+         conviteDispensado, dispensarConvite } from './dados.js?v=17';
+import * as form from './formularios.js?v=17';
+import * as mapaTela from './mapa.js?v=17';
+import * as perfilTela from './perfil.js?v=17';
 
 // MARCA — nome de trabalho. Trocar aqui e em .marca no CSS/HTML. -------------
 export const MARCA = { nome: 'farejo', cidade: 'Santa Cruz do Sul' };
@@ -20,6 +22,10 @@ const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 // --- linguagem ----------------------------------------------------------------
+
+/* Sem GPS, a origem é o Centro — e dizer "de você" seria mentira para quem
+   está a 5 km dali. O rótulo conta de onde a conta foi feita. */
+const deOndeVem = () => (ORIGEM.ehReal ? 'de você' : 'do Centro');
 
 function fmtDistancia(m) {
   if (m < 950) return `${Math.round(m / 10) * 10} m`;
@@ -233,7 +239,7 @@ function postHTML(p) {
       <p><span class="legenda__pet">${esc(p.titulo)}</span>
          <span class="legenda__tracos">${esc(tracos(p))}</span></p>
       <p class="legenda__texto">${esc(p.texto || '')}</p>
-      <p class="legenda__quando">${fmtDistancia(p.distancia_m)} de você · ${fmtTempo(p.ocorrido_em)}</p>
+      <p class="legenda__quando">${fmtDistancia(p.distancia_m)} ${deOndeVem()} · ${fmtTempo(p.ocorrido_em)}</p>
     </div>
   </article>`;
 }
@@ -285,7 +291,7 @@ async function abrirDetalhe(id) {
         <p><span class="legenda__pet">${esc(p.titulo)}</span>
            <span class="legenda__tracos">${esc(tracos(p))}</span></p>
         <p>${esc(p.texto || '')}</p>
-        <p class="legenda__quando">${dist} de você · ${fmtTempo(p.ocorrido_em)}</p>
+        <p class="legenda__quando">${dist} ${deOndeVem()} · ${fmtTempo(p.ocorrido_em)}</p>
       </div>
     </article>
 
@@ -442,6 +448,8 @@ document.addEventListener('click', (ev) => {
                         marcarAba('ir-feed');
                         window.scrollTo({ top: 0, behavior: 'smooth' }); return;
     case 'conta':     estaLogado() ? (location.hash = `#/perfil/${meuId()}`) : form.abrirConta('entrar'); return;
+    case 'usar-local':      pedirLocal(alvo); return;
+    case 'dispensar-local': dispensarConvite(); $('#convite-local').hidden = true; return;
     case 'raio':      form.abrirRaio(estado.raioM, (v) => {
                         estado.raioM = v;
                         $('[data-raio-texto]').textContent = v >= 20000 ? 'tudo' : `${v / 1000} km`;
@@ -455,6 +463,25 @@ document.addEventListener('click', (ev) => {
     pintarFeed();
   }
 });
+
+/* Só chega aqui por toque explícito no convite. O pedido do navegador aparece
+   depois disso, já com o motivo explicado na tela. */
+async function pedirLocal(botao) {
+  const antes = botao.textContent;
+  botao.disabled = true;
+  botao.textContent = 'Procurando…';
+  try {
+    await adotarMinhaLocalizacao();
+    $('#convite-local').hidden = true;
+    await pintarFeed();
+  } catch {
+    botao.textContent = 'Não consegui — segue pelo Centro';
+    setTimeout(() => { botao.textContent = antes; botao.disabled = false; }, 3000);
+    return;
+  }
+  botao.disabled = false;
+  botao.textContent = antes;
+}
 
 async function abrirMenuDono(id) {
   const p = postAberto?.id === id ? postAberto : await postPorId(id);
@@ -519,4 +546,25 @@ aoMudarSessao(() => {
   if (b) b.textContent = estaLogado() ? (meuNome().split(' ')[0] || 'Conta') : 'Entrar';
 });
 
-pintarFeed().then(rotear);
+/* Ordem importa: situar antes de pintar, senão o primeiro feed sai com as
+   distâncias medidas do Centro e muda debaixo do usuário um segundo depois. */
+async function situarUsuario() {
+  const guardado = localGuardado();
+  if (guardado) aplicarOrigem(guardado, true);   // distância certa já na abertura
+
+  const permissao = await permissaoDeLocal();
+  if (permissao === 'granted') {
+    try { await adotarMinhaLocalizacao(); } catch { /* fica com o guardado, ou o Centro */ }
+    return;
+  }
+  if (permissao === 'denied') return;            // já disse não: não insiste
+
+  if (!guardado && !conviteDispensado()) $('#convite-local').hidden = false;
+}
+
+situarUsuario()
+  // Nada aqui pode impedir o feed de aparecer: sem localização o app funciona,
+  // sem feed não funciona.
+  .catch(() => {})
+  .then(pintarFeed)
+  .then(rotear);
