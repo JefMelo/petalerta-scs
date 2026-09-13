@@ -1,9 +1,9 @@
 /* =============================================================================
-   Farejo — folhas de formulário (conta, publicar, avistar, raio)
+   Faro — folhas de formulário (conta, publicar, avistar, raio)
    Uma folha por vez, sobe de baixo. Toda a escrita no banco passa por aqui.
    ============================================================================= */
 
-import * as dados from './dados.js?v=21';
+import * as dados from './dados.js?v=23';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) =>
@@ -133,7 +133,7 @@ const mapaHTML = `
     <div class="mapa-escolha">
       <div id="mapa-form"></div>
       <div class="mapa-escolha__pino" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="#F07824" stroke="#fff" stroke-width="1.5">
+        <svg viewBox="0 0 24 24" fill="#DD8C18" stroke="#fff" stroke-width="1.5">
           <path d="M12 23s7-6.4 7-11.4a7 7 0 1 0-14 0C5 16.6 12 23 12 23Z"/>
           <circle cx="12" cy="11" r="2.4" fill="#fff" stroke="none"/></svg>
       </div>

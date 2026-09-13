@@ -1,8 +1,8 @@
 {
-  "name": "farejo",
+  "name": "faro",
   "private": true,
   "type": "module",
-  "description": "Farejo — pets perdidos em Santa Cruz do Sul. Site estático + um Worker para a prévia de link.",
+  "description": "Faro — pets perdidos em Santa Cruz do Sul. Site estático + um Worker para a prévia de link.",
   "scripts": {
     "deploy": "wrangler deploy",
     "dev": "wrangler dev"

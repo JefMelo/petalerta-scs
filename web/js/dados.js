@@ -4,7 +4,7 @@
    ============================================================================= */
 
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-import { SUPABASE_URL, SUPABASE_ANON } from './config.js?v=21';
+import { SUPABASE_URL, SUPABASE_ANON } from './config.js?v=23';
 
 export const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
@@ -13,8 +13,8 @@ export const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
    isso o feed escreve "310 m de você" para quem pode estar a 5 km dali. */
 export const ORIGEM = { lat: -29.7182, lng: -52.4306, ehReal: false };
 
-const GUARDADO = 'farejo:local';
-const DISPENSADO = 'farejo:local-dispensado';
+const GUARDADO = 'faro:local';
+const DISPENSADO = 'faro:local-dispensado';
 
 export function aplicarOrigem({ lat, lng }, ehReal = true) {
   ORIGEM.lat = lat; ORIGEM.lng = lng; ORIGEM.ehReal = ehReal;
@@ -192,7 +192,7 @@ export async function minhasNovidades() {
   return (data || []).map((r) => ({ ...r, caso_foto: montarFoto(r.caso_foto) }));
 }
 
-const VISTAS = 'farejo:novidades-vistas';
+const VISTAS = 'faro:novidades-vistas';
 export const novidadesVistasEm = () => {
   try { return localStorage.getItem(VISTAS) || null; } catch { return null; }
 };

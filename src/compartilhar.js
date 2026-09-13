@@ -1,5 +1,5 @@
 /* =============================================================================
-   Farejo — página de compartilhamento
+   Faro — página de compartilhamento
    Serve o conteúdo de  /c/<id-do-caso>  (ver worker.js)
 
    POR QUE ISTO EXISTE
@@ -76,6 +76,12 @@ export async function buscarCaso(id, env = {}) {
   return Array.isArray(linhas) && linhas.length ? linhas[0] : null;
 }
 
+/* Caso sem foto não pode virar um cartão só de texto no WhatsApp: a prévia
+   sem imagem quase não é notada no meio de uma conversa. Entra o logo. */
+function fotoDeReserva(origem) {
+  return `${origem}/img/previa-padrao.jpg`;
+}
+
 function urlDaFoto(caso, base) {
   const fotos = [...(caso?.post_fotos || [])].sort((a, b) => a.ordem - b.ordem);
   const path = fotos[0]?.path;
@@ -94,9 +100,9 @@ export function paginaDeCompartilhamento(caso, id, origem, env = {}) {
     return {
       status: 404,
       html: pagina({
-        titulo: 'Caso não encontrado — Farejo',
+        titulo: 'Caso não encontrado — Faro',
         descricao: 'Este caso não existe mais ou foi encerrado.',
-        imagem: '', url: `${origem}/c/${id}`, destino: `${origem}/`,
+        imagem: fotoDeReserva(origem), url: `${origem}/c/${id}`, destino: `${origem}/`,
         corpo: '<h1>Caso não encontrado</h1><p>Ele pode ter sido encerrado pelo tutor.</p>',
       }),
     };
@@ -125,14 +131,14 @@ export function paginaDeCompartilhamento(caso, id, origem, env = {}) {
     status: 200,
     html: pagina({
       titulo, descricao,
-      imagem: urlDaFoto(caso, base),
+      imagem: urlDaFoto(caso, base) || fotoDeReserva(origem),
       url: `${origem}/c/${id}`,
       destino,
       corpo: `
         <h1>${esc(titulo)}</h1>
         <p>${esc(descricao)}</p>
         ${caso.texto ? `<p>${esc(caso.texto)}</p>` : ''}
-        <p><a href="${esc(destino)}">Abrir no Farejo</a></p>`,
+        <p><a href="${esc(destino)}">Abrir no Faro</a></p>`,
     }),
   };
 }
@@ -147,7 +153,7 @@ function pagina({ titulo, descricao, imagem, url, destino, corpo }) {
 <meta name="description" content="${esc(descricao)}">
 
 <meta property="og:type" content="article">
-<meta property="og:site_name" content="Farejo">
+<meta property="og:site_name" content="Faro">
 <meta property="og:locale" content="pt_BR">
 <meta property="og:title" content="${esc(titulo)}">
 <meta property="og:description" content="${esc(descricao)}">

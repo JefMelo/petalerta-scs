@@ -1,5 +1,5 @@
 /* =============================================================================
-   Farejo — interface
+   Faro — interface
    ============================================================================= */
 
 import { ORIGEM, feedPorRaio, postPorId, rastroDoPost, contatoDoPost,
@@ -7,13 +7,13 @@ import { ORIGEM, feedPorRaio, postPorId, rastroDoPost, contatoDoPost,
          aplicarOrigem, localGuardado, permissaoDeLocal, adotarMinhaLocalizacao,
          conviteDispensado, dispensarConvite,
          registrarCompartilhamento, minhasNovidades,
-         novidadesVistasEm, marcarNovidadesVistas } from './dados.js?v=21';
-import * as form from './formularios.js?v=21';
-import * as mapaTela from './mapa.js?v=21';
-import * as perfilTela from './perfil.js?v=21';
+         novidadesVistasEm, marcarNovidadesVistas } from './dados.js?v=23';
+import * as form from './formularios.js?v=23';
+import * as mapaTela from './mapa.js?v=23';
+import * as perfilTela from './perfil.js?v=23';
 
 // MARCA — nome de trabalho. Trocar aqui e em .marca no CSS/HTML. -------------
-export const MARCA = { nome: 'farejo', cidade: 'Santa Cruz do Sul' };
+export const MARCA = { nome: 'Faro', cidade: 'Santa Cruz do Sul' };
 
 const estado = { raioM: 3000, tipo: 'todos' };
 
@@ -102,10 +102,6 @@ const IC_PATA = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"
   <ellipse cx="6.4" cy="9.4" rx="2.1" ry="2.7"/><ellipse cx="10.9" cy="6.7" rx="2.1" ry="2.8"/>
   <ellipse cx="15.7" cy="7.4" rx="2" ry="2.6"/><ellipse cx="19.2" cy="11.3" rx="1.9" ry="2.3"/>
   <path d="M12.4 12.3c2.6 0 4.8 2 4.8 4.3 0 1.9-1.5 3.2-3.4 3.2-1 0-1.7-.3-2.4-.3s-1.4.3-2.4.3c-1.9 0-3.4-1.3-3.4-3.2 0-2.3 2.2-4.3 4.8-4.3Z"/></svg>`;
-
-const PINO = `<svg class="marca__pino" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-  <path d="M12 22s7-6.1 7-11a7 7 0 1 0-14 0c0 4.9 7 11 7 11Z" fill="currentColor"/>
-  <circle cx="12" cy="10.5" r="2.6" fill="#fff"/></svg>`;
 
 /* Caso sem foto existe — quem acha um cão na rua nem sempre consegue fotografar.
    Um quadrado cinza vazio seria pior que assumir a ausência. */
@@ -373,7 +369,7 @@ function desenharMapa(pontos) {
     const ultimo = i === 0;
     L.circleMarker([r.lat, r.lng], {
       radius: ultimo ? 9 : 6, color: '#fff', weight: 2,
-      fillColor: ultimo ? '#F07824' : '#15719F', fillOpacity: 1,
+      fillColor: ultimo ? '#DD8C18' : '#15719F', fillOpacity: 1,
     }).addTo(mapa).bindPopup(`<strong>${esc(r.endereco || '')}</strong><br>${fmtTempo(r.ocorrido_em)}`);
   });
 
@@ -672,7 +668,6 @@ window.addEventListener('hashchange', rotear);
 
 // --- início -------------------------------------------------------------------
 
-$('.marca').innerHTML = `${PINO}<span class="marca__texto">${MARCA.nome}</span>`;
 document.title = `${MARCA.nome} — pets perdidos em ${MARCA.cidade}`;
 
 form.configurar({ aoMudar: () => {

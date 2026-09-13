@@ -1,19 +1,23 @@
-# Farejo (nome de trabalho) — pets perdidos em Santa Cruz do Sul
+# Faro — pets perdidos em Santa Cruz do Sul
 
 Reescrita do protótipo Streamlit `petalerta-scs` como web app (PWA) com feed local.
 
-> **Nome provisório.** "PetAlerta" já é usado por outros apps. `Farejo` é um marcador —
-> vive na constante `MARCA` em `web/js/app.js` e na classe `.marca` do CSS. Trocar
-> nome e símbolo é editar esses dois pontos, nada mais.
+> **Identidade.** O logo vive em `web/img/`: `faro-marca.png` (o pino), 
+> `faro-texto.png` (o wordmark) e `faro.png` (os dois). As cores saíram dele:
+> âmbar `#DD8C18` e escuro `#15171C`. Para texto, o âmbar escurecido `#A66912`,
+> que é o mais claro que ainda passa AA no branco.
+>
+> O projeto Cloudflare e o repositório ainda se chamam `petalerta-scs` — trocar
+> muda a URL de produção, então fica para quando houver domínio próprio.
 
 ## Isolamento de projetos — regra do fundador
 
 Este app **não compartilha nada** com o VadeOn:
 
-| Recurso | VadeOn | Farejo |
+| Recurso | VadeOn | Faro |
 |---|---|---|
 | Conta Supabase | outra conta | conta própria, com **1 único projeto** |
-| Projeto Supabase | o existente | `Farejo` · ref `sxnyeokxkczrcdnsanbu` · us-east-1 |
+| Projeto Supabase | o existente | `Faro` · ref `sxnyeokxkczrcdnsanbu` · us-east-1 |
 | Projeto Cloudflare | o existente | **um projeto Pages novo** — a criar |
 | Repositório | — | `JefMelo/petalerta-scs` |
 | Pasta local | `~/Desktop/Claude/LexFlow` | `~/Desktop/Claude/PetAlerta` |
@@ -21,7 +25,7 @@ Este app **não compartilha nada** com o VadeOn:
 A conta do Supabase usada aqui tem **um projeto só** — o VadeOn está em outra conta.
 O isolamento é estrutural, não depende de cuidado manual.
 
-Segredos ficam em `~/.config/farejo/` (fora do repositório): `supabase-token`,
+Segredos ficam em `~/.config/farejo/` — nome antigo do projeto, mantido para não quebrar os scripts locais — (fora do repositório): `supabase-token`,
 `service_role.key`, `anon.key`. A chave **anon** também vive em `web/js/config.js`,
 o que é correto: ela é pública por design e quem protege os dados é o RLS.
 A **service_role nunca** pode ir para `web/`.

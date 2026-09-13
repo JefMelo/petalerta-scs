@@ -1,4 +1,4 @@
-/* Conexão com o Supabase do Farejo.
+/* Conexão com o Supabase do Faro.
    A chave 'anon' é pública por natureza — quem protege os dados é o RLS,
    não o segredo da chave. NUNCA colocar aqui a service_role. */
 export const SUPABASE_URL  = 'https://sxnyeokxkczrcdnsanbu.supabase.co';

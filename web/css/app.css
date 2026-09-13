@@ -1,11 +1,11 @@
 /* =============================================================================
-   Farejo — folha principal
+   Faro — folha principal
    Um feed, não um painel. Foto sangrando, fio separando, uma pessoa no topo de
    cada post, ações só com ícone. Uma família tipográfica; o peso faz hierarquia.
    ============================================================================= */
 
 :root {
-  --tinta:      #0D1418;
+  --tinta:      #15171C;   /* o escuro do logo */
   --tinta-2:    #6B7580;   /* legenda, tempo, distância — passa AA no branco */
   --tinta-3:    #9AA3AC;   /* só decoração: separadores, placeholder */
   --papel:      #FFFFFF;
@@ -13,12 +13,12 @@
   --toque:      #F4F6F7;
   --campo-fundo:#FAFBFC;
 
-  --perdido:    #F07824;   /* laranja da marca — texto sobre ele: --tinta */
+  --perdido:    #DD8C18;   /* âmbar do logo Faro — texto sobre ele: --tinta (6,9:1) */
   --avistado:   #15719F;
   --encontrado: #0E7A52;
   --adocao:     #12263A;
 
-  --acento:     #C25510;   /* laranja seguro para texto */
+  --acento:     #A66912;   /* o mesmo âmbar, escurecido para passar AA como texto */
   --coluna:     470px;     /* mesma largura de coluna do feed do Instagram */
   --barra-h:    52px;
 
@@ -67,9 +67,9 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
   display: flex; align-items: center; justify-content: space-between;
 }
 
-.marca { display: flex; align-items: center; gap: 7px; text-decoration: none; color: inherit; }
-.marca__pino { width: 19px; height: 19px; flex: none; color: var(--perdido); }
-.marca__texto { font-size: 1.22rem; font-weight: 700; letter-spacing: -.02em; }
+.marca { display: flex; align-items: center; gap: 8px; text-decoration: none; }
+.marca__simbolo { height: 27px; width: auto; flex: none; }
+.marca__nome { height: 21px; width: auto; flex: none; }
 
 /* O raio virou um botão no topo. Antes era uma faixa inteira só para ele. */
 .raio-botao {

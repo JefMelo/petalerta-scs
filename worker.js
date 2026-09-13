@@ -1,5 +1,5 @@
 /* =============================================================================
-   Farejo — Worker
+   Faro — Worker
    O site é estático (web/), servido pela camada de assets do Cloudflare.
    Este Worker existe por um motivo só: responder /c/<id> com as meta tags og:,
    para o link compartilhado gerar prévia no WhatsApp.

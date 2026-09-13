@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* =============================================================================
-   Farejo — carimba a MESMA versão em todo ?v= de web/
+   Faro — carimba a MESMA versão em todo ?v= de web/
 
        node tools/versionar.js          # confere e lista divergências
        node tools/versionar.js 15       # carimba 15 em tudo
