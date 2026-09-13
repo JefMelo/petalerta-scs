@@ -5,10 +5,12 @@
 import { ORIGEM, feedPorRaio, postPorId, rastroDoPost, contatoDoPost,
          aoMudarSessao, estaLogado, meuId, meuNome,
          aplicarOrigem, localGuardado, permissaoDeLocal, adotarMinhaLocalizacao,
-         conviteDispensado, dispensarConvite } from './dados.js?v=18';
-import * as form from './formularios.js?v=18';
-import * as mapaTela from './mapa.js?v=18';
-import * as perfilTela from './perfil.js?v=18';
+         conviteDispensado, dispensarConvite,
+         registrarCompartilhamento, minhasNovidades,
+         novidadesVistasEm, marcarNovidadesVistas } from './dados.js?v=21';
+import * as form from './formularios.js?v=21';
+import * as mapaTela from './mapa.js?v=21';
+import * as perfilTela from './perfil.js?v=21';
 
 // MARCA — nome de trabalho. Trocar aqui e em .marca no CSS/HTML. -------------
 export const MARCA = { nome: 'farejo', cidade: 'Santa Cruz do Sul' };
@@ -93,6 +95,13 @@ const IC = {
   partilha: svg('<path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><path d="M16 6l-4-4-4 4"/><path d="M12 2.5v13"/>'),
   casa:     svg('<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1Z"/>'),
 };
+
+/* Pata: marca os farejadores. O sino, no topo, é das novidades — ícones
+   diferentes de propósito, porque são coisas diferentes. */
+const IC_PATA = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+  <ellipse cx="6.4" cy="9.4" rx="2.1" ry="2.7"/><ellipse cx="10.9" cy="6.7" rx="2.1" ry="2.8"/>
+  <ellipse cx="15.7" cy="7.4" rx="2" ry="2.6"/><ellipse cx="19.2" cy="11.3" rx="1.9" ry="2.3"/>
+  <path d="M12.4 12.3c2.6 0 4.8 2 4.8 4.3 0 1.9-1.5 3.2-3.4 3.2-1 0-1.7-.3-2.4-.3s-1.4.3-2.4.3c-1.9 0-3.4-1.3-3.4-3.2 0-2.3 2.2-4.3 4.8-4.3Z"/></svg>`;
 
 const PINO = `<svg class="marca__pino" viewBox="0 0 24 24" fill="none" aria-hidden="true">
   <path d="M12 22s7-6.1 7-11a7 7 0 1 0-14 0c0 4.9 7 11 7 11Z" fill="currentColor"/>
@@ -206,14 +215,24 @@ function acoesHTML(p) {
 
   const partilhar = b('partilhar', p.id, 'Compartilhar', IC.partilha);
 
+  /* Quantas PESSOAS estão ajudando este caso — quem avistou e quem espalhou,
+     cada uma contada uma vez. É diferente do número de avistamentos, que conta
+     episódios: a mesma pessoa pode ver o pet três vezes. */
+  const farejadores = p.n_farejadores > 0
+    ? `<span class="farejadores" data-farejadores="${p.id}"
+             title="Pessoas ajudando a procurar">${IC_PATA}
+         <b>${p.n_farejadores}</b> ${p.n_farejadores === 1 ? 'farejador' : 'farejadores'}
+       </span>`
+    : '';
+
   if (p.tipo === 'adocao')
-    return `<div class="acoes">${b('zap', p.id, 'Falar com quem está doando', IC.conversa)}${partilhar}</div>`;
+    return `<div class="acoes">${b('zap', p.id, 'Falar com quem está doando', IC.conversa)}${partilhar}${farejadores}</div>`;
   if (p.tipo === 'encontrado')
-    return `<div class="acoes">${b('zap', p.id, 'É o meu pet', IC.casa)}${partilhar}</div>`;
+    return `<div class="acoes">${b('zap', p.id, 'É o meu pet', IC.casa)}${partilhar}${farejadores}</div>`;
   return `<div class="acoes">
     ${b('vi', p.id, `Avisar que vi ${p.titulo}`, IC.olho)}
     ${b('zap', p.id, 'Falar com o tutor', IC.conversa)}
-    ${partilhar}</div>`;
+    ${partilhar}${farejadores}</div>`;
 }
 
 /** O slot do "curtido por": prova social quando há, chamada para agir quando não há. */
@@ -394,7 +413,7 @@ function avisar(msg) {
 async function falarComTutor(id) {
   try {
     const tel = await contatoDoPost(id);
-    if (!tel) return avisar('Esta pessoa ainda não cadastrou um WhatsApp.');
+    if (!tel) return recado('Esta pessoa ainda não cadastrou um WhatsApp.', 4000);
     window.open(`https://wa.me/55${tel}`, '_blank', 'noopener');
   } catch (e) {
     if (!estaLogado()) form.abrirConta('entrar');
@@ -403,16 +422,57 @@ async function falarComTutor(id) {
 }
 
 async function partilhar(id) {
-  /* /c/<id> em vez de #/post/<id>: o hash não chega ao servidor, e sem isso o
-     WhatsApp não monta a prévia com a foto do pet. Quem abre o link é levado
-     para o app em seguida. Ver functions/c/[id].js.
-     Em desenvolvimento (http.server) esse caminho não existe — só no Pages. */
   const url = `${location.origin}/c/${id}`;
+
   if (navigator.share) {
-    try { await navigator.share({ url, title: MARCA.nome }); return; } catch { /* cancelado */ }
+    try { await navigator.share({ url, title: MARCA.nome }); }
+    catch { return; }               // cancelou de propósito: não conta
+  } else {
+    /* Falhar ao copiar não anula o compartilhamento: a pessoa pediu e recebeu
+       o link na tela. Abortar aqui escondia a contagem inteira. */
+    try { await navigator.clipboard.writeText(url); recado('Link copiado'); }
+    catch { recado(url, 6000); }
   }
-  try { await navigator.clipboard.writeText(url); avisar('Link copiado.'); }
-  catch { avisar(url); }
+
+  const total = await registrarCompartilhamento(id);
+  if (total != null) pintarFarejadores(id, total);
+}
+
+/* Aviso curto no rodapé. Melhor que alert() para confirmar uma ação pequena:
+   não interrompe, não exige toque, some sozinho. */
+let recadoTempo = null;
+function recado(texto, ms = 2600) {
+  let el = $('#recado');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'recado';
+    el.className = 'recado';
+    el.setAttribute('role', 'status');
+    document.body.append(el);
+  }
+  el.textContent = texto;
+  el.classList.add('recado--visivel');
+  clearTimeout(recadoTempo);
+  recadoTempo = setTimeout(() => el.classList.remove('recado--visivel'), ms);
+}
+
+/* Atualiza o contador — e o CRIA quando o caso vai de 0 para 1, caso em que o
+   elemento ainda não existe no card. Sem isto, o primeiro farejador de um caso
+   não aparecia até a próxima repintura. */
+function pintarFarejadores(id, total) {
+  if (!total) return;
+  const html = `${IC_PATA} <b>${total}</b> ${total === 1 ? 'farejador' : 'farejadores'}`;
+  const existentes = document.querySelectorAll(`[data-farejadores="${id}"]`);
+  if (existentes.length) { existentes.forEach((el) => { el.innerHTML = html; }); return; }
+
+  document.querySelectorAll(`.acoes [data-partilhar="${id}"]`).forEach((botao) => {
+    const span = document.createElement('span');
+    span.className = 'farejadores';
+    span.dataset.farejadores = id;
+    span.title = 'Pessoas ajudando a procurar';
+    span.innerHTML = html;
+    botao.closest('.acoes').append(span);
+  });
 }
 
 async function avistar(id) {
@@ -439,13 +499,19 @@ document.addEventListener('click', (ev) => {
 
   if (d.perfil)    { location.hash = `#/perfil/${d.perfil}`; return; }
   if (d.menu)      { abrirMenuDono(d.menu); return; }
-  if (d.abrir)     { location.hash = `#/post/${d.abrir}`; return; }
+  if (d.abrir)     {
+    if (!$('#novidades-tela').hidden) fecharNovidades();
+    location.hash = `#/post/${d.abrir}`;
+    return;
+  }
   if (d.zap)       { falarComTutor(d.zap); return; }
   if (d.partilhar) { partilhar(d.partilhar); return; }
   if (d.vi)        { avistar(d.vi); return; }
 
   switch (d.acao) {
     case 'fechar':        fecharDetalhe(); return;
+    case 'novidades':         abrirNovidades(); return;
+    case 'fechar-novidades':  fecharNovidades(); return;
     case 'fechar-perfil': perfilTela.fechar();
                           history.replaceState(null, '', mapaTela.estaAberto() ? '#/mapa' : '#/');
                           marcarAba(mapaTela.estaAberto() ? 'ir-mapa' : 'ir-feed'); return;
@@ -490,6 +556,70 @@ async function pedirLocal(botao) {
   }
   botao.disabled = false;
   botao.textContent = antes;
+}
+
+// --- novidades ----------------------------------------------------------------
+
+/* O que outras pessoas fizeram nos seus casos. O "não visto" é guardado no
+   próprio aparelho: um carimbo de tempo, e conta o que é mais novo que ele.
+   Simples e sem coluna nova no banco — o custo é não sincronizar entre
+   aparelhos, o que para um aviso é aceitável. */
+let novidades = [];
+
+function naoVistas() {
+  const carimbo = novidadesVistasEm();
+  if (!carimbo) return novidades.length;
+  return novidades.filter((n) => n.quando > carimbo).length;
+}
+
+async function carregarNovidades() {
+  const sino = $('.sino');
+  if (!sino) return;
+  if (!estaLogado()) { sino.hidden = true; return; }
+  try { novidades = await minhasNovidades(); } catch { novidades = []; }
+  sino.hidden = false;
+  const n = naoVistas();
+  const ponto = $('[data-ponto]', sino);
+  ponto.hidden = n === 0;
+  ponto.textContent = n > 9 ? '9+' : String(n || '');
+  sino.setAttribute('aria-label',
+    n ? `${n} novidade${n > 1 ? 's' : ''} nos seus casos` : 'Novidades nos seus casos');
+}
+
+function abrirNovidades() {
+  const corpo = $('#novidades-corpo');
+  const carimbo = novidadesVistasEm();
+
+  corpo.innerHTML = novidades.length ? `
+    <ul class="novidades">
+      ${novidades.map((n) => `
+        <li class="novidade ${!carimbo || n.quando > carimbo ? 'novidade--nova' : ''}">
+          <button type="button" data-abrir="${n.caso_id}">
+            <span class="novidade__foto" ${n.caso_foto ? `style="background-image:url('${esc(n.caso_foto)}')"` : ''}></span>
+            <span class="novidade__texto">
+              <span><strong>${esc(n.quem)}</strong> viu ${esc(n.caso_titulo)}</span>
+              <span class="novidade__onde">${esc(n.endereco || 'sem endereço')}</span>
+              ${n.texto ? `<span class="novidade__fala">“${esc(n.texto)}”</span>` : ''}
+              <span class="novidade__quando">${fmtTempo(n.quando)}</span>
+            </span>
+          </button>
+        </li>`).join('')}
+    </ul>` : `
+    <div class="vazio">
+      <strong>Nada novo por aqui</strong>
+      Quando alguém avistar um pet que você publicou, o aviso aparece aqui.
+    </div>`;
+
+  $('#novidades-tela').hidden = false;
+  document.body.style.overflow = 'hidden';
+  marcarNovidadesVistas();
+  const ponto = $('.sino [data-ponto]');
+  if (ponto) ponto.hidden = true;
+}
+
+function fecharNovidades() {
+  $('#novidades-tela').hidden = true;
+  document.body.style.overflow = '';
 }
 
 async function abrirMenuDono(id) {
@@ -547,12 +677,14 @@ document.title = `${MARCA.nome} — pets perdidos em ${MARCA.cidade}`;
 
 form.configurar({ aoMudar: () => {
   pintarFeed();
+  carregarNovidades();
   if (perfilTela.estaAberto()) perfilTela.recarregar();
 } });
 
 aoMudarSessao(() => {
   const b = $('[data-conta-texto]');
   if (b) b.textContent = estaLogado() ? (meuNome().split(' ')[0] || 'Conta') : 'Entrar';
+  carregarNovidades();
 });
 
 /* Ordem importa: situar antes de pintar, senão o primeiro feed sai com as

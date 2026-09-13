@@ -19,13 +19,41 @@ const PADRAO = {
   SUPABASE_ANON: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4bnllb2t4a2N6cmNkbnNhbmJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4MTc4MDIsImV4cCI6MjEwNDM5MzgwMn0.uDtW_mSW4B8C--RAJWXHsH2ts6B8854oXxv0QAayVk0',   // pública por natureza; quem protege é o RLS
 };
 
-const ESPECIE = { cao: 'Cão', gato: 'Gato', outro: 'Pet' };
-const TIPO = {
-  perdido:    (e) => `${e} perdido`,
-  avistado:   (e) => `${e} avistado`,
-  encontrado: (e) => `${e} encontrado`,
-  adocao:     (e) => `${e} para adoção`,
+const ESPECIE = { cao: 'cão', gato: 'gato', outro: 'pet' };
+
+/* O texto do card é a única chance de convencer quem só passou o olho num grupo
+   de bairro. Precisa dizer, em uma linha, o que se pede da pessoa. */
+const CHAMADA = {
+  perdido:    (c) => `Ajude a achar ${comArtigo(c)}`,
+  avistado:   (c) => `Viram um ${ESPECIE[c.especie]} solto — você conhece?`,
+  encontrado: (c) => `Este ${ESPECIE[c.especie]} está a salvo — você conhece o dono?`,
+  adocao:     (c) => `${c.titulo} procura um lar`,
 };
+
+const PEDIDO = {
+  perdido:    'Se você vir, avise pelo app — o tutor recebe na hora.',
+  avistado:   'Se for seu ou você souber de quem é, avise pelo app.',
+  encontrado: 'Se for seu ou você reconhecer, avise pelo app.',
+  adocao:     'Fale com quem está doando pelo app.',
+};
+
+/** "o Thor" / "a Mel" / "este pet" — o artigo vem do sexo do animal. */
+function comArtigo(c) {
+  if (c.sexo === 'femea') return `a ${c.titulo}`;
+  if (c.sexo === 'macho') return `o ${c.titulo}`;
+  return `este ${ESPECIE[c.especie]}`;
+}
+
+function quandoFoi(iso) {
+  const min = (Date.now() - Date.parse(iso)) / 60000;
+  if (min < 60)   return 'há menos de uma hora';
+  const h = Math.round(min / 60);
+  if (h < 24)     return h === 1 ? 'há 1 hora' : `há ${h} horas`;
+  const d = Math.round(min / 1440);
+  if (d === 1)    return 'ontem';
+  if (d < 30)     return `há ${d} dias`;
+  return 'há mais de um mês';
+}
 
 const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -39,7 +67,7 @@ const cortar = (t, n) => {
 export async function buscarCaso(id, env = {}) {
   const base = env.SUPABASE_URL || PADRAO.SUPABASE_URL;
   const chave = env.SUPABASE_ANON || PADRAO.SUPABASE_ANON;
-  const campos = 'id,tipo,status,titulo,texto,especie,raca,cor,endereco,ocorrido_em,post_fotos(path,ordem)';
+  const campos = 'id,tipo,status,titulo,texto,especie,raca,cor,sexo,endereco,ocorrido_em,post_fotos(path,ordem)';
   const r = await fetch(`${base}/rest/v1/posts?id=eq.${encodeURIComponent(id)}&select=${campos}`, {
     headers: { apikey: chave, Authorization: `Bearer ${chave}` },
   });
@@ -74,21 +102,24 @@ export function paginaDeCompartilhamento(caso, id, origem, env = {}) {
     };
   }
 
-  const especie = ESPECIE[caso.especie] || 'Pet';
-  const rotulo = (TIPO[caso.tipo] || TIPO.perdido)(especie);
   const encerrado = caso.status === 'resolvido';
 
   const titulo = encerrado
-    ? `${caso.titulo} já foi encontrado — Farejo`
-    : `${caso.titulo} — ${rotulo} em Santa Cruz do Sul`;
+    ? `${caso.titulo} já voltou para casa`
+    : (CHAMADA[caso.tipo] || CHAMADA.perdido)(caso);
 
-  const traços = [caso.raca, caso.cor].filter(Boolean).join(', ');
-  const descricao = cortar([
-    encerrado ? 'Caso encerrado: o pet voltou para casa.' : caso.texto,
-    traços,
-    caso.endereco,
-  ].filter(Boolean).join(' · '), 180)
-    || 'Ajude a encontrar este pet em Santa Cruz do Sul.';
+  const tracos = [caso.raca, caso.cor].filter(Boolean).join(', ');
+  const quando = caso.tipo === 'adocao' ? '' : quandoFoi(caso.ocorrido_em);
+  const verbo  = caso.tipo === 'perdido' ? 'Sumiu' : 'Visto';
+
+  const descricao = encerrado
+    ? 'Caso encerrado — o pet está de volta com a família.'
+    : cortar([
+        tracos && tracos.charAt(0).toUpperCase() + tracos.slice(1),
+        quando && caso.endereco ? `${verbo} ${quando}, ${caso.endereco}`
+                                : (caso.endereco || ''),
+        PEDIDO[caso.tipo] || PEDIDO.perdido,
+      ].filter(Boolean).join('. '), 190);
 
   return {
     status: 200,
@@ -98,8 +129,8 @@ export function paginaDeCompartilhamento(caso, id, origem, env = {}) {
       url: `${origem}/c/${id}`,
       destino,
       corpo: `
-        <h1>${esc(caso.titulo)}</h1>
-        <p><strong>${esc(rotulo)}</strong>${caso.endereco ? ` · ${esc(caso.endereco)}` : ''}</p>
+        <h1>${esc(titulo)}</h1>
+        <p>${esc(descricao)}</p>
         ${caso.texto ? `<p>${esc(caso.texto)}</p>` : ''}
         <p><a href="${esc(destino)}">Abrir no Farejo</a></p>`,
     }),

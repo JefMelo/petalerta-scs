@@ -4,7 +4,7 @@
    ============================================================================= */
 
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-import { SUPABASE_URL, SUPABASE_ANON } from './config.js?v=18';
+import { SUPABASE_URL, SUPABASE_ANON } from './config.js?v=21';
 
 export const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
@@ -176,6 +176,29 @@ export async function enviarFoto(arquivo) {
   if (error) throw new Error(error.message);
   return caminho;
 }
+
+/** Conta uma pessoa a mais farejando. Deslogado não conta, mas não falha. */
+export async function registrarCompartilhamento(id) {
+  const { data, error } = await sb.rpc('registrar_compartilhamento', { p_post_id: id });
+  if (error) return null;
+  return data;
+}
+
+/** O que outras pessoas fizeram nos MEUS casos. */
+export async function minhasNovidades() {
+  if (!sessao) return [];
+  const { data, error } = await sb.rpc('minhas_novidades', {});
+  if (error) throw new Error(error.message);
+  return (data || []).map((r) => ({ ...r, caso_foto: montarFoto(r.caso_foto) }));
+}
+
+const VISTAS = 'farejo:novidades-vistas';
+export const novidadesVistasEm = () => {
+  try { return localStorage.getItem(VISTAS) || null; } catch { return null; }
+};
+export const marcarNovidadesVistas = () => {
+  try { localStorage.setItem(VISTAS, new Date().toISOString()); } catch { /* ok */ }
+};
 
 export async function criarPost(campos) {
   const { data, error } = await sb.rpc('criar_post', campos);

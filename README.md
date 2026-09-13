@@ -75,6 +75,7 @@ Um **feed**, não um painel. As decisões que tiram a cara de "app gerado":
 | `schema-07.sql` | `mapa_perdidos`: um ponto por caso, na **última** localização conhecida |
 | `schema-08.sql` | perfil: `perfil_publico`, `posts_do_perfil`, `editar_post`, `apagar_post`, `reabrir_post` |
 | `schema-09.sql` | nova ordem do feed: nota de urgência contínua, com última atividade |
+| `schema-10.sql` | farejadores (pessoas distintas ajudando) e `minhas_novidades` |
 | `seed-teste.sql` | 6 casos + 3 avistamentos + 3 usuários `@teste.farejo.local` |
 
 ## Rodar
@@ -106,7 +107,10 @@ Conta de teste: `jeferson@teste.farejo.local` / `teste-1234`.
 - **Perfil** (o próprio e o dos outros): grade de três colunas com tudo que a
   pessoa publicou, incluindo os avisos que deu nos casos alheios
 - **Editar, encerrar, reabrir e apagar** os próprios casos, pelo "···" do post
-- **Prévia de link** para WhatsApp e redes, via `/c/<id>`
+- **Prévia de link** para WhatsApp e redes, via `/c/<id>`, com chamada de ação
+  ("Ajude a achar o Thor") em vez de rótulo descritivo
+- **Farejadores**: contador de pessoas ajudando cada caso
+- **Novidades**: sino no topo com os avistamentos nos seus casos
 - **Localização real**: o app convida antes de disparar o pedido do navegador,
   guarda a última posição e diz de onde mediu — "de você" ou "do Centro"
 
@@ -120,6 +124,26 @@ ser achado, isso custa caro.
 `functions/c/[id].js` responde em `/c/<id>` com as meta tags `og:` preenchidas a
 partir do caso, e manda a pessoa para `/#/post/<id>` em seguida. Roda só no
 Cloudflare Pages — no `http.server` local esse caminho não existe.
+
+### Farejadores
+
+Quantas **pessoas** estão ajudando um caso — não quantos avistamentos houve.
+Gente distinta, cada uma contada uma vez, tenha avistado ou apenas espalhado o
+link. O Thor, por exemplo, tem 3 avistamentos e 2 farejadores: a mesma pessoa
+o viu duas vezes.
+
+Podia ser um número inventado, e ficaria mais bonito. Mas num app onde alguém
+confia a busca do próprio cachorro, número inflado é o tipo de coisa que,
+descoberta uma vez, derruba a confiança no resto. Este só cresce quando alguém
+age: compartilhar registra em `compartilhamentos` (tabela que existia desde o
+schema-01 e estava sem uso).
+
+### Novidades
+
+O sino do topo lista o que outras pessoas fizeram nos **seus** casos — por ora,
+avistamentos. O "não visto" é um carimbo de tempo no próprio aparelho, sem
+coluna nova no banco; o custo é não sincronizar entre aparelhos, aceitável para
+um aviso.
 
 ### A ordem do feed
 

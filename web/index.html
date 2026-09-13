@@ -12,7 +12,7 @@
 <!-- Uma família só. Duas fontes + uma mono era o que dava cara de painel. -->
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400..800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="css/app.css?v=18">
+<link rel="stylesheet" href="css/app.css?v=21">
 </head>
 <body>
 
@@ -22,6 +22,15 @@
   <div class="topo__faixa">
     <!-- MARCA provisória: preenchida por js/app.js (constante MARCA). -->
     <a class="marca" href="#/" aria-label="Página inicial"></a>
+    <!-- Novidades nos seus casos. Só aparece para quem tem conta. -->
+    <button class="sino" type="button" data-acao="novidades" aria-label="Novidades nos seus casos" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M18 8.5a6 6 0 1 0-12 0c0 6-2 7.5-2 7.5h16s-2-1.5-2-7.5Z"/>
+        <path d="M10.3 20a2 2 0 0 0 3.4 0"/></svg>
+      <span class="sino__ponto" data-ponto hidden></span>
+    </button>
+
     <button class="raio-botao" type="button" data-acao="raio">
       <span data-raio-texto>3 km</span>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -95,6 +104,21 @@
   <div class="cartao-mapa" id="cartao-mapa" hidden></div>
 </section>
 
+<!-- Novidades -->
+<section class="folha" id="novidades-tela" hidden aria-modal="true" role="dialog" aria-label="Novidades">
+  <div class="folha__topo">
+    <div class="interno">
+      <button class="icone-botao" type="button" data-acao="fechar-novidades" aria-label="Voltar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      </button>
+      <h2 class="folha__nome">Novidades</h2>
+    </div>
+  </div>
+  <div class="folha__corpo" id="novidades-corpo"></div>
+</section>
+
 <!-- Perfil (o próprio e o dos outros) -->
 <section class="folha" id="perfil-tela" hidden aria-modal="true" role="dialog" aria-label="Perfil">
   <div class="folha__topo">
@@ -144,6 +168,6 @@
 </nav>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script type="module" src="js/app.js?v=18"></script>
+<script type="module" src="js/app.js?v=21"></script>
 </body>
 </html>
