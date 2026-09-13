@@ -131,15 +131,15 @@ nota = peso_do_tipo × decaimento(idade) × proximidade(distância)
 
 | tipo | peso | meia-vida |
 |---|---|---|
-| avistado | 1,00 | **10 h** |
+| avistado | 1,00 | **24 h** |
 | perdido | 1,00 | 96 h |
 | encontrado | 0,90 | 96 h |
 | adoção | 0,45 | 720 h |
 
 Os números vivem em `schema-09.sql`, num bloco só.
 
-A meia-vida curta do avistamento é o ponto: **pista de rua é perecível** — nasce
-no topo e some sozinha em horas. Adoção quase não decai, porque não é urgência,
+A meia-vida curta do avistamento é o ponto: **pista de rua é perecível** — vale
+o dia, não a semana. Nasce no topo e desce sozinha. Adoção quase não decai, porque não é urgência,
 mas também nunca fica permanentemente invisível.
 
 A **idade contada é a da última atividade**, não a da publicação: um caso de 3

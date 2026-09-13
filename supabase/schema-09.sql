@@ -16,8 +16,8 @@
 --     nota = peso_do_tipo  ×  decaimento(idade)  ×  proximidade(distância)
 --
 -- O que era faixa vira peso e meia-vida. A meia-vida curta do avistamento é o
--- que traduz a intuição certa: pista de rua é perecível — nasce no topo e
--- some sozinha em horas, sem precisar de faixa.
+-- que traduz a intuição certa: pista de rua é perecível — vale o dia, não a
+-- semana. Ela nasce no topo e desce sozinha, sem precisar de faixa.
 -- =============================================================================
 
 set search_path = public, extensions;
@@ -27,7 +27,7 @@ set search_path = public, extensions;
 --   meia_vida_h em quantas horas a nota cai pela metade
 --   ALCANCE_M   distância em que a nota cai pela metade (abaixo, na função)
 --
---   avistado    1.00 / 10h    perecível: some do topo no mesmo dia
+--   avistado    1.00 / 24h    perecível: uma pista vale o dia, não a semana
 --   perdido     1.00 / 96h    continua valendo por dias
 --   encontrado  0.90 / 96h    o contrário do perdido, quase tão urgente
 --   adocao      0.45 / 720h   não é urgência, é navegação
@@ -92,7 +92,7 @@ set search_path = public, extensions as $$
       (case c.tipo when 'avistado' then 1.00 when 'perdido' then 1.00
                    when 'encontrado' then 0.90 else 0.45 end)
       * exp(-ln(2) * (extract(epoch from now() - c.mexido_em) / 3600.0)
-                   / (case c.tipo when 'avistado' then 10.0
+                   / (case c.tipo when 'avistado' then 24.0
                                   when 'adocao'   then 720.0
                                   else 96.0 end))
       * (1.0 / (1.0 + c.dist / 600.0))       -- ALCANCE_M = 600
