@@ -3,10 +3,10 @@
    ============================================================================= */
 
 import { ORIGEM, feedPorRaio, postPorId, rastroDoPost, contatoDoPost,
-         aoMudarSessao, estaLogado, meuId, meuNome } from './dados.js?v=15';
-import * as form from './formularios.js?v=15';
-import * as mapaTela from './mapa.js?v=15';
-import * as perfilTela from './perfil.js?v=15';
+         aoMudarSessao, estaLogado, meuId, meuNome } from './dados.js?v=16';
+import * as form from './formularios.js?v=16';
+import * as mapaTela from './mapa.js?v=16';
+import * as perfilTela from './perfil.js?v=16';
 
 // MARCA — nome de trabalho. Trocar aqui e em .marca no CSS/HTML. -------------
 export const MARCA = { nome: 'farejo', cidade: 'Santa Cruz do Sul' };
@@ -414,7 +414,11 @@ document.addEventListener('click', (ev) => {
     trilho.scrollBy({ left: +passo.dataset.passo * trilho.clientWidth, behavior: 'smooth' });
     return;
   }
-  const alvo = ev.target.closest('[data-abrir],[data-vi],[data-zap],[data-partilhar],[data-acao],[data-tipo]');
+  /* Toda chave tratada no bloco abaixo precisa estar AQUI também — senão o
+     closest() não casa e o clique morre em silêncio. Já aconteceu com
+     data-perfil e data-menu: o link do autor e o "..." do dono ficaram inertes. */
+  const alvo = ev.target.closest(
+    '[data-abrir],[data-vi],[data-zap],[data-partilhar],[data-acao],[data-tipo],[data-perfil],[data-menu]');
   if (!alvo) return;
   const d = alvo.dataset;
 
