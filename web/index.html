@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Farejo — pets perdidos em Santa Cruz do Sul</title>
+<meta name="description" content="Feed local de pets perdidos, avistados e para adoção em Santa Cruz do Sul.">
+<meta name="theme-color" content="#FFFFFF">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Uma família só. Duas fontes + uma mono era o que dava cara de painel. -->
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400..800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="css/app.css?v=14">
+</head>
+<body>
+
+<a class="pular" href="#feed">Pular para o feed</a>
+
+<header class="topo">
+  <div class="topo__faixa">
+    <!-- MARCA provisória: preenchida por js/app.js (constante MARCA). -->
+    <a class="marca" href="#/" aria-label="Página inicial"></a>
+    <button class="raio-botao" type="button" data-acao="raio">
+      <span data-raio-texto>3 km</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+    </button>
+  </div>
+
+  <nav class="filtros" aria-label="Tipo de caso">
+    <button type="button" data-tipo="todos" aria-pressed="true">Tudo</button>
+    <button type="button" data-tipo="perdido">Perdidos</button>
+    <button type="button" data-tipo="avistado">Avistados</button>
+    <button type="button" data-tipo="encontrado">Encontrados</button>
+    <button type="button" data-tipo="adocao">Adoção</button>
+  </nav>
+</header>
+
+<main id="feed" class="feed" aria-live="polite"></main>
+
+<!-- Detalhe do caso -->
+<section class="folha" id="detalhe" hidden aria-modal="true" role="dialog" aria-label="Detalhe do caso">
+  <div class="folha__topo">
+    <div class="interno">
+      <button class="icone-botao" type="button" data-acao="fechar" aria-label="Voltar ao feed">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      </button>
+      <h2 class="folha__nome" id="detalhe-nome"></h2>
+    </div>
+  </div>
+  <div class="folha__corpo" id="detalhe-corpo"></div>
+</section>
+
+<!-- Mapa de todos os pets procurados -->
+<section class="mapa-tela" id="mapa-tela" hidden aria-label="Mapa dos pets procurados">
+  <div id="mapa-todos"></div>
+
+  <div class="mapa-topo">
+    <p class="mapa-conta" id="mapa-conta">Carregando…</p>
+    <button class="mapa-eu" type="button" data-acao="centralizar" aria-label="Centralizar na minha localização">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="3.2"/><circle cx="12" cy="12" r="8"/>
+        <path d="M12 2v2M12 20v2M2 12h2M20 12h2"/></svg>
+    </button>
+  </div>
+
+  <p class="mapa-aviso" id="mapa-aviso" hidden></p>
+
+  <div class="legenda-mapa" aria-hidden="true">
+    <span><i data-tipo="perdido"></i> Procurado pelo tutor</span>
+    <span><i data-tipo="avistado"></i> Visto solto na rua</span>
+  </div>
+
+  <div class="cartao-mapa" id="cartao-mapa" hidden></div>
+</section>
+
+<!-- Perfil (o próprio e o dos outros) -->
+<section class="folha" id="perfil-tela" hidden aria-modal="true" role="dialog" aria-label="Perfil">
+  <div class="folha__topo">
+    <div class="interno">
+      <button class="icone-botao" type="button" data-acao="fechar-perfil" aria-label="Voltar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      </button>
+      <h2 class="folha__nome" id="perfil-nome"></h2>
+    </div>
+  </div>
+  <div class="folha__corpo" id="perfil-corpo"></div>
+</section>
+
+<!-- Formulários (conta, publicar, avistar, raio) -->
+<section class="folha folha--form" id="folha-form" hidden aria-modal="true" role="dialog"></section>
+
+<nav class="barra" aria-label="Navegação">
+  <button type="button" data-acao="ir-feed" aria-current="page" aria-label="Feed">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1Z"/></svg>
+    <span>Feed</span>
+  </button>
+
+  <button type="button" data-acao="ir-mapa" aria-label="Mapa dos pets procurados">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M9 3 3 5.6v15L9 18l6 3 6-2.6v-15L15 6 9 3Z"/><path d="M9 3v15M15 6v15"/></svg>
+    <span>Mapa</span>
+  </button>
+
+  <button type="button" data-acao="publicar" aria-label="Publicar um caso">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="3" y="3" width="18" height="18" rx="5"/><path d="M12 8.5v7M8.5 12h7"/></svg>
+    <span>Publicar</span>
+  </button>
+
+  <button type="button" data-acao="conta" aria-label="Sua conta">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="8.5" r="3.7"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/></svg>
+    <span data-conta-texto>Entrar</span>
+  </button>
+</nav>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script type="module" src="js/app.js?v=12"></script>
+</body>
+</html>

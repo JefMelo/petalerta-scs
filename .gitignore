@@ -1,0 +1,5 @@
+# Segredos ficam em ~/.config/farejo/, nunca aqui.
+.DS_Store
+node_modules/
+dist/
+*.log

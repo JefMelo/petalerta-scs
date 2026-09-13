@@ -1,0 +1,840 @@
+/* =============================================================================
+   Farejo — folha principal
+   Um feed, não um painel. Foto sangrando, fio separando, uma pessoa no topo de
+   cada post, ações só com ícone. Uma família tipográfica; o peso faz hierarquia.
+   ============================================================================= */
+
+:root {
+  --tinta:      #0D1418;
+  --tinta-2:    #6B7580;   /* legenda, tempo, distância — passa AA no branco */
+  --tinta-3:    #9AA3AC;   /* só decoração: separadores, placeholder */
+  --papel:      #FFFFFF;
+  --fio:        #E6E9EB;
+  --toque:      #F4F6F7;
+  --campo-fundo:#FAFBFC;
+
+  --perdido:    #F07824;   /* laranja da marca — texto sobre ele: --tinta */
+  --avistado:   #15719F;
+  --encontrado: #0E7A52;
+  --adocao:     #12263A;
+
+  --acento:     #C25510;   /* laranja seguro para texto */
+  --coluna:     470px;     /* mesma largura de coluna do feed do Instagram */
+  --barra-h:    52px;
+
+  --fonte: 'Archivo', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--papel);
+  color: var(--tinta);
+  font-family: var(--fonte);
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  padding-bottom: calc(var(--barra-h) + env(safe-area-inset-bottom));
+}
+
+img { max-width: 100%; display: block; }
+/* A regra acima anula o atributo hidden em <img>: sem isto, uma prévia de foto
+   "escondida" ainda ocupa a altura toda. Vale para qualquer elemento. */
+[hidden] { display: none !important; }
+button { font: inherit; color: inherit; cursor: pointer; background: none; border: 0; padding: 0; }
+
+:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; border-radius: 3px; }
+
+.pular { position: absolute; left: -9999px; }
+.pular:focus { left: 12px; top: 12px; z-index: 90; background: var(--tinta); color: #fff; padding: 10px 14px; border-radius: 6px; }
+
+/* --- TOPO: uma faixa só ------------------------------------------------------ */
+
+.topo {
+  position: sticky; top: 0; z-index: 30;
+  background: var(--papel);
+  border-bottom: 1px solid var(--fio);
+  padding-top: env(safe-area-inset-top);
+}
+
+.topo__faixa {
+  max-width: var(--coluna);
+  margin: 0 auto;
+  height: 52px;
+  padding: 0 16px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+
+.marca { display: flex; align-items: center; gap: 7px; text-decoration: none; color: inherit; }
+.marca__pino { width: 19px; height: 19px; flex: none; color: var(--perdido); }
+.marca__texto { font-size: 1.22rem; font-weight: 700; letter-spacing: -.02em; }
+
+/* O raio virou um botão no topo. Antes era uma faixa inteira só para ele. */
+.raio-botao {
+  display: flex; align-items: center; gap: 3px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: .84rem; font-weight: 600;
+  color: var(--tinta);
+}
+.raio-botao:hover { background: var(--toque); }
+.raio-botao svg { width: 15px; height: 15px; color: var(--tinta-2); }
+
+/* --- FILTROS: aba sublinhada, não fila de pílulas ---------------------------- */
+
+.filtros {
+  max-width: var(--coluna);
+  margin: 0 auto;
+  padding: 0 16px;
+  display: flex; gap: 18px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.filtros::-webkit-scrollbar { display: none; }
+
+.filtros button {
+  flex: none;
+  padding: 2px 0 9px;
+  font-size: .82rem; font-weight: 550;
+  color: var(--tinta-2);
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+}
+.filtros button:hover { color: var(--tinta); }
+.filtros button[aria-pressed="true"] { color: var(--tinta); font-weight: 700; border-bottom-color: var(--tinta); }
+
+/* --- FEED ------------------------------------------------------------------- */
+
+.feed { max-width: var(--coluna); margin: 0 auto; }
+
+.vazio { padding: 64px 24px; text-align: center; color: var(--tinta-2); }
+.vazio strong { display: block; font-size: 1.05rem; color: var(--tinta); margin-bottom: 5px; }
+
+/* --- POST ------------------------------------------------------------------- */
+
+.post { border-bottom: 1px solid var(--fio); padding-bottom: 10px; }
+.post:last-child { border-bottom: 0; }
+
+.post__quem { display: flex; align-items: center; gap: 11px; padding: 10px 16px; }
+
+.avatar {
+  width: 32px; height: 32px; flex: none;
+  border-radius: 50%;
+  background: var(--av, var(--toque));
+  color: var(--tinta);
+  display: grid; place-items: center;
+  font-size: .72rem; font-weight: 700;
+}
+
+.post__id { min-width: 0; }
+.post__autor { font-size: .85rem; font-weight: 650; display: block; }
+.post__local {
+  font-size: .78rem; color: var(--tinta-2); display: block; margin-top: -2px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.post__foto {
+  position: relative; margin: 0;
+  aspect-ratio: 1 / 1;
+  background: var(--toque);
+  overflow: hidden;
+}
+.post__foto img { width: 100%; height: 100%; object-fit: cover; }
+
+.selo {
+  position: absolute; top: 11px; left: 11px;
+  padding: 4px 9px;
+  border-radius: 4px;
+  font-size: .67rem; font-weight: 700;
+}
+.post[data-tipo="perdido"]    .selo { background: var(--perdido);    color: var(--tinta); }
+.post[data-tipo="avistado"]   .selo { background: var(--avistado);   color: #fff; }
+.post[data-tipo="encontrado"] .selo { background: var(--encontrado); color: #fff; }
+.post[data-tipo="adocao"]     .selo { background: var(--adocao);     color: #fff; }
+
+/* Ações: só ícone. O que cada uma faz está na linha social, logo abaixo. */
+.acoes { display: flex; align-items: center; gap: 14px; padding: 9px 16px 4px; }
+
+.acao {
+  width: 25px; height: 25px;
+  color: var(--tinta);
+  transition: opacity .12s ease;
+}
+.acao:hover { opacity: .55; }
+.acao svg { width: 100%; height: 100%; }
+
+/* --- LEGENDA ---------------------------------------------------------------- */
+
+.legenda { padding: 2px 16px 0; }
+.legenda p { margin: 0 0 2px; }
+
+/* Ocupa o lugar do "curtido por" do Instagram. */
+.social {
+  display: block; text-align: left;
+  padding: 2px 0 4px;
+  font-size: .85rem; font-weight: 650;
+}
+.social:hover { text-decoration: underline; }
+.social--fraca { font-weight: 400; color: var(--tinta-2); }
+.social--fraca b { color: var(--tinta); font-weight: 650; }
+
+.legenda__pet { font-weight: 700; }
+.legenda__tracos { color: var(--tinta-2); }
+
+.legenda__texto {
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.legenda__quando {
+  margin-top: 5px;
+  font-size: .775rem;
+  color: var(--tinta-2);   /* --tinta-3 dá 2,5:1 no branco: reprova em AA.
+                              Distância e tempo são conteúdo, não enfeite. */
+}
+
+/* --- BARRA INFERIOR --------------------------------------------------------- */
+
+.barra {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+  background: var(--papel);
+  border-top: 1px solid var(--fio);
+  padding-bottom: env(safe-area-inset-bottom);
+  display: flex;
+}
+.barra > * {
+  flex: 1;
+  height: var(--barra-h);
+  display: grid; place-items: center;
+  color: var(--tinta);
+}
+.barra svg { width: 24px; height: 24px; }
+.barra button:hover svg { opacity: .55; }
+.barra [aria-current="page"] svg { stroke-width: 2.4; }
+/* Rótulo só para leitor de tela: o Instagram também não escreve nada aqui. */
+.barra span {
+  position: absolute; width: 1px; height: 1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+/* --- FOLHAS (detalhe e formulários) ----------------------------------------- */
+
+.folha {
+  position: fixed; inset: 0; z-index: 50;
+  background: var(--papel);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.folha--form { z-index: 60; }
+
+.folha__topo {
+  position: sticky; top: 0; z-index: 5;
+  background: var(--papel);
+  border-bottom: 1px solid var(--fio);
+  padding-top: env(safe-area-inset-top);
+}
+.folha__topo .interno {
+  max-width: var(--coluna); margin: 0 auto;
+  height: 50px; padding: 0 8px;
+  display: flex; align-items: center; gap: 8px;
+}
+
+.icone-botao {
+  width: 38px; height: 38px; flex: none;
+  display: grid; place-items: center;
+  border-radius: 50%;
+}
+.icone-botao:hover { background: var(--toque); }
+.icone-botao svg { width: 21px; height: 21px; }
+
+.folha__nome {
+  margin: 0;
+  font-size: .95rem; font-weight: 700;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.folha__acao {
+  margin-left: auto; padding: 8px 12px;
+  font-size: .88rem; font-weight: 700;
+  color: var(--avistado);
+  border-radius: 6px;
+}
+.folha__acao:hover { background: var(--toque); }
+.folha__acao:disabled { color: var(--tinta-3); cursor: default; background: none; }
+
+.folha__corpo { max-width: var(--coluna); margin: 0 auto; padding-bottom: 40px; }
+
+.folha__ajuda {
+  margin: 0 0 4px;
+  color: var(--tinta-2);
+}
+
+.secao { padding: 16px; border-top: 1px solid var(--fio); }
+.secao--limpa { padding: 0; }
+.secao__titulo { margin: 0 0 10px; font-size: .93rem; font-weight: 700; }
+.secao__titulo small { font-weight: 500; color: var(--tinta-2); }
+.secao__nota { margin: 12px 0 0; }
+
+.ficha { margin: 0; }
+.ficha > div { display: flex; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--fio); }
+.ficha > div:last-child { border-bottom: 0; }
+.ficha dt { width: 92px; flex: none; color: var(--tinta-2); }
+.ficha dd { margin: 0; font-weight: 550; }
+
+#mapa { height: 250px; }
+
+.linha { list-style: none; margin: 0; padding: 0; }
+.linha li { position: relative; padding: 0 0 16px 22px; border-left: 1.5px solid var(--fio); }
+.linha li:last-child { border-left-color: transparent; padding-bottom: 0; }
+.linha li::before {
+  content: '';
+  position: absolute; left: -6px; top: 4px;
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--avistado);
+  border: 2px solid var(--papel);
+}
+.linha li:first-child::before { background: var(--perdido); }
+.linha__onde { font-weight: 650; }
+.linha__texto { margin: 2px 0 0; }
+.linha__quem { margin-top: 3px; font-size: .78rem; color: var(--tinta-2); }
+
+.aviso {
+  margin: 16px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #FDF0E7;
+  color: #7A3A0B;
+}
+
+/* --- FORMULÁRIO ------------------------------------------------------------- */
+
+.formulario {
+  max-width: var(--coluna);
+  margin: 0 auto;
+  padding: 16px 16px 60px;
+  display: flex; flex-direction: column; gap: 16px;
+}
+
+.campo { display: block; }
+.campo[hidden] { display: none; }
+
+.campo__rotulo {
+  display: block;
+  margin-bottom: 5px;
+  font-size: .82rem; font-weight: 650;
+}
+.campo__dica { display: block; margin-top: 5px; font-size: .78rem; color: var(--tinta-2); }
+
+.campo input, .campo select, .campo textarea {
+  width: 100%;
+  font: inherit;
+  color: var(--tinta);
+  background: var(--campo-fundo);
+  border: 1px solid var(--fio);
+  border-radius: 8px;
+  padding: 11px 12px;
+}
+.campo textarea { resize: vertical; min-height: 72px; }
+.campo input::placeholder, .campo textarea::placeholder { color: var(--tinta-3); }
+.campo input:focus, .campo select:focus, .campo textarea:focus {
+  outline: none; border-color: var(--tinta-2); background: var(--papel);
+}
+.campo select { appearance: none; background-image: none; }
+
+/* Tipo do caso: quatro escolhas em linguagem de gente. */
+.tipos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+.tipo input { position: absolute; opacity: 0; width: 0; height: 0; }
+.tipo span {
+  display: grid; place-items: center; text-align: center;
+  min-height: 52px; padding: 10px;
+  border: 1px solid var(--fio);
+  border-radius: 10px;
+  font-size: .84rem; font-weight: 600;
+  cursor: pointer;
+}
+.tipo input:checked + span { border-color: var(--tinta); background: var(--tinta); color: var(--papel); }
+.tipo input:focus-visible + span { outline: 2px solid var(--acento); outline-offset: 2px; }
+
+/* Seletor de fotos: lado a lado, com a capa marcada. */
+.fotos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+
+.foto-item { position: relative; }
+.foto-item img {
+  width: 100%; aspect-ratio: 1/1; object-fit: cover;
+  border-radius: 10px; background: var(--toque);
+}
+.foto-item__capa {
+  position: absolute; left: 6px; bottom: 6px;
+  padding: 2px 6px; border-radius: 4px;
+  background: rgba(13,20,24,.72); color: #fff;
+  font-size: .62rem; font-weight: 700;
+}
+.foto-item__tirar {
+  position: absolute; top: 5px; right: 5px;
+  width: 23px; height: 23px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: rgba(13,20,24,.62); color: #fff;
+}
+.foto-item__tirar:hover { background: rgba(13,20,24,.85); }
+.foto-item__tirar svg { width: 12px; height: 12px; }
+
+.foto-add {
+  display: grid; place-items: center; align-content: center; gap: 6px;
+  aspect-ratio: 1/1;
+  border: 1px dashed var(--tinta-3);
+  border-radius: 10px;
+  color: var(--tinta-2);
+  font-size: .74rem; font-weight: 600; text-align: center;
+  padding: 6px;
+}
+.foto-add:hover { border-color: var(--tinta-2); color: var(--tinta); }
+.foto-add svg { width: 23px; height: 23px; }
+
+.campo__contador { font-weight: 500; color: var(--tinta-2); }
+
+/* Mapa de escolha: o ponto é sempre o centro; o pino fica fixo por cima. */
+.mapa-escolha { position: relative; border-radius: 10px; overflow: hidden; border: 1px solid var(--fio); }
+#mapa-form { height: 190px; }
+.mapa-escolha__pino {
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -100%);
+  width: 32px; height: 32px;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,.3));
+}
+
+.botao-fraco {
+  margin: 8px 0;
+  padding: 9px 12px;
+  border: 1px solid var(--fio);
+  border-radius: 8px;
+  font-size: .84rem; font-weight: 600;
+  width: 100%;
+}
+.botao-fraco:hover { background: var(--toque); }
+.botao-fraco:disabled { color: var(--tinta-3); cursor: default; }
+
+.erro {
+  margin: 0;
+  padding: 11px 13px;
+  border-radius: 8px;
+  background: #FDECEC;
+  color: #8A2020;
+  font-weight: 550;
+}
+.erro[hidden] { display: none; }
+
+.lista-opcoes { display: flex; flex-direction: column; }
+.opcao {
+  text-align: left;
+  padding: 14px 4px;
+  border-bottom: 1px solid var(--fio);
+  font-size: .92rem;
+}
+.opcao:hover { color: var(--acento); }
+.opcao[aria-current="true"] { font-weight: 700; }
+.opcao[aria-current="true"]::after { content: ' ✓'; color: var(--acento); }
+
+/* --- DESKTOP ---------------------------------------------------------------- */
+
+@media (min-width: 700px) {
+  body { font-size: 14.5px; background: #FAFAFA; }
+  .feed, .folha__corpo, .formulario { background: var(--papel); }
+  .feed { border-inline: 1px solid var(--fio); border-bottom: 1px solid var(--fio); }
+  .barra > * { max-width: 160px; margin: 0 auto; }
+  .barra { justify-content: center; gap: 40px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+}
+
+/* Post sem foto: assume a ausência em vez de mostrar um quadrado cinza vazio. */
+.post__foto--sem {
+  position: relative;
+  aspect-ratio: 5 / 2;
+  background: var(--toque);
+  border-block: 1px solid var(--fio);
+  display: grid; place-items: center;
+}
+.sem-foto {
+  display: flex; align-items: center; gap: 7px;
+  color: var(--tinta-2);
+  font-size: .84rem; font-weight: 600;
+}
+.sem-foto svg { width: 19px; height: 19px; }
+
+/* =============================================================================
+   MAPA DOS PETS PROCURADOS
+   ============================================================================= */
+
+.mapa-tela {
+  position: fixed; left: 0; right: 0;
+  top: 0; bottom: calc(var(--barra-h) + env(safe-area-inset-bottom));
+  z-index: 45;
+  background: var(--toque);
+}
+/* z-index:0 cria contexto de empilhamento: sem isto, os painéis internos do
+   Leaflet (z-index 400 a 800) passam por cima do cabeçalho e da legenda. */
+#mapa-todos { position: absolute; inset: 0; z-index: 0; }
+
+.mapa-topo {
+  position: absolute; z-index: 5;
+  top: calc(12px + env(safe-area-inset-top)); left: 12px; right: 12px;
+  display: flex; align-items: center; gap: 10px;
+  pointer-events: none;
+}
+.mapa-conta {
+  margin: 0;
+  padding: 8px 13px;
+  background: var(--papel);
+  border-radius: 999px;
+  box-shadow: 0 1px 3px rgba(13,20,24,.18);
+  font-size: .84rem; font-weight: 650;
+}
+.mapa-eu {
+  margin-left: auto;
+  width: 38px; height: 38px;
+  display: grid; place-items: center;
+  background: var(--papel);
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(13,20,24,.18);
+  pointer-events: auto;
+}
+.mapa-eu svg { width: 20px; height: 20px; }
+.mapa-eu.procurando svg { animation: girando 1.1s linear infinite; }
+@keyframes girando { to { transform: rotate(360deg); } }
+
+.mapa-aviso {
+  position: absolute; z-index: 5;
+  top: calc(60px + env(safe-area-inset-top)); left: 12px; right: 12px;
+  margin: 0; padding: 10px 13px;
+  background: #FDF0E7; color: #7A3A0B;
+  border-radius: 9px;
+  font-size: .84rem;
+  box-shadow: 0 1px 3px rgba(13,20,24,.15);
+}
+
+.legenda-mapa {
+  position: absolute; z-index: 5;
+  left: 12px; bottom: 12px;
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 9px 11px;
+  background: var(--papel);
+  border-radius: 9px;
+  box-shadow: 0 1px 3px rgba(13,20,24,.18);
+  font-size: .74rem; color: var(--tinta-2);
+}
+.legenda-mapa span { display: flex; align-items: center; gap: 6px; }
+/* O cartão do pet ocupa o mesmo canto: a legenda sai de cena enquanto ele existe. */
+.mapa-tela:has(#cartao-mapa:not([hidden])) .legenda-mapa { display: none; }
+.legenda-mapa i { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.legenda-mapa i[data-tipo="perdido"]  { background: var(--perdido); }
+.legenda-mapa i[data-tipo="avistado"] { background: var(--avistado); }
+
+/* Alfinete: a foto do pet é o marcador. Numa busca de rua é a cara que a
+   pessoa compara com o que está vendo, não um pino genérico. */
+.pino-envoltorio { background: none; border: 0; }
+
+.pino { position: relative; display: block; width: 46px; height: 55px; }
+.pino__foto {
+  position: absolute; top: 0; left: 3px;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background-size: cover; background-position: center;
+  background-color: var(--toque);
+  border: 3px solid var(--perdido);
+  box-shadow: 0 2px 6px rgba(13,20,24,.32);
+  display: grid; place-items: center;
+  font-size: 19px;
+}
+.pino[data-tipo="avistado"] .pino__foto { border-color: var(--avistado); }
+
+/* A ponta do alfinete, apontando o lugar exato. */
+.pino::after {
+  content: '';
+  position: absolute; left: 50%; top: 40px;
+  transform: translateX(-50%);
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 11px solid var(--perdido);
+  filter: drop-shadow(0 2px 1px rgba(13,20,24,.25));
+}
+.pino[data-tipo="avistado"]::after { border-top-color: var(--avistado); }
+
+/* --- CARTÃO DO PET SELECIONADO ---------------------------------------------- */
+
+.cartao-mapa {
+  position: absolute; z-index: 6;
+  left: 10px; right: 10px; bottom: 10px;
+  max-width: calc(var(--coluna) - 20px);
+  margin: 0 auto;
+  background: var(--papel);
+  border-radius: 14px;
+  box-shadow: 0 6px 24px rgba(13,20,24,.24);
+  animation: sobe .18s cubic-bezier(.2,.7,.3,1);
+}
+@keyframes sobe { from { transform: translateY(12px); opacity: 0; } }
+
+.cartao__fechar {
+  position: absolute; top: 6px; right: 6px; z-index: 2;
+  width: 30px; height: 30px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  color: var(--tinta-2);
+}
+.cartao__fechar:hover { background: var(--toque); color: var(--tinta); }
+.cartao__fechar svg { width: 16px; height: 16px; }
+
+.cartao__corpo {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; text-align: left;
+  padding: 12px 12px 12px 12px;
+}
+.cartao__corpo:hover { background: var(--toque); border-radius: 14px; }
+
+.cartao__foto {
+  width: 62px; height: 62px; flex: none;
+  border-radius: 11px;
+  background-size: cover; background-position: center;
+  background-color: var(--toque);
+  display: grid; place-items: center;
+  font-size: 27px;
+}
+
+.cartao__texto { display: block; min-width: 0; flex: 1; }
+
+.cartao__selo {
+  display: inline-block;
+  padding: 2px 7px; margin-bottom: 3px;
+  border-radius: 4px;
+  font-size: .64rem; font-weight: 700;
+}
+.cartao__selo[data-tipo="perdido"]  { background: var(--perdido);  color: var(--tinta); }
+.cartao__selo[data-tipo="avistado"] { background: var(--avistado); color: #fff; }
+
+.cartao__nome  { display: block; font-size: 1rem; line-height: 1.2; }
+.cartao__tracos, .cartao__onde, .cartao__dist {
+  display: block;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cartao__tracos { font-size: .81rem; color: var(--tinta-2); }
+.cartao__onde   { font-size: .79rem; color: var(--tinta-2); margin-top: 2px; }
+.cartao__dist   { font-size: .79rem; font-weight: 650; margin-top: 2px; }
+
+.cartao__seta { width: 19px; height: 19px; flex: none; color: var(--tinta-3); }
+
+/* =============================================================================
+   CARROSSEL DE FOTOS
+   Rolagem nativa com scroll-snap: o arrasto com inércia do celular sai de graça
+   e continua navegável pelo teclado, sem biblioteca.
+   ============================================================================= */
+
+.carrossel__janela { position: relative; }
+
+.carrossel__trilho {
+  display: flex;
+  aspect-ratio: 1 / 1;
+  overflow-x: auto; overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;   /* não arrasta a página junto */
+  background: var(--toque);
+}
+.carrossel__trilho::-webkit-scrollbar { display: none; }
+
+.carrossel__foto {
+  flex: 0 0 100%;
+  margin: 0; height: 100%;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;         /* nunca pula uma foto num arrasto rápido */
+}
+.carrossel__foto img { width: 100%; height: 100%; object-fit: cover; }
+
+.carrossel__conta {
+  position: absolute; top: 11px; right: 11px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(13,20,24,.66);
+  color: #fff;
+  font-size: .7rem; font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.carrossel__pontos {
+  display: flex; justify-content: center; gap: 4px;
+  padding: 9px 0 1px;
+}
+.carrossel__pontos i {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #C9D0D6;
+  transition: background-color .15s ease;
+}
+.carrossel__pontos i[data-ativo] { background: var(--avistado); }
+
+/* Setas só onde existe cursor. No toque a pessoa arrasta. */
+.carrossel__seta { display: none; }
+
+@media (hover: hover) {
+  .carrossel__seta {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    display: grid; place-items: center;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.92);
+    color: var(--tinta);
+    box-shadow: 0 1px 4px rgba(13,20,24,.28);
+    opacity: 0; transition: opacity .15s ease;
+  }
+  .carrossel__seta svg { width: 17px; height: 17px; }
+  .carrossel__seta--tras   { left: 10px; }
+  .carrossel__seta--frente { right: 10px; }
+  .carrossel__janela:hover .carrossel__seta,
+  .carrossel__seta:focus-visible { opacity: 1; }
+}
+
+/* =============================================================================
+   PERFIL
+   ============================================================================= */
+
+/* O autor virou link; o "..." do dono fica na ponta. */
+.post__autor-link {
+  display: flex; align-items: center; gap: 11px;
+  text-align: left; min-width: 0; flex: 1;
+  border-radius: 8px;
+}
+.post__autor-link:hover .post__autor { text-decoration: underline; }
+
+.post__menu {
+  width: 32px; height: 32px; flex: none;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  color: var(--tinta);
+}
+.post__menu:hover { background: var(--toque); }
+.post__menu svg { width: 19px; height: 19px; fill: currentColor; stroke: none; }
+
+.perfil-topo {
+  display: flex; align-items: center; gap: 22px;
+  padding: 18px 16px 4px;
+}
+.perfil-avatar {
+  width: 74px; height: 74px; flex: none;
+  border-radius: 50%;
+  background: var(--av, var(--toque));
+  display: grid; place-items: center;
+  font-size: 1.5rem; font-weight: 700;
+}
+
+.perfil-numeros { display: flex; flex: 1; margin: 0; text-align: center; }
+.perfil-numeros > div { flex: 1; }
+.perfil-numeros dt { font-size: .76rem; color: var(--tinta-2); order: 2; }
+.perfil-numeros dd { margin: 0; font-size: 1.12rem; font-weight: 700; }
+.perfil-numeros > div { display: flex; flex-direction: column; }
+
+.perfil-id { padding: 8px 16px 0; }
+.perfil-id strong { display: block; font-size: .95rem; }
+.perfil-id span { font-size: .82rem; color: var(--tinta-2); }
+
+.perfil-acoes { padding: 14px 16px 4px; }
+.perfil-acoes .botao-fraco { margin: 0; }
+
+.perfil-ajuda {
+  margin: 12px 16px 0;
+  padding: 11px 13px;
+  border-radius: 9px;
+  background: var(--toque);
+  color: var(--tinta-2);
+  font-size: .84rem;
+}
+
+.perfil-abas {
+  display: flex; gap: 18px;
+  margin-top: 16px; padding: 0 16px;
+  border-bottom: 1px solid var(--fio);
+  overflow-x: auto; scrollbar-width: none;
+}
+.perfil-abas::-webkit-scrollbar { display: none; }
+.perfil-abas button {
+  flex: none;
+  padding: 10px 0 9px;
+  font-size: .82rem; font-weight: 550;
+  color: var(--tinta-2);
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+}
+.perfil-abas button:hover { color: var(--tinta); }
+.perfil-abas button[aria-pressed="true"] { color: var(--tinta); font-weight: 700; border-bottom-color: var(--tinta); }
+
+.perfil-vazio { padding: 48px 24px; text-align: center; color: var(--tinta-2); }
+
+/* Grade de três colunas, como o perfil do Instagram. */
+.grade { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 2px 0; }
+
+.celula {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  background: var(--toque);
+}
+.celula__foto {
+  position: absolute; inset: 0;
+  background-size: cover; background-position: center;
+  transition: transform .2s ease;
+}
+.celula:hover .celula__foto { transform: scale(1.04); }
+.celula__foto--sem { display: grid; place-items: center; color: var(--tinta-3); }
+.celula__foto--sem svg { width: 26px; height: 26px; }
+
+.celula--resolvida .celula__foto { filter: grayscale(1); opacity: .55; }
+
+.celula__tipo {
+  position: absolute; top: 5px; left: 5px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: .58rem; font-weight: 700;
+  letter-spacing: .01em;
+}
+.celula__tipo[data-tipo="perdido"]    { background: var(--perdido);    color: var(--tinta); }
+.celula__tipo[data-tipo="avistado"]   { background: var(--avistado);   color: #fff; }
+.celula__tipo[data-tipo="encontrado"] { background: var(--encontrado); color: #fff; }
+.celula__tipo[data-tipo="adocao"]     { background: var(--adocao);     color: #fff; }
+
+.celula__pilha {
+  position: absolute; top: 5px; right: 5px;
+  color: #fff;
+  filter: drop-shadow(0 1px 2px rgba(13,20,24,.6));
+}
+.celula__pilha svg { width: 16px; height: 16px; }
+
+.celula__fita {
+  position: absolute; top: 50%; left: 0; right: 0;
+  transform: translateY(-50%);
+  padding: 4px 0;
+  background: rgba(13,20,24,.72);
+  color: #fff;
+  text-align: center;
+  font-size: .66rem; font-weight: 700;
+}
+
+.celula__rodape {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  padding: 16px 6px 5px;
+  background: linear-gradient(to top, rgba(13,20,24,.78), transparent);
+  color: #fff;
+  text-align: left;
+}
+.celula__rodape strong {
+  display: block;
+  font-size: .74rem;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.celula__rodape em { font-style: normal; font-size: .64rem; opacity: .82; }
+
+.opcao--perigo { color: #A32020; }
+.opcao--perigo:hover { color: #7A1414; }
