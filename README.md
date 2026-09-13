@@ -129,6 +129,17 @@ ser achado, isso custa caro.
 partir do caso, e manda a pessoa para `/#/post/<id>` em seguida. Roda só no
 Cloudflare Pages — no `http.server` local esse caminho não existe.
 
+### A barra de cima
+
+O chip diz **de onde** se mede e **até onde** se olha — `Centro · 3 km` ou
+`Você · 3 km`, com o ponto cheio e pulsando quando a origem é a pessoa. Antes
+era só "3 km", um número que não respondia nem uma coisa nem outra.
+
+Tocar abre um popover (não uma folha de tela cheia, que era pesada demais para
+duas escolhas) com a origem e os raios — **cada raio mostrando quantos casos
+caem nele**. "5 km" é abstrato; "5 km · 8 casos" é uma decisão. A contagem sai
+de uma consulta só, na maior distância, agrupada no cliente.
+
 ### Farejadores
 
 Quantas **pessoas** estão ajudando um caso — não quantos avistamentos houve.

@@ -4,7 +4,7 @@
    de ações: quem é dono vê "Sair"; as ações de cada caso ficam no detalhe.
    ============================================================================= */
 
-import { ORIGEM, perfilPublico, postsDoPerfil, meuId, sair } from './dados.js?v=23';
+import { ORIGEM, perfilPublico, postsDoPerfil, meuId, sair } from './dados.js?v=25';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) =>

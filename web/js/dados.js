@@ -4,14 +4,15 @@
    ============================================================================= */
 
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-import { SUPABASE_URL, SUPABASE_ANON } from './config.js?v=23';
+import { SUPABASE_URL, SUPABASE_ANON } from './config.js?v=25';
 
 export const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 /* Onde o usuário está.
    ehReal diz se veio do GPS ou se ainda é o palpite do Centro. Importa: sem
    isso o feed escreve "310 m de você" para quem pode estar a 5 km dali. */
-export const ORIGEM = { lat: -29.7182, lng: -52.4306, ehReal: false };
+export const CENTRO = { lat: -29.7182, lng: -52.4306, nome: 'Centro de Santa Cruz do Sul' };
+export const ORIGEM = { ...CENTRO, ehReal: false };
 
 const GUARDADO = 'faro:local';
 const DISPENSADO = 'faro:local-dispensado';

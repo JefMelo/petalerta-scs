@@ -14,7 +14,7 @@
 <!-- Uma família só. Duas fontes + uma mono era o que dava cara de painel. -->
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400..800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="css/app.css?v=23">
+<link rel="stylesheet" href="css/app.css?v=25">
 </head>
 <body>
 
@@ -36,11 +36,19 @@
       <span class="sino__ponto" data-ponto hidden></span>
     </button>
 
-    <button class="raio-botao" type="button" data-acao="raio">
-      <span data-raio-texto>3 km</span>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+    <!-- Diz de ONDE se mede e ATÉ ONDE. O número sozinho não respondia nem uma
+         coisa nem outra: "3 km" a partir de quê? -->
+    <button class="lugar-chip" type="button" data-acao="lugar"
+            aria-haspopup="dialog" aria-expanded="false">
+      <span class="lugar-chip__ponto" data-chip-ponto></span>
+      <span data-chip-texto>Centro · 3 km</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
     </button>
+
+    <div class="popover" id="popover-lugar" hidden role="dialog" aria-label="De onde e até onde">
+      <div id="popover-corpo"></div>
+    </div>
   </div>
 
   <nav class="filtros" aria-label="Tipo de caso">
@@ -173,6 +181,6 @@
 </nav>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script type="module" src="js/app.js?v=23"></script>
+<script type="module" src="js/app.js?v=25"></script>
 </body>
 </html>

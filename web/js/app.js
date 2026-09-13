@@ -7,10 +7,10 @@ import { ORIGEM, feedPorRaio, postPorId, rastroDoPost, contatoDoPost,
          aplicarOrigem, localGuardado, permissaoDeLocal, adotarMinhaLocalizacao,
          conviteDispensado, dispensarConvite,
          registrarCompartilhamento, minhasNovidades,
-         novidadesVistasEm, marcarNovidadesVistas } from './dados.js?v=23';
-import * as form from './formularios.js?v=23';
-import * as mapaTela from './mapa.js?v=23';
-import * as perfilTela from './perfil.js?v=23';
+         novidadesVistasEm, marcarNovidadesVistas, CENTRO } from './dados.js?v=25';
+import * as form from './formularios.js?v=25';
+import * as mapaTela from './mapa.js?v=25';
+import * as perfilTela from './perfil.js?v=25';
 
 // MARCA — nome de trabalho. Trocar aqui e em .marca no CSS/HTML. -------------
 export const MARCA = { nome: 'Faro', cidade: 'Santa Cruz do Sul' };
@@ -479,6 +479,19 @@ async function avistar(id) {
 document.addEventListener('click', (ev) => {
   if (ev.target.closest('[data-fechar-cartao]')) { mapaTela.esconderCartao(); return; }
 
+  const origem = ev.target.closest('[data-origem]');
+  if (origem) { escolherOrigem(origem.dataset.origem, origem); return; }
+
+  const raio = ev.target.closest('[data-raio]');
+  if (raio) {
+    estado.raioM = +raio.dataset.raio;
+    pintarChip(); pintarLugar(); pintarFeed();
+    return;
+  }
+
+  // clique fora fecha o popover
+  if (!ev.target.closest('#popover-lugar, .lugar-chip')) fecharLugar();
+
   const passo = ev.target.closest('[data-passo]');
   if (passo) {
     const trilho = passo.closest('.carrossel').querySelector('.carrossel__trilho');
@@ -521,11 +534,7 @@ document.addEventListener('click', (ev) => {
     case 'conta':     estaLogado() ? (location.hash = `#/perfil/${meuId()}`) : form.abrirConta('entrar'); return;
     case 'usar-local':      pedirLocal(alvo); return;
     case 'dispensar-local': dispensarConvite(); $('#convite-local').hidden = true; return;
-    case 'raio':      form.abrirRaio(estado.raioM, (v) => {
-                        estado.raioM = v;
-                        $('[data-raio-texto]').textContent = v >= 20000 ? 'tudo' : `${v / 1000} km`;
-                        pintarFeed();
-                      }); return;
+    case 'lugar':     alternarLugar(); return;
   }
 
   if (d.tipo) {
@@ -544,6 +553,7 @@ async function pedirLocal(botao) {
   try {
     await adotarMinhaLocalizacao();
     $('#convite-local').hidden = true;
+    pintarChip();
     await pintarFeed();
   } catch {
     botao.textContent = 'Não consegui — segue pelo Centro';
@@ -552,6 +562,92 @@ async function pedirLocal(botao) {
   }
   botao.disabled = false;
   botao.textContent = antes;
+}
+
+// --- de onde e até onde -------------------------------------------------------
+
+const RAIOS = [[1000, '1 km'], [3000, '3 km'], [5000, '5 km'], [20000, 'A cidade toda']];
+
+const nomeDoRaio = (m) => (m >= 20000 ? 'a cidade' : `${m / 1000} km`);
+
+/* O chip responde as duas perguntas que o número solto não respondia:
+   de onde se mede e até onde se olha. */
+function pintarChip() {
+  const t = $('[data-chip-texto]');
+  if (!t) return;
+  t.textContent = `${ORIGEM.ehReal ? 'Você' : 'Centro'} · ${nomeDoRaio(estado.raioM)}`;
+  $('[data-chip-ponto]')?.toggleAttribute('data-vivo', ORIGEM.ehReal);
+  $('.lugar-chip')?.setAttribute('aria-label',
+    ORIGEM.ehReal
+      ? `Medindo da sua localização, até ${nomeDoRaio(estado.raioM)}. Tocar para mudar.`
+      : `Medindo do Centro, até ${nomeDoRaio(estado.raioM)}. Tocar para mudar.`);
+}
+
+function fecharLugar() {
+  const pop = $('#popover-lugar');
+  if (!pop || pop.hidden) return;
+  pop.hidden = true;
+  $('.lugar-chip')?.setAttribute('aria-expanded', 'false');
+}
+
+function alternarLugar() {
+  const pop = $('#popover-lugar');
+  if (!pop.hidden) return fecharLugar();
+  pop.hidden = false;
+  $('.lugar-chip').setAttribute('aria-expanded', 'true');
+  pintarLugar();
+}
+
+/* Conta quantos casos caem em cada raio. Um número abstrato ("5 km") vira uma
+   decisão ("5 km, 7 casos"). Uma consulta só, na maior distância. */
+async function pintarLugar(contagem = null) {
+  const corpo = $('#popover-corpo');
+  const marcado = (sim) => (sim ? 'data-marcado' : '');
+
+  corpo.innerHTML = `
+    <p class="popover__titulo">De onde</p>
+    <div class="popover__lista">
+      <button class="popover__item" type="button" data-origem="eu" ${marcado(ORIGEM.ehReal)}>
+        <span>Sua localização</span>
+        ${ORIGEM.ehReal ? '<em>usando agora</em>' : '<em class="popover__acao">usar</em>'}
+      </button>
+      <button class="popover__item" type="button" data-origem="centro" ${marcado(!ORIGEM.ehReal)}>
+        <span>${esc(CENTRO.nome)}</span>
+      </button>
+    </div>
+
+    <p class="popover__titulo">Até que distância</p>
+    <div class="popover__lista">
+      ${RAIOS.map(([m, rotulo]) => `
+        <button class="popover__item" type="button" data-raio="${m}" ${marcado(estado.raioM === m)}>
+          <span>${rotulo}</span>
+          <em>${contagem ? `${contagem[m]} ${contagem[m] === 1 ? 'caso' : 'casos'}` : '…'}</em>
+        </button>`).join('')}
+    </div>`;
+
+  if (contagem) return;
+  try {
+    const tipos = estado.tipo === 'todos' ? null : [estado.tipo];
+    const todos = await feedPorRaio({ ...ORIGEM, raioM: 20000, tipos });
+    const conta = {};
+    for (const [m] of RAIOS) conta[m] = todos.filter((p) => p.distancia_m <= m).length;
+    if (!$('#popover-lugar').hidden) pintarLugar(conta);
+  } catch { /* fica com as reticências */ }
+}
+
+async function escolherOrigem(qual, botao) {
+  if (qual === 'centro') {
+    aplicarOrigem(CENTRO, false);
+  } else if (!ORIGEM.ehReal) {
+    const antes = botao.querySelector('em');
+    if (antes) antes.textContent = 'procurando…';
+    try { await adotarMinhaLocalizacao(); }
+    catch { if (antes) antes.textContent = 'não consegui'; return; }
+    $('#convite-local').hidden = true;
+  }
+  pintarChip();
+  pintarLugar();
+  pintarFeed();
 }
 
 // --- novidades ----------------------------------------------------------------
@@ -629,7 +725,9 @@ async function abrirMenuDono(id) {
 }
 
 document.addEventListener('keydown', (ev) => {
-  if (ev.key === 'Escape' && !$('#detalhe').hidden) fecharDetalhe();
+  if (ev.key !== 'Escape') return;
+  if (!$('#popover-lugar').hidden) { fecharLugar(); return; }
+  if (!$('#detalhe').hidden) fecharDetalhe();
 });
 
 // --- rotas --------------------------------------------------------------------
@@ -702,5 +800,6 @@ situarUsuario()
   // Nada aqui pode impedir o feed de aparecer: sem localização o app funciona,
   // sem feed não funciona.
   .catch(() => {})
+  .then(pintarChip)
   .then(pintarFeed)
   .then(rotear);

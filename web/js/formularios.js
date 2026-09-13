@@ -3,7 +3,7 @@
    Uma folha por vez, sobe de baixo. Toda a escrita no banco passa por aqui.
    ============================================================================= */
 
-import * as dados from './dados.js?v=23';
+import * as dados from './dados.js?v=25';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) =>
@@ -488,27 +488,5 @@ export function abrirAvistar(post, centro) {
       });
       aoMudar();
     },
-  });
-}
-
-// --- raio ---------------------------------------------------------------------
-
-export function abrirRaio(atual, aoEscolher) {
-  const opcoes = [[1000, '1 km'], [3000, '3 km'], [5000, '5 km'], [20000, 'A cidade toda']];
-  abrir({
-    titulo: 'Até que distância',
-    corpo: `
-      <p class="folha__ajuda">Santa Cruz do Sul</p>
-      <div class="lista-opcoes">
-        ${opcoes.map(([v, t]) => `
-          <button class="opcao" type="button" data-raio="${v}" ${v === atual ? 'aria-current="true"' : ''}>
-            ${esc(t)}
-          </button>`).join('')}
-      </div>`,
-    aoAbrir: (f) => {
-      f.querySelectorAll('[data-raio]').forEach((b) =>
-        b.addEventListener('click', () => { aoEscolher(+b.dataset.raio); fechar(); }));
-    },
-    aoConfirmar: async () => {},
   });
 }

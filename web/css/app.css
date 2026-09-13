@@ -60,27 +60,95 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 }
 
 .topo__faixa {
+  position: relative;              /* âncora do popover */
   max-width: var(--coluna);
   margin: 0 auto;
-  height: 52px;
+  height: 54px;
   padding: 0 16px;
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: center; gap: 8px;
 }
+.topo__faixa .marca { margin-right: auto; }
 
 .marca { display: flex; align-items: center; gap: 8px; text-decoration: none; }
 .marca__simbolo { height: 27px; width: auto; flex: none; }
 .marca__nome { height: 21px; width: auto; flex: none; }
 
-/* O raio virou um botão no topo. Antes era uma faixa inteira só para ele. */
-.raio-botao {
-  display: flex; align-items: center; gap: 3px;
-  padding: 6px 8px;
-  border-radius: 6px;
-  font-size: .84rem; font-weight: 600;
+/* Chip de lugar: diz de onde se mede e até onde se olha. */
+.lugar-chip {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 10px 7px 9px;
+  border: 1px solid var(--fio);
+  border-radius: 999px;
+  font-size: .82rem; font-weight: 650;
   color: var(--tinta);
+  white-space: nowrap;
 }
-.raio-botao:hover { background: var(--toque); }
-.raio-botao svg { width: 15px; height: 15px; color: var(--tinta-2); }
+.lugar-chip:hover { border-color: var(--tinta-2); }
+.lugar-chip[aria-expanded="true"] { border-color: var(--tinta); background: var(--toque); }
+.lugar-chip svg { width: 13px; height: 13px; color: var(--tinta-2); }
+
+/* Ponto cheio quando a origem é a pessoa; vazado quando é o Centro.
+   Diferença silenciosa, mas quem usa todo dia aprende a ler. */
+.lugar-chip__ponto {
+  width: 8px; height: 8px; flex: none;
+  border-radius: 50%;
+  border: 2px solid var(--tinta-3);
+}
+.lugar-chip__ponto[data-vivo] {
+  border-color: var(--perdido);
+  background: var(--perdido);
+  box-shadow: 0 0 0 0 rgba(221,140,24,.5);
+  animation: pulso 2.8s ease-out infinite;
+}
+@keyframes pulso {
+  0%   { box-shadow: 0 0 0 0 rgba(221,140,24,.5); }
+  70%  { box-shadow: 0 0 0 7px rgba(221,140,24,0); }
+  100% { box-shadow: 0 0 0 0 rgba(221,140,24,0); }
+}
+
+/* --- POPOVER ---------------------------------------------------------------- */
+
+.popover {
+  position: absolute; z-index: 45;
+  top: calc(100% - 4px); right: 16px;
+  width: 262px; max-width: calc(100vw - 32px);
+  padding: 10px;
+  background: var(--papel);
+  border: 1px solid var(--fio);
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(21,23,28,.16);
+  animation: abreParaBaixo .13s ease-out;
+}
+@keyframes abreParaBaixo { from { opacity: 0; transform: translateY(-5px); } }
+
+.popover__titulo {
+  margin: 6px 0 5px 6px;
+  font-size: .7rem; font-weight: 700;
+  letter-spacing: .05em; text-transform: uppercase;
+  color: var(--tinta-2);
+}
+.popover__titulo:first-child { margin-top: 0; }
+
+.popover__lista { display: flex; flex-direction: column; }
+
+.popover__item {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 9px 10px;
+  border-radius: 9px;
+  font-size: .86rem;
+  text-align: left;
+}
+.popover__item:hover { background: var(--toque); }
+.popover__item em { font-style: normal; font-size: .76rem; color: var(--tinta-2); }
+.popover__item .popover__acao { color: var(--acento); font-weight: 700; }
+
+.popover__item[data-marcado] { font-weight: 700; }
+.popover__item[data-marcado]::after {
+  content: '✓'; color: var(--acento); font-weight: 700; margin-left: 2px;
+}
+/* O item marcado mantém a contagem: quem olha quer saber quantos está vendo
+   AGORA, não só qual está escolhido. */
+.popover__item[data-marcado] em { color: var(--tinta); font-weight: 650; }
 
 /* --- FILTROS: aba sublinhada, não fila de pílulas ---------------------------- */
 
@@ -103,7 +171,7 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
   white-space: nowrap;
 }
 .filtros button:hover { color: var(--tinta); }
-.filtros button[aria-pressed="true"] { color: var(--tinta); font-weight: 700; border-bottom-color: var(--tinta); }
+.filtros button[aria-pressed="true"] { color: var(--tinta); font-weight: 700; border-bottom-color: var(--perdido); }
 
 /* --- FEED ------------------------------------------------------------------- */
 
@@ -891,7 +959,7 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 /* Sino: novidades nos seus casos. Ícone diferente da pata de propósito. */
 .sino {
   position: relative;
-  width: 34px; height: 34px; margin-left: auto; margin-right: 2px;
+  width: 34px; height: 34px;
   display: grid; place-items: center;
   border-radius: 50%;
   color: var(--tinta);
@@ -911,8 +979,6 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
   text-align: center;
 }
 
-/* O raio-botao deixa de empurrar sozinho quando o sino está presente. */
-.topo__faixa .sino + .raio-botao { margin-left: 0; }
 
 .novidades { list-style: none; margin: 0; padding: 0; }
 
