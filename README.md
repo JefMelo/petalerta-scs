@@ -74,6 +74,7 @@ Um **feed**, não um painel. As decisões que tiram a cara de "app gerado":
 | `schema-06.sql` | `criar_post` e `criar_avistamento`: o `autor_id` sai de `auth.uid()` no servidor |
 | `schema-07.sql` | `mapa_perdidos`: um ponto por caso, na **última** localização conhecida |
 | `schema-08.sql` | perfil: `perfil_publico`, `posts_do_perfil`, `editar_post`, `apagar_post`, `reabrir_post` |
+| `schema-09.sql` | nova ordem do feed: nota de urgência contínua, com última atividade |
 | `seed-teste.sql` | 6 casos + 3 avistamentos + 3 usuários `@teste.farejo.local` |
 
 ## Rodar
@@ -119,6 +120,37 @@ ser achado, isso custa caro.
 `functions/c/[id].js` responde em `/c/<id>` com as meta tags `og:` preenchidas a
 partir do caso, e manda a pessoa para `/#/post/<id>` em seguida. Roda só no
 Cloudflare Pages — no `http.server` local esse caminho não existe.
+
+### A ordem do feed
+
+Não é cronológica nem por faixas de tipo. É uma **nota de urgência**:
+
+```
+nota = peso_do_tipo × decaimento(idade) × proximidade(distância)
+```
+
+| tipo | peso | meia-vida |
+|---|---|---|
+| avistado | 1,00 | **10 h** |
+| perdido | 1,00 | 96 h |
+| encontrado | 0,90 | 96 h |
+| adoção | 0,45 | 720 h |
+
+Os números vivem em `schema-09.sql`, num bloco só.
+
+A meia-vida curta do avistamento é o ponto: **pista de rua é perecível** — nasce
+no topo e some sozinha em horas. Adoção quase não decai, porque não é urgência,
+mas também nunca fica permanentemente invisível.
+
+A **idade contada é a da última atividade**, não a da publicação: um caso de 3
+dias que acabou de receber um avistamento volta ao topo. Foi medido — a "Mel"
+subiu de 6º para 4º quando alguém a avistou.
+
+**Por que não faixas rígidas por tipo** (avistado > perdido > encontrado >
+adoção), que é a ideia intuitiva: testada, ela põe um avistamento de 6 dias a
+4 km em 2º lugar, empurra o pet perdido a 90 m para 4º, e enterra para sempre
+uma adoção na mesma rua. Faixa ignora distância e idade na comparação entre
+tipos.
 
 ### Fotos
 

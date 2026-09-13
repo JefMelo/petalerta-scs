@@ -5,10 +5,10 @@
 import { ORIGEM, feedPorRaio, postPorId, rastroDoPost, contatoDoPost,
          aoMudarSessao, estaLogado, meuId, meuNome,
          aplicarOrigem, localGuardado, permissaoDeLocal, adotarMinhaLocalizacao,
-         conviteDispensado, dispensarConvite } from './dados.js?v=17';
-import * as form from './formularios.js?v=17';
-import * as mapaTela from './mapa.js?v=17';
-import * as perfilTela from './perfil.js?v=17';
+         conviteDispensado, dispensarConvite } from './dados.js?v=18';
+import * as form from './formularios.js?v=18';
+import * as mapaTela from './mapa.js?v=18';
+import * as perfilTela from './perfil.js?v=18';
 
 // MARCA — nome de trabalho. Trocar aqui e em .marca no CSS/HTML. -------------
 export const MARCA = { nome: 'farejo', cidade: 'Santa Cruz do Sul' };
@@ -44,6 +44,15 @@ function fmtTempo(iso) {
   if (d < 30)     return `há ${d} dias`;
   const mes = Math.round(d / 30);
   return mes === 1 ? 'há 1 mês' : `há ${mes} meses`;
+}
+
+/* Um caso com avistamento tem duas datas: quando sumiu e quando foi visto pela
+   última vez. Mostrar "sumiu há 3 dias" num pet avistado há 20 minutos esconde
+   justamente a informação que faz alguém sair de casa. */
+function quando(p) {
+  return p.n_avistados > 0 && p.atualizado_em
+    ? `visto ${fmtTempo(p.atualizado_em)}`
+    : fmtTempo(p.ocorrido_em);
 }
 
 const fmtData = (iso) => new Date(iso).toLocaleString('pt-BR',
@@ -239,7 +248,7 @@ function postHTML(p) {
       <p><span class="legenda__pet">${esc(p.titulo)}</span>
          <span class="legenda__tracos">${esc(tracos(p))}</span></p>
       <p class="legenda__texto">${esc(p.texto || '')}</p>
-      <p class="legenda__quando">${fmtDistancia(p.distancia_m)} ${deOndeVem()} · ${fmtTempo(p.ocorrido_em)}</p>
+      <p class="legenda__quando">${fmtDistancia(p.distancia_m)} ${deOndeVem()} · ${quando(p)}</p>
     </div>
   </article>`;
 }
