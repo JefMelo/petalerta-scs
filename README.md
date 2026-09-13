@@ -143,6 +143,33 @@ Os PNGs foram recortados com limiar de alfa > 30, não com `getbbox()`: o métod
 conta pixels de alfa 1 (fantasmas de antisserrilhado) e inchava a caixa em 32%
 da largura, o que era a causa real do desalinhamento.
 
+### E-mail
+
+Hoje o projeto usa o servidor embutido do Supabase: **2 e-mails por hora**, e os
+textos chegam **em inglês**. A tradução não é uma escolha em aberto — o Supabase
+recusa personalizar:
+
+> *Email template modification is not available for free tier projects using the
+> default email provider.*
+
+Ou seja: SMTP próprio destrava as duas coisas de uma vez. Os textos em português
+já estão escritos em `supabase/emails.json` e são aplicados junto:
+
+```bash
+./tools/configurar-email.sh <host> <porta> <usuário> <senha> <remetente> "Faro"
+```
+
+**Qual provedor.** Depende de já existir domínio:
+
+| | sem domínio | com domínio |
+|---|---|---|
+| **Brevo** | funciona — verifica um remetente avulso | funciona |
+| **Resend** | só envia para o dono da conta | 3.000/mês grátis, melhor entrega |
+
+Sem domínio, mandar de um endereço `@gmail.com` por um terceiro costuma cair no
+spam: o SPF e o DKIM não batem com o remetente. Por isso a ordem recomendada é
+**domínio primeiro, e-mail depois** — a não ser que a pressa seja só testar.
+
 ### Senha
 
 Recuperar: a tela pede o e-mail e o Supabase manda o link. Quem volta por ele
@@ -319,9 +346,7 @@ se confundir de novo: `requirements.txt`, `app.py` e `.devcontainer/`.
 
 1. Filtrar o mapa por espécie e por quão recente é o avistamento
 2. PWA: manifest, service worker, web push
-3. **SMTP próprio.** O Supabase manda no máximo 2 e-mails por hora pelo
-   servidor embutido — suficiente para testar, impossível para lançar.
-   Recuperação de senha e confirmação de cadastro dependem disso.
+3. **SMTP próprio** — ver a seção abaixo. Destrava o volume E o português.
 5. Faxina de fotos órfãs no bucket: a limpeza existe no front (ao editar e ao
    apagar), mas quem mexer no banco por fora deixa arquivo para trás
 
