@@ -259,9 +259,29 @@ reclamando.
 
 ## No ar
 
-<https://petalerta-scs.melo-jeferson.workers.dev>
+<https://petalerta-scs.faro-scs.workers.dev>
 
 Publica sozinho a cada push na `main`.
+
+## Ao trocar de endereço (subdomínio ou domínio próprio)
+
+O endereço aparece em **dois** lugares fora do código, e esquecer o segundo
+quebra a recuperação de senha em silêncio:
+
+1. Cloudflare — o subdomínio do Worker ou o domínio personalizado.
+2. **Supabase → Auth → URL Configuration**: `site_url` e a lista de
+   redirecionamentos permitidos. Sem isso o link do e-mail aponta para o
+   endereço velho, e o Supabase recusa o retorno.
+
+O código não precisa mudar: o botão de compartilhar usa `location.origin` e a
+prévia de link lê a origem da própria requisição.
+
+```bash
+# conferir como está
+curl -s -H "Authorization: Bearer $(cat ~/.config/farejo/supabase-token)" \
+  https://api.supabase.com/v1/projects/sxnyeokxkczrcdnsanbu/config/auth \
+  | python3 -c "import sys,json;d=json.load(sys.stdin);print(d['site_url']);print(d['uri_allow_list'])"
+```
 
 ## Deploy (Cloudflare Workers ligado ao GitHub)
 
