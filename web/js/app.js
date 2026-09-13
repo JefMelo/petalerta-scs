@@ -3,10 +3,10 @@
    ============================================================================= */
 
 import { ORIGEM, feedPorRaio, postPorId, rastroDoPost, contatoDoPost,
-         aoMudarSessao, estaLogado, meuId, meuNome } from './dados.js?v=9';
-import * as form from './formularios.js?v=10';
-import * as mapaTela from './mapa.js?v=1';
-import * as perfilTela from './perfil.js?v=1';
+         aoMudarSessao, estaLogado, meuId, meuNome } from './dados.js?v=15';
+import * as form from './formularios.js?v=15';
+import * as mapaTela from './mapa.js?v=15';
+import * as perfilTela from './perfil.js?v=15';
 
 // MARCA — nome de trabalho. Trocar aqui e em .marca no CSS/HTML. -------------
 export const MARCA = { nome: 'farejo', cidade: 'Santa Cruz do Sul' };

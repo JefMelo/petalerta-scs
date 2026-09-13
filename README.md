@@ -185,6 +185,21 @@ se confundir de novo: `requirements.txt`, `app.py` e `.devcontainer/`.
 7. Faxina de fotos órfãs no bucket: a limpeza existe no front (ao editar e ao
    apagar), mas quem mexer no banco por fora deixa arquivo para trás
 
+## Versões dos módulos
+
+Todo `?v=` em `web/` tem de ser o **mesmo número**:
+
+```bash
+node tools/versionar.js       # confere
+node tools/versionar.js 16    # carimba 16 em tudo
+```
+
+Para o navegador, `dados.js?v=8` e `dados.js?v=9` são **módulos diferentes**: ele
+instancia o arquivo duas vezes, com estado separado. Isso já aconteceu aqui —
+dois clientes Supabase, duas sessões e dois `ORIGEM`, o que fazia o "centralizar
+em mim" do mapa não mexer nas distâncias do feed. Bumpar à mão, arquivo por
+arquivo, é o que causa.
+
 ## Armadilhas encontradas, para não repetir
 
 - **`img { display: block }` anula o atributo `hidden`.** Uma prévia de foto
