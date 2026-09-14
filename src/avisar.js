@@ -77,14 +77,28 @@ function redigir(a) {
 
 // --- conversa com o Supabase ---------------------------------------------------
 
-const url = (env) => env.SUPABASE_URL || 'https://sxnyeokxkczrcdnsanbu.supabase.co';
+const url = (env) => limpo(env.SUPABASE_URL) || 'https://sxnyeokxkczrcdnsanbu.supabase.co';
+
+/* Segredo colado à mão vem com lixo nas pontas mais vezes do que não vem: um
+   `cat` no terminal já acrescenta a quebra de linha, e o campo do painel a
+   preserva. `Bearer eyJ...\n` é recusado com 401 e o erro não diz por quê —
+   perde-se meia hora procurando a chave errada quando a chave estava certa. */
+const limpo = (v) => (typeof v === 'string' ? v.trim() : v);
+
+/* Sem revelar o segredo, diz o suficiente para saber SE é o valor certo:
+   a chave de serviço deste projeto tem 219 caracteres e é um JWT. */
+function retrato(v) {
+  const k = limpo(v) || '';
+  const ehJwt = /^eyJ[\w-]+\.[\w-]+\.[\w-]+$/.test(k);
+  return `${k.length} caracteres, ${ehJwt ? 'formato JWT' : 'NÃO é um JWT'}`;
+}
 
 async function rpc(env, nome, corpo) {
   const r = await fetch(`${url(env)}/rest/v1/rpc/${nome}`, {
     method: 'POST',
     headers: {
-      apikey: env.SUPABASE_SERVICE_ROLE,
-      Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE}`,
+      apikey: limpo(env.SUPABASE_SERVICE_ROLE),
+      Authorization: `Bearer ${limpo(env.SUPABASE_SERVICE_ROLE)}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(corpo),
@@ -99,7 +113,7 @@ async function quemChama(pedido, env) {
   if (!cabecalho.startsWith('Bearer ')) return null;
 
   const r = await fetch(`${url(env)}/auth/v1/user`, {
-    headers: { apikey: env.SUPABASE_ANON || '', Authorization: cabecalho },
+    headers: { apikey: limpo(env.SUPABASE_ANON) || '', Authorization: cabecalho },
   });
   if (!r.ok) return null;
   return (await r.json()).id || null;
@@ -116,8 +130,8 @@ async function oPost(id, env) {
   const r = await fetch(
     `${url(env)}/rest/v1/posts?id=eq.${encodeURIComponent(id)}`
     + '&select=id,autor_id,criado_em,status,resolvido_em,especie',
-    { headers: { apikey: env.SUPABASE_SERVICE_ROLE,
-                 Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE}` } });
+    { headers: { apikey: limpo(env.SUPABASE_SERVICE_ROLE),
+                 Authorization: `Bearer ${limpo(env.SUPABASE_SERVICE_ROLE)}` } });
 
   if (r.status === 401 || r.status === 403) return { erroDeChave: true };
   if (!r.ok) return { erroDeLeitura: r.status };
@@ -145,7 +159,12 @@ export async function avisar(pedido, env) {
 
   const achado = await oPost(postId, env);
   if (achado.erroDeChave) {
-    return resposta(503, { erro: 'a chave de serviço do Worker não é aceita pelo Supabase' });
+    return resposta(503, {
+      erro: 'a chave de serviço do Worker não é aceita pelo Supabase',
+      // Só o retrato, nunca o valor. Quem chega aqui já provou ter sessão.
+      recebido: retrato(env.SUPABASE_SERVICE_ROLE),
+      esperado: '219 caracteres, formato JWT',
+    });
   }
   if (achado.erroDeLeitura) {
     return resposta(502, { erro: `o Supabase respondeu ${achado.erroDeLeitura} ao ler o post` });
@@ -164,9 +183,9 @@ export async function avisar(pedido, env) {
   if (!pendentes?.length) return resposta(200, { enviados: 0, motivos: {} });
 
   const vapid = {
-    publica: env.VAPID_PUBLICA,
-    privada: env.VAPID_PRIVADA,
-    contato: env.VAPID_CONTATO || 'mailto:contato@faro.app',
+    publica: limpo(env.VAPID_PUBLICA),
+    privada: limpo(env.VAPID_PRIVADA),
+    contato: limpo(env.VAPID_CONTATO) || 'mailto:contato@faro.app',
   };
 
   const conta = {};
