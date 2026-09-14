@@ -14,8 +14,9 @@
    ============================================================================= */
 
 import { adminPendentes, adminDecidir, adminContas, adminMudarPapel,
-         adminRecados, desligarRecado, apagarRecado, meuPapel } from './dados.js?v=49';
-import { abrirRecado, abrirNovoRecado } from './formularios.js?v=49';
+         adminRecados, desligarRecado, apagarRecado, meuPapel,
+         padroesLocais } from './dados.js?v=53';
+import { abrirRecado, abrirNovoRecado } from './formularios.js?v=53';
 
 const $  = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -71,6 +72,7 @@ async function pintar() {
       </button>
       <button type="button" data-aba-adm="contas" aria-pressed="${aba === 'contas'}">Contas</button>
       <button type="button" data-aba-adm="recados" aria-pressed="${aba === 'recados'}">Recados</button>
+      <button type="button" data-aba-adm="padroes" aria-pressed="${aba === 'padroes'}">Padrões</button>
     </nav>
     <div id="admin-conteudo"></div>`;
 
@@ -103,6 +105,8 @@ async function pintarConteudo(pendentes = null) {
       </div>`;
     return;
   }
+
+  if (aba === 'padroes') { await pintarPadroes(alvo); return; }
 
   const lista = await adminRecados().catch(() => []);
   alvo.innerHTML = `
@@ -170,6 +174,82 @@ function recadoHTML(r) {
 }
 
 const hospedeiro = (u) => { try { return new URL(u).hostname; } catch { return u; } };
+
+// --- os nossos próprios padrões -----------------------------------------------
+
+/* Os números de hoje vêm de Ohio (2007) e da Austrália (2018). Esta tela existe
+   para o dia em que forem de Santa Cruz do Sul.
+
+   MOSTRA O `n` SEMPRE. Mediana de três amostras não é padrão, é ruído com cara
+   de conclusão — o mesmo erro do "70% de chance" que este trabalho recusou. */
+const MINIMO = 30;
+
+const PUBLICADO = {
+  'gato, não sai':    { dist: '137 m (mediana)',  fonte: 'Huang 2018, n=1.210' },
+  'gato, sai na rua': { dist: '1.609 m (75%)',    fonte: 'Huang 2018, n=1.210' },
+  'cão':              { dist: '1.609 m (71%)',    fonte: 'Lord 2007b, n=187' },
+};
+
+const LUGAR_ROTULO = {
+  quintal_alheio: 'quintal de alguém', porta_de_casa: 'porta de casa', mato: 'mato',
+  varanda: 'varanda ou deck', casa_alheia: 'casa de outra pessoa',
+  propria_casa: 'a própria casa', rua: 'na rua', recolhido: 'alguém recolheu', outro: 'outro',
+};
+
+const metros = (m) => (m == null ? '—' : m < 950 ? `${Math.round(m)} m`
+  : `${(m / 1000).toFixed(1).replace('.', ',')} km`);
+
+const rosa = (g) => {
+  if (g == null) return '—';
+  const pontos = ['N', 'NE', 'L', 'SE', 'S', 'SO', 'O', 'NO'];
+  return `${pontos[Math.round(g / 45) % 8]} (${Math.round(g)}°)`;
+};
+
+async function pintarPadroes(alvo) {
+  const linhas = await padroesLocais().catch(() => []);
+  const total = linhas.reduce((a, l) => a + Number(l.n), 0);
+
+  alvo.innerHTML = `
+    <p class="admin__rotulo">O que os nossos casos já dizem</p>
+    <p class="admin__vazio">
+      ${total === 0
+        ? 'Nenhum caso encerrado com resposta ainda. Cada um que chegar entra aqui.'
+        : `${total} ${total === 1 ? 'caso encerrado' : 'casos encerrados'} com alguma resposta.`}
+    </p>
+
+    ${linhas.map((l) => {
+      const poucos = Number(l.n) < MINIMO;
+      const ref = PUBLICADO[l.faixa];
+      return `
+      <article class="padrao">
+        <header class="padrao__topo">
+          <strong>${esc(l.faixa)}</strong>
+          <span class="etiqueta">n = ${l.n}</span>
+        </header>
+        ${poucos ? `<p class="padrao__aviso">
+          Ainda não dá para concluir nada — faltam ${MINIMO - Number(l.n)} casos.
+          Os números abaixo são o que temos, não um padrão.
+        </p>` : ''}
+        <dl class="padrao__numeros">
+          <div><dt>mediana da distância</dt><dd>${metros(l.mediana_m)}</dd></div>
+          <div><dt>75% até</dt><dd>${metros(l.p75_m)}</dd></div>
+          <div><dt>mediana do tempo</dt><dd>${l.mediana_h == null ? '—'
+            : Number(l.mediana_h) < 48 ? `${Math.round(l.mediana_h)} h`
+            : `${Math.round(l.mediana_h / 24)} dias`}</dd></div>
+          <div><dt>lugar mais comum</dt><dd>${LUGAR_ROTULO[l.lugar_comum] || '—'}</dd></div>
+          <div><dt>rumo predominante</dt><dd>${rosa(l.rumo_medio)}</dd></div>
+        </dl>
+        ${ref ? `<p class="padrao__ref">Publicado: <b>${ref.dist}</b> · ${ref.fonte}</p>` : ''}
+      </article>`;
+    }).join('')}
+
+    <p class="padrao__nota">
+      As duas últimas linhas — <b>lugar</b> e <b>rumo</b> — são o que só nós
+      podemos responder. Nenhum estudo publicado sabe dos quintais e dos arroios
+      daqui. Quando houver base, estes números substituem os de fora em
+      <code>area-busca.js</code>.
+    </p>`;
+}
 
 // --- ações --------------------------------------------------------------------
 

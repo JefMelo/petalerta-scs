@@ -4,7 +4,7 @@
    ============================================================================= */
 
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-import { SUPABASE_URL, SUPABASE_ANON } from './config.js?v=49';
+import { SUPABASE_URL, SUPABASE_ANON } from './config.js?v=53';
 
 export const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
@@ -411,6 +411,33 @@ export async function pedirParaDoar(papel, sobre) {
   const { error } = await sb.rpc('pedir_para_doar', { p_papel: papel, p_sobre: sobre });
   if (error) throw new Error(error.message);
   esquecerPapel();
+}
+
+// --- área de busca e desfechos ------------------------------------------------
+
+/* A única pergunta com evidência forte na literatura: gato que não sai de casa
+   é achado a 137 m; com acesso à rua, a até 1.609 m (Huang 2018). */
+export async function definirAcessoRua(postId, valor) {
+  const { error } = await sb.rpc('definir_acesso_rua', { p_post_id: postId, p_valor: valor });
+  if (error) throw new Error(error.message);
+}
+
+/* O que vira a NOSSA base de calibragem. Tudo opcional — ver o cabeçalho do
+   schema-19 para o porquê de nada aqui ser obrigatório. */
+export async function registrarDesfecho(postId, { lat, lng, lugar, como } = {}) {
+  const { error } = await sb.rpc('registrar_desfecho', {
+    p_post_id: postId,
+    p_lat: lat ?? null, p_lng: lng ?? null,
+    p_lugar: lugar || null, p_como: como || null,
+  });
+  if (error) throw new Error(error.message);
+}
+
+/** Só o administrador. Números agregados, nunca linhas. */
+export async function padroesLocais() {
+  const { data, error } = await sb.rpc('padroes_locais', {});
+  if (error) throw new Error(error.message);
+  return data || [];
 }
 
 // --- recados do Faro ----------------------------------------------------------

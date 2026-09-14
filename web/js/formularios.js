@@ -3,7 +3,7 @@
    Uma folha por vez, sobe de baixo. Toda a escrita no banco passa por aqui.
    ============================================================================= */
 
-import * as dados from './dados.js?v=49';
+import * as dados from './dados.js?v=53';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) =>
@@ -537,6 +537,137 @@ export function abrirNovoRecado({ aoSalvar } = {}) {
   });
 }
 
+/* =============================================================================
+   O ENCERRAMENTO — e a única chance de colher o dado
+
+   Quando alguém encerra um caso, some para sempre a informação de ONDE o pet
+   estava e COMO foi achado. São as duas variáveis do modelo de área de busca,
+   e só existem neste instante.
+
+   TUDO É OPCIONAL, e a folha não insiste. Nem todo encerramento é final feliz
+   — pode ser um pet que morreu ou um tutor que desistiu, e uma pergunta
+   obrigatória sobre "onde ele estava" nessa hora seria cruel. Além disso,
+   resposta dada por obrigação envenena a base.
+
+   As opções espelham as categorias do estudo de Huang (2018) de propósito:
+   dado comparável é dado que se pode confrontar com a literatura.
+   ============================================================================= */
+
+const LUGARES = [
+  ['quintal_alheio', 'No quintal de alguém'],
+  ['porta_de_casa',  'Esperando na porta de casa'],
+  ['mato',           'Escondido no mato'],
+  ['varanda',        'Embaixo de varanda ou deck'],
+  ['casa_alheia',    'Dentro da casa de outra pessoa'],
+  ['propria_casa',   'Dentro da própria casa'],
+  ['rua',            'Na rua'],
+  ['recolhido',      'Com alguém que tinha recolhido'],
+  ['outro',          'Outro'],
+];
+
+const COMOS = [
+  ['voltou_sozinho',   'Voltou sozinho'],
+  ['aviso_no_faro',    'Alguém avisou aqui no Faro'],
+  ['busca_a_pe',       'Procurando a pé'],
+  ['cartaz',           'Pelo cartaz'],
+  ['vizinho',          'Um vizinho avisou'],
+  ['clinica_ou_canil', 'Clínica ou canil'],
+  ['redes',            'Redes sociais'],
+  ['armadilha',        'Armadilha humanitária'],
+  ['outro',            'Outro'],
+];
+
+export function abrirEncerrar(post, centro, { aoEncerrar } = {}) {
+  abrir({
+    titulo: 'Encerrar o caso',
+    acao: 'Encerrar',
+    corpo: `
+      <p class="folha__ajuda">
+        <strong>Que bom.</strong> Conte só o que quiser — cada caso que termina
+        bem ajuda o Faro a calcular melhor a área de busca para o próximo tutor
+        da cidade. Dá para encerrar sem responder nada.
+      </p>
+
+      ${escolha('lugar', 'Que tipo de lugar era', [['', 'Prefiro não dizer'], ...LUGARES])}
+      ${escolha('como', 'Como vocês se encontraram', [['', 'Prefiro não dizer'], ...COMOS])}
+
+      ${mapaHTML}`,
+
+    aoAbrir: (f) => {
+      // montarMapa DEVOLVE o ponto que acompanha o centro do mapa; sem guardar
+      // o retorno, `f._ponto` fica vazio e a coordenada nunca chega ao banco.
+      f._ponto = montarMapa(f, centro);
+
+      /* `mapaHTML` é compartilhado com publicar e avistar, onde o rótulo certo
+         é "Onde foi". Aqui a pergunta é outra, e a caixa de "não sei" precisa
+         vir ANTES do mapa — senão a pessoa mexe no mapa para só depois
+         descobrir que podia pular. */
+      const campo = $('.mapa-escolha', f).closest('.campo');
+      $('.campo__rotulo', campo).textContent = 'Onde ele estava';
+      $('.mapa-escolha', f).insertAdjacentHTML('beforebegin', `
+        <label class="pular-mapa">
+          <input type="checkbox" name="sem_lugar">
+          <span>Não sei dizer onde era</span>
+        </label>`);
+      // Marcar "não sei" apaga o mapa: perguntar e ignorar seria pior que não
+      // perguntar, e um ponto chutado estraga a base de calibragem.
+      const caixa = $('[name=sem_lugar]', f);
+      const mapa = $('.mapa-escolha', f);
+      caixa.addEventListener('change', () => { mapa.hidden = caixa.checked; });
+    },
+
+    aoConfirmar: async (form) => {
+      const f = $('#folha-form');
+      const semLugar = form.elements.sem_lugar?.checked;
+      await dados.resolverPost(post.id);
+      // O desfecho NUNCA derruba o encerramento: o caso fechar é o que importa
+      // para a pessoa; a nossa base é o que importa para nós.
+      try {
+        await dados.registrarDesfecho(post.id, {
+          lat: semLugar ? null : f._ponto?.lat,
+          lng: semLugar ? null : f._ponto?.lng,
+          lugar: valor(form, 'lugar'),
+          como: valor(form, 'como'),
+        });
+      } catch { /* o caso está encerrado; o dado é que se perde */ }
+      dados.dispararAvisos(post.id);      // quem ajudou merece saber que acabou
+      aoEncerrar?.();
+    },
+  });
+}
+
+/* A pergunta do gato, feita DEPOIS de publicar: quem acabou de perder o bicho
+   não devia ter mais um campo pela frente. É a variável com o efeito mais forte
+   e melhor medido de toda a literatura — 137 m contra 1.609 m. */
+export function abrirAcessoRua(post, { aoResponder } = {}) {
+  abrir({
+    titulo: 'Mais uma coisa',
+    acao: 'Salvar',
+    corpo: `
+      <p class="folha__ajuda">
+        Isso muda bastante a área de busca no mapa. Um estudo com 1.210 gatos
+        mostrou que quem nunca sai de casa é achado a poucos metros, escondido
+        — e quem já sai pode ir bem mais longe.
+      </p>
+      <div class="papeis" role="radiogroup" aria-label="Costuma sair de casa">
+        <label class="papel">
+          <input type="radio" name="acesso" value="nao_sai" checked>
+          <span class="papel__corpo"><strong>Não sai de casa</strong>
+            <em>Vive dentro, ou só no pátio fechado.</em></span>
+        </label>
+        <label class="papel">
+          <input type="radio" name="acesso" value="sai">
+          <span class="papel__corpo"><strong>Costuma sair</strong>
+            <em>Vai à rua sozinho e volta.</em></span>
+        </label>
+      </div>`,
+    aoConfirmar: async (form) => {
+      await dados.definirAcessoRua(post.id, form.elements.acesso.value);
+      aoResponder?.();
+    },
+  });
+}
+
 // --- publicar -----------------------------------------------------------------
 
 const TIPOS = [
@@ -696,6 +827,15 @@ async function abrirCaso(centro, post) {
            é notícia para o bairro. */
         const id = await dados.criarPost({ p_tipo: form.elements.tipo.value, ...comum });
         dados.dispararAvisos(id);
+
+        /* A pergunta do gato vem AGORA, não no formulário: quem acabou de
+           perder o bicho não devia ter mais um campo pela frente. O caso já
+           está no ar; isto só refina o mapa. */
+        if (form.elements.tipo.value === 'perdido' && valor(form, 'especie') === 'gato') {
+          aoMudar();
+          abrirAcessoRua({ id }, { aoResponder: () => { fechar(); aoMudar(); } });
+          return;
+        }
       }
       aoMudar();
     },
@@ -827,8 +967,10 @@ export async function abrirAcoesDoDono(post, { aoApagar } = {}) {
         }
 
         if (acao === 'resolver') {
-          await dados.resolverPost(post.id);
-          dados.dispararAvisos(post.id);   // quem ajudou merece saber que acabou
+          // O encerramento é a ÚNICA chance de colher onde o pet estava.
+          fechar();
+          abrirEncerrar(post, dados.ORIGEM, { aoEncerrar: () => { fechar(); aoMudar(); } });
+          return;
         }
         if (acao === 'reabrir')  await dados.reabrirPost(post.id);
         fechar(); aoMudar();

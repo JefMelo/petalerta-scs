@@ -54,6 +54,7 @@ tools/gerar-icones.py    gera os ícones do app a partir do logo
 tools/gerar-vapid.js     gera o par de chaves dos avisos (uma vez só)
 tools/testar-push.js     prova a criptografia contra o vetor do RFC 8291
 tools/testar-papeis.js   prova as travas de papel pelos caminhos de ataque
+tools/testar-desfechos.js prova a conta e o sigilo da base de calibragem
 tools/versionar.js       carimba a MESMA versão em todo ?v= (e no cache do sw)
 web/js/app.js            feed, detalhe, rastro, mapa
 legado/app.py            o protótipo Streamlit, guardado para consulta
@@ -98,6 +99,7 @@ Um **feed**, não um painel. As decisões que tiram a cara de "app gerado":
 | `schema-16.sql` | recados do Faro + selo de papel no feed |
 | `schema-17.sql` | Reencontros + conserto de `n_reencontros` no perfil |
 | `schema-18.sql` | o recado ganha foto (é anúncio no meio do feed, não faixa de topo) |
+| `schema-19.sql` | `acesso_rua` do gato; tabela `desfechos` — a base de calibragem local |
 | `schema-13.sql` | avisos no celular: `push_subs` ganha o opt-in de bairro, `avisos_enviados` e `avisos_pendentes` |
 | `seed-teste.sql` | 6 casos + 3 avistamentos + 3 usuários `@teste.farejo.local` |
 
@@ -472,6 +474,55 @@ proteção e não se afrouxa. O link do recado vem de uma **coluna** própria, o
 banco só aceita `https://` (constraint), o cliente reconfere com `new URL`, e o
 `<a>` sai com `rel="noopener noreferrer nofollow"` **mostrando o domínio de
 destino** ao lado do rótulo. Ninguém deve tocar num link sem saber para onde vai.
+
+### A nossa própria base — por que a coleta veio antes da tela
+
+O Faro vai passar a estimar a **área provável de busca** de um pet perdido. Os
+números de partida vêm de dois estudos:
+
+- **Gatos** — [Huang, Coradini & Rand (2018), *Animals* 8(1):5](https://doi.org/10.3390/ani8010005), 1.210 casos:
+  75% achados a até **500 m** do ponto de fuga; gato que nunca sai, **137 m**;
+  gato com acesso à rua, 75% até **1.609 m**. A busca física aumentou a chance
+  de achar vivo, e a **armadilha humanitária** foi o método isolado mais eficaz
+  (63%), usado por só 20% das pessoas.
+- **Cães** — Lord et al. (2007b), 187 casos: 71% achados a menos de **1.609 m**,
+  14% entre 1,6 e 8 km, 7% além disso; mediana de recuperação de **2 dias**.
+
+> **O que NÃO tem respaldo:** o efeito do temperamento em cães. O
+> [IAABC Foundation Journal](https://journal.iaabcfoundation.org/what-we-need-to-learn-about-missing-dogs/)
+> diz que é *suspeitado, não confirmado*. Por isso o app não pergunta
+> temperamento de cão para mudar raio — só para mudar o conselho. A única
+> pergunta que muda o cálculo é a do gato, que tem efeito de **doze vezes**.
+
+Esses números são de Ohio e da Austrália. Santa Cruz do Sul tem outro traçado,
+outro trânsito, outro jeito de morar — e o dado que corrigiria isso **só existe
+no instante em que alguém encerra um caso**. Daí a ordem: a tabela `desfechos`
+foi construída ANTES dos anéis no mapa, porque cada dia sem ela é um caso a
+menos na base.
+
+**O que se guarda, e o que não se guarda.** `desfechos` grava o ponto onde o
+pet estava, a distância e o **rumo** até ele (azimute), as horas, o tipo de
+lugar e como foi achado. O ponto é guardado porque da distância não se recupera
+a coordenada, e sem ela morrem as três análises que só os nossos dados podem
+dar: **direção** (se os pets daqui descem para o arroio ou fogem da BR, os
+anéis deixam de ser círculos), **aglomerados** e **barreiras**.
+
+**Guardado não é publicado.** RLS ligado e sem política de leitura, mais
+`revoke all`: ninguém lê `desfechos` pela API — nem o dono do caso. Só as
+funções agregadas, e só para o administrador. O ponto de *origem* já é público;
+onde o pet foi *achado* pode ser a garagem de um vizinho.
+
+`especie` e `acesso_rua` são **copiadas** no registro, não lidas por join: o
+post pode ser editado depois, e um registro de pesquisa não pode mudar de valor
+debaixo de quem já o analisou.
+
+**Tudo é opcional.** Nem todo encerramento é final feliz — pode ser um pet que
+morreu ou um tutor que desistiu. A folha não insiste, e o caso fecha igual para
+quem não quiser contar nada. Resposta dada por obrigação envenenaria a base.
+
+A aba **Padrões**, na área do administrador, mostra os nossos números ao lado
+dos publicados — e sempre com o `n`. Abaixo de 30 casos ela diz que faltam N,
+em vez de apresentar mediana de três amostras como se fosse padrão.
 
 ## No ar
 

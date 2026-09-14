@@ -483,6 +483,13 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
    opção carrega uma frase explicando o que muda, e frase não cabe em pílula. */
 .papeis { display: flex; flex-direction: column; gap: 8px; }
 
+/* "Não sei dizer onde era" — marcar esconde o mapa. Perguntar e ignorar seria
+   pior que não perguntar, e ponto chutado estraga a base de calibragem. */
+.pular-mapa { display: flex; align-items: center; gap: 9px; margin-bottom: 9px;
+              font-size: .83rem; color: var(--tinta-2); cursor: pointer; }
+.pular-mapa input { width: 17px; height: 17px; accent-color: var(--tinta); }
+.mapa-escolha[hidden] { display: none; }
+
 .papel input { position: absolute; opacity: 0; width: 0; height: 0; }
 .papel__corpo {
   display: block;
@@ -1058,6 +1065,22 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 #admin-corpo > .perfil-abas { max-width: var(--coluna); margin-left: auto; margin-right: auto; }
 #admin-corpo .contas, #admin-corpo .pedido, #admin-corpo .campo { padding-left: 16px; padding-right: 16px; }
 #admin-corpo .botao-fraco { max-width: var(--coluna); margin: 10px auto; display: block; width: calc(100% - 32px); }
+
+/* Os nossos próprios padrões, na tela do administrador. */
+.padrao { max-width: var(--coluna); margin: 0 auto; padding: 12px 16px; border-top: 1px solid var(--fio); }
+.padrao__topo { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.padrao__topo strong { font-size: .88rem; font-weight: 700; }
+.padrao__aviso { margin: 0 0 9px; padding: 8px 10px; border-radius: 8px;
+                 background: #FFF9F4; border: 1px solid #F0DCC6;
+                 font-size: .78rem; color: var(--tinta-2); }
+.padrao__numeros { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; margin: 0; }
+.padrao__numeros div { display: contents; }
+.padrao__numeros dt { font-size: .79rem; color: var(--tinta-2); }
+.padrao__numeros dd { margin: 0; font-size: .82rem; font-weight: 650; text-align: right; }
+.padrao__ref { margin: 9px 0 0; font-size: .75rem; color: var(--tinta-3); }
+.padrao__ref b { color: var(--tinta-2); }
+.padrao__nota { max-width: var(--coluna); margin: 16px auto 0; padding: 0 16px;
+                font-size: .78rem; line-height: 1.5; color: var(--tinta-2); }
 
 .conta__acoes { grid-column: 2; grid-row: 1 / span 2; display: flex; gap: 6px; }
 .conta__acoes .botao-fraco { margin: 0 !important; width: auto !important; padding: 6px 10px; }
