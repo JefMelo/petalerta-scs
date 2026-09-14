@@ -19,7 +19,7 @@
 <!-- Uma família só. Duas fontes + uma mono era o que dava cara de painel. -->
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400..800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="css/app.css?v=53">
+<link rel="stylesheet" href="css/app.css?v=58">
 </head>
 <body>
 
@@ -135,6 +135,18 @@
 
   <div class="mapa-topo">
     <p class="mapa-conta" id="mapa-conta">Carregando…</p>
+    <!-- Camada da área provável de busca. DESLIGADA por padrão: anéis de vários
+         casos sobrepostos viram mancha ilegível. Ligada, desenha só o pet que
+         estiver selecionado. -->
+    <button class="mapa-camada" type="button" role="switch" aria-checked="false"
+            data-acao="camada-area" aria-label="Mostrar a área provável de busca">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8.2" stroke-dasharray="2.5 3"/>
+      </svg>
+      <span>Área</span>
+    </button>
+
     <button class="mapa-eu" type="button" data-acao="centralizar" aria-label="Centralizar na minha localização">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -243,6 +255,6 @@
 </nav>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script type="module" src="js/app.js?v=53"></script>
+<script type="module" src="js/app.js?v=58"></script>
 </body>
 </html>

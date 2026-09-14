@@ -1066,6 +1066,55 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 #admin-corpo .contas, #admin-corpo .pedido, #admin-corpo .campo { padding-left: 16px; padding-right: 16px; }
 #admin-corpo .botao-fraco { max-width: var(--coluna); margin: 10px auto; display: block; width: calc(100% - 32px); }
 
+/* Interruptor da camada, no topo do mapa da cidade. Fica ao lado do botão de
+   centralizar e usa o mesmo vocabulário visual — pílula branca sobre o mapa. */
+.mapa-camada {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: var(--papel);
+  box-shadow: 0 2px 10px rgba(21,23,28,.18);
+  color: var(--tinta-2);
+  font-size: .78rem; font-weight: 650;
+}
+.mapa-camada svg { width: 17px; height: 17px; }
+.mapa-camada[aria-checked="true"] { background: var(--tinta); color: var(--papel); }
+
+/* =============================================================================
+   ÁREA PROVÁVEL DE BUSCA
+   ============================================================================= */
+
+/* A legenda é uma LISTA DE TAREFAS, não uma legenda de cores: cada linha diz
+   o que fazer naquela faixa. Porcentagem de chance não aparece em lugar
+   nenhum — nenhum estudo sustenta, e quem acredita para de procurar fora. */
+.zonas { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+
+.zona { display: flex; align-items: flex-start; gap: 10px; }
+.zona__cor { width: 14px; height: 14px; margin-top: 2px; border-radius: 50%; flex: none; }
+.zona[data-zona="0"] .zona__cor { background: rgba(221,140,24,.35); border: 2px solid var(--perdido); }
+.zona[data-zona="1"] .zona__cor { background: rgba(21,113,159,.22); border: 2px solid var(--avistado); }
+.zona--alem  .zona__cor { background: transparent; border: 2px dashed var(--tinta-3); }
+
+.zona__texto { display: block; font-size: .83rem; line-height: 1.4; }
+.zona__texto strong { display: block; color: var(--tinta); font-weight: 650; }
+.zona__texto em { font-style: normal; color: var(--tinta-2); font-size: .78rem; }
+
+/* O conselho. Para gato, vale mais que o círculo. */
+.conselho {
+  margin-top: 16px; padding: 13px 14px;
+  border-radius: 10px; background: var(--toque);
+}
+.conselho h4 { margin: 0 0 8px; font-size: .86rem; font-weight: 700; color: var(--tinta); }
+.conselho p  { margin: 0 0 7px; font-size: .82rem; line-height: 1.5; color: var(--tinta-2); }
+.conselho p:last-child { margin-bottom: 0; }
+.conselho b  { color: var(--tinta); font-weight: 650; }
+
+/* A folha das fontes: a diferença entre ferramenta e truque é poder conferir. */
+.fonte { padding: 11px 0; border-top: 1px solid var(--fio); }
+.fonte__nome { margin: 0; font-size: .86rem; font-weight: 700; }
+.fonte__nome span { font-weight: 500; color: var(--tinta-2); font-size: .78rem; }
+.fonte__cita { margin: 3px 0 6px; font-size: .78rem; line-height: 1.45; color: var(--tinta-2); }
+
 /* Os nossos próprios padrões, na tela do administrador. */
 .padrao { max-width: var(--coluna); margin: 0 auto; padding: 12px 16px; border-top: 1px solid var(--fio); }
 .padrao__topo { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }

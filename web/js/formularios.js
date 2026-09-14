@@ -3,7 +3,7 @@
    Uma folha por vez, sobe de baixo. Toda a escrita no banco passa por aqui.
    ============================================================================= */
 
-import * as dados from './dados.js?v=53';
+import * as dados from './dados.js?v=58';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) =>
@@ -537,6 +537,35 @@ export function abrirNovoRecado({ aoSalvar } = {}) {
   });
 }
 
+/* De onde vêm os números da área de busca. Um elo discreto abaixo do mapa.
+
+   Existe por uma razão só: a diferença entre uma ferramenta e um truque é
+   poder conferir. Quem quiser ler o estudo, lê. */
+export function abrirFontes(fontes) {
+  abrir({
+    titulo: 'De onde vêm estes números',
+    corpo: `
+      <p class="folha__ajuda folha__ajuda--paragrafos">A área de busca não é chute nem cálculo de velocidade. Cada faixa termina num percentil medido em estudo publicado — o que varia com o tempo é só o quanto dele já se aplicou.
+
+O que NÃO fazemos: prometer porcentagem de chance de o pet estar dentro de um círculo. Nenhum estudo sustenta isso, e quem acredita para de procurar do lado de fora.</p>
+
+      ${Object.values(fontes).map((f) => `
+        <div class="fonte">
+          <p class="fonte__nome">${esc(f.curto)} <span>${esc(f.amostra)}</span></p>
+          <p class="fonte__cita">${esc(f.longo)}</p>
+          <a class="elo" href="${esc(f.elo)}" target="_blank" rel="noopener noreferrer">
+            Ler o estudo
+          </a>
+        </div>`).join('')}
+
+      <p class="folha__ajuda folha__ajuda--paragrafos"><strong>O que ainda não se sabe.</strong> Não existe estudo mostrando que cão medroso vá mais longe que cão sociável — é suspeita, não resultado. Por isso o temperamento do cão muda o conselho aqui, e não o tamanho da área.
+
+E estes números são de Ohio e da Austrália. Santa Cruz do Sul tem outro traçado e outro jeito de morar: cada caso que alguém encerra aqui, contando onde o pet estava, aproxima o cálculo da nossa realidade.</p>
+      <button class="botao-fraco" type="button" data-fechar>Entendi</button>`,
+    aoConfirmar: async () => {},
+  });
+}
+
 /* =============================================================================
    O ENCERRAMENTO — e a única chance de colher o dado
 
@@ -582,11 +611,7 @@ export function abrirEncerrar(post, centro, { aoEncerrar } = {}) {
     titulo: 'Encerrar o caso',
     acao: 'Encerrar',
     corpo: `
-      <p class="folha__ajuda">
-        <strong>Que bom.</strong> Conte só o que quiser — cada caso que termina
-        bem ajuda o Faro a calcular melhor a área de busca para o próximo tutor
-        da cidade. Dá para encerrar sem responder nada.
-      </p>
+      <p class="folha__ajuda"><strong>Que bom.</strong> Conte só o que quiser — cada caso que termina bem ajuda o Faro a calcular melhor a área de busca para o próximo tutor da cidade. Dá para encerrar sem responder nada.</p>
 
       ${escolha('lugar', 'Que tipo de lugar era', [['', 'Prefiro não dizer'], ...LUGARES])}
       ${escolha('como', 'Como vocês se encontraram', [['', 'Prefiro não dizer'], ...COMOS])}

@@ -4,7 +4,8 @@
    alfinete abre um cartão; tocar no cartão abre o caso inteiro.
    ============================================================================= */
 
-import { ORIGEM, mapaPerdidos, adotarMinhaLocalizacao } from './dados.js?v=53';
+import { ORIGEM, mapaPerdidos, adotarMinhaLocalizacao } from './dados.js?v=58';
+import { areaDeBusca } from './area-busca.js?v=58';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) =>
@@ -12,9 +13,18 @@ const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) =>
 
 let mapa = null;
 let camadaPets = null;
+let camadaArea = null;      // irmã de camadaPets, para poder limpar sozinha
 let marcaVoce = null;
 let pets = [];
 let selecionado = null;
+
+/* A camada da área fica DESLIGADA por padrão aqui — e é por isso que ela pode
+   existir nesta tela. Anéis de vários casos sobrepostos viram uma mancha
+   ilegível; ligada, ela desenha SÓ o pet selecionado. A preferência é do
+   aparelho, e sobrevive à recarga: quem liga costuma querer de novo. */
+const CHAVE_AREA = 'faro:camada-area';
+const querArea = () => { try { return localStorage.getItem(CHAVE_AREA) === 'sim'; } catch { return false; } };
+const guardarArea = (sim) => { try { localStorage.setItem(CHAVE_AREA, sim ? 'sim' : 'nao'); } catch { /* ok */ } };
 
 // --- linguagem (espelha app.js; o mapa fala a mesma língua do feed) ------------
 
@@ -59,10 +69,57 @@ function alfinete(p) {
   });
 }
 
+// --- a área provável do pet selecionado ---------------------------------------
+
+/* Só caso `perdido`: no `avistado` não há um tutor procurando a partir de um
+   ponto — há um bicho solto que alguém viu. */
+function desenharArea(p) {
+  camadaArea?.clearLayers();
+  if (!p || p.tipo !== 'perdido' || !querArea()) return;
+
+  const a = areaDeBusca({
+    especie: p.especie,
+    acessoRua: p.acesso_rua,
+    horas: (Date.now() - Date.parse(p.visto_em)) / 3600e3,
+  });
+
+  // Do maior para o menor: o externo por cima taparia os de dentro.
+  [...a.zonas].reverse().forEach((z, i) => {
+    const dentro = i === a.zonas.length - 1;
+    L.circle([p.lat, p.lng], {
+      radius: z.raio,
+      color: dentro ? '#DD8C18' : '#15719F',
+      weight: dentro ? 2 : 1.5,
+      fillColor: dentro ? '#DD8C18' : '#15719F',
+      fillOpacity: dentro ? .12 : .07,
+      interactive: false,       // o alfinete embaixo continua clicável
+    }).addTo(camadaArea);
+  });
+
+  /* Enquadrar é o que torna a camada legível. No zoom da cidade, o anel de um
+     cão sumido há dois dias tem raio MAIOR que a tela — e o que se vê não são
+     anéis, é um banho de cor sem informação nenhuma. `toBounds` faz a conta com
+     o raio em metros, sem depender de camada já projetada. */
+  const maior = Math.max(...a.zonas.map((z) => z.raio));
+  mapa.fitBounds(L.latLng(p.lat, p.lng).toBounds(maior * 2.3), {
+    paddingBottomRight: [0, 150],    // o cartão do pet ocupa o rodapé
+    animate: true,
+  });
+}
+
+/** O interruptor da camada, no topo do mapa. */
+export function alternarArea(botao) {
+  const ligando = !querArea();
+  guardarArea(ligando);
+  botao.setAttribute('aria-checked', String(ligando));
+  desenharArea(ligando ? pets.find((x) => x.id === selecionado) : null);
+}
+
 // --- cartão de baixo ----------------------------------------------------------
 
 function mostrarCartao(p) {
   selecionado = p.id;
+  desenharArea(p);
   const c = $('#cartao-mapa');
   const quando = p.desde_tutor
     ? `Sumiu ${fmtTempo(p.visto_em)}`
@@ -96,6 +153,7 @@ export function esconderCartao() {
   const c = $('#cartao-mapa');
   if (c) { c.hidden = true; c.innerHTML = ''; }
   selecionado = null;
+  camadaArea?.clearLayers();      // sem pet escolhido, não há área que desenhar
 }
 
 // --- montagem -----------------------------------------------------------------
@@ -148,10 +206,16 @@ export async function abrir() {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(mapa);
     L.control.zoom({ position: 'topright' }).addTo(mapa);
+    /* A ordem importa: o Leaflet empilha na ordem de inserção, então a camada
+       da área entra ANTES da dos alfinetes para ficar por baixo deles. */
+    camadaArea = L.layerGroup().addTo(mapa);
     camadaPets = L.layerGroup().addTo(mapa);
     mapa.setView([ORIGEM.lat, ORIGEM.lng], 14);
     mapa.on('click', esconderCartao);
   }
+
+  const chave = $('[data-acao="camada-area"]');
+  if (chave) chave.setAttribute('aria-checked', String(querArea()));
 
   setTimeout(() => mapa.invalidateSize(), 60);
   desenharVoce();

@@ -41,7 +41,8 @@ web/js/dados.js          acesso ao Supabase (RPC, PostgREST, auth, storage)
 web/js/formularios.js    folhas de conta, publicar, avistar e raio
 web/js/mapa.js           mapa dos pets procurados
 web/js/perfil.js         perfil próprio e dos outros (inclui o ajuste de avisos)
-web/js/admin.js          a tela do administrador: pedidos, contas e recados
+web/js/admin.js          a tela do administrador: pedidos, contas, recados e padrões
+web/js/area-busca.js     o modelo da área de busca — puro, sem DOM, roda em node
 web/js/pwa.js            instalar na tela de início + inscrição dos avisos
 web/sw.js                service worker: cache do app e recebimento dos avisos
 web/manifest.webmanifest nome, ícones e atalhos do app instalado
@@ -55,6 +56,7 @@ tools/gerar-vapid.js     gera o par de chaves dos avisos (uma vez só)
 tools/testar-push.js     prova a criptografia contra o vetor do RFC 8291
 tools/testar-papeis.js   prova as travas de papel pelos caminhos de ataque
 tools/testar-desfechos.js prova a conta e o sigilo da base de calibragem
+tools/testar-area.js     prova os raios contra os percentis publicados
 tools/versionar.js       carimba a MESMA versão em todo ?v= (e no cache do sw)
 web/js/app.js            feed, detalhe, rastro, mapa
 legado/app.py            o protótipo Streamlit, guardado para consulta
@@ -100,6 +102,7 @@ Um **feed**, não um painel. As decisões que tiram a cara de "app gerado":
 | `schema-17.sql` | Reencontros + conserto de `n_reencontros` no perfil |
 | `schema-18.sql` | o recado ganha foto (é anúncio no meio do feed, não faixa de topo) |
 | `schema-19.sql` | `acesso_rua` do gato; tabela `desfechos` — a base de calibragem local |
+| `schema-20.sql` | `mapa_perdidos` devolve `acesso_rua` (as duas telas precisam do mesmo raio) |
 | `schema-13.sql` | avisos no celular: `push_subs` ganha o opt-in de bairro, `avisos_enviados` e `avisos_pendentes` |
 | `seed-teste.sql` | 6 casos + 3 avistamentos + 3 usuários `@teste.farejo.local` |
 
@@ -493,6 +496,62 @@ números de partida vêm de dois estudos:
 > diz que é *suspeitado, não confirmado*. Por isso o app não pergunta
 > temperamento de cão para mudar raio — só para mudar o conselho. A única
 > pergunta que muda o cálculo é a do gato, que tem efeito de **doze vezes**.
+
+### O modelo, e o que ele não promete
+
+```
+R(t) = R_percentil × min(1, √(t / T_saturação))
+```
+
+A raiz quadrada não é estética: deslocamento em caminhada aleatória
+bidimensional cresce com a raiz do tempo, não linearmente — é por isso que
+velocidade × tempo dá números absurdos. `T_saturação` é 12 h para gato (se
+esconde rápido e fica) e 24 h para cão (mediana de recuperação de 2 dias).
+
+**Cada faixa TERMINA num percentil publicado.** Só o caminho até ele é modelo,
+e a tela diz isso. São duas faixas por espécie, não três, porque são dois os
+números que a literatura dá:
+
+| espécie | faixa 1 | faixa 2 | além |
+|---|---|---|---|
+| gato, não sai | 137 m | 500 m | 25% |
+| gato, sai na rua | 500 m | 1.609 m | 25% |
+| cão (e "outro") | 1.609 m | 8.046 m | 7% |
+
+A terceira faixa **não é um círculo** — é uma frase com o percentual que fica
+de fora. Uma versão anterior tinha anéis de "1 km" e "3 km" que não vinham de
+lugar nenhum; saíram. Onde a literatura acaba, a tela escreve em vez de
+desenhar, porque círculo grande é ruído com aparência de informação.
+
+**Sem resposta, a curva mais apertada.** Gato sem `acesso_rua` usa a de quem
+não sai. Errar para menos manda procurar perto demais — meia hora de caminhada.
+Errar para mais manda varrer a cidade com o gato embaixo do carro da frente.
+
+Os rótulos dizem **o que fazer**, nunca porcentagem de chance: "procure a pé",
+"cole cartaz", "espalhe o link". Nenhum estudo sustenta "70% de chance de estar
+dentro deste círculo", e quem acredita nisso **para de procurar do lado de
+fora**.
+
+`L.circle` recebe o raio em metros e projeta sozinho — as ~80 linhas de
+geodésia e GeoJSON da proposta original seriam reescrever o que a biblioteca já
+faz certo.
+
+> **Armadilha do Leaflet que custou uma depuração:** o mapa do detalhe é criado
+> sem vista inicial. Adicionar um `L.circle` antes de existir centro e zoom faz
+> o cálculo dos próprios limites estourar — e derruba o resto da função **em
+> silêncio**: mapa cinza, sem ladrilho e sem alfinete. `setView` vem primeiro,
+> e o enquadramento final usa `latLng.toBounds(metros)`, que não depende de
+> camada projetada.
+
+### A camada no mapa da cidade
+
+Interruptor **Área**, desligado por padrão e lembrado por aparelho
+(`faro:camada-area`). Ligado, desenha os anéis **só do pet selecionado** —
+anéis de vários casos sobrepostos viram mancha ilegível. A camada entra antes
+da dos alfinetes na ordem de inserção, para ficar por baixo e não roubar o
+toque, e ao selecionar um pet o mapa **enquadra** o maior anel: no zoom da
+cidade, o anel de um cão sumido há dois dias é maior que a tela, e o que se
+veria não seriam anéis, seria um banho de cor.
 
 Esses números são de Ohio e da Austrália. Santa Cruz do Sul tem outro traçado,
 outro trânsito, outro jeito de morar — e o dado que corrigiria isso **só existe

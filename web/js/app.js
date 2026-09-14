@@ -9,12 +9,13 @@ import { ORIGEM, feedPorRaio, reencontros, postPorId, rastroDoPost, contatoDoPos
          registrarCompartilhamento, minhasNovidades,
          novidadesVistasEm, marcarNovidadesVistas, CENTRO,
          aoRecuperarSenha, meuPapel, recadosAtivos, recadosLidos,
-         marcarRecadoLido } from './dados.js?v=53';
-import * as form from './formularios.js?v=53';
-import * as mapaTela from './mapa.js?v=53';
-import * as perfilTela from './perfil.js?v=53';
-import * as pwa from './pwa.js?v=53';
-import * as adminTela from './admin.js?v=53';
+         marcarRecadoLido } from './dados.js?v=58';
+import * as form from './formularios.js?v=58';
+import * as mapaTela from './mapa.js?v=58';
+import * as perfilTela from './perfil.js?v=58';
+import * as pwa from './pwa.js?v=58';
+import * as adminTela from './admin.js?v=58';
+import { areaDeBusca, conselho, FONTES } from './area-busca.js?v=58';
 
 // MARCA — nome de trabalho. Trocar aqui e em .marca no CSS/HTML. -------------
 export const MARCA = { nome: 'Faro', cidade: 'Santa Cruz do Sul' };
@@ -489,6 +490,8 @@ async function abrirDetalhe(id) {
 
     <div class="secao secao--limpa"><div id="mapa"></div></div>
 
+    ${areaHTML(p, rastro)}
+
     ${rastro.length > 1 ? `
     <div class="secao">
       <h3 class="secao__titulo">Por onde ${esc(comArtigo(p))} passou
@@ -509,12 +512,84 @@ async function abrirDetalhe(id) {
   $('#detalhe').hidden = false;
   document.body.style.overflow = 'hidden';
   $('#detalhe .icone-botao').focus();
-  desenharMapa(rastro.length ? rastro : [p]);
+  desenharMapa(rastro.length ? rastro : [p], p);
 }
 
-function desenharMapa(pontos) {
+/* A área provável só faz sentido em caso ABERTO e do tipo `perdido`. Caso
+   encontrado o pet está a salvo com alguém; caso encerrado, acabou. Desenhar
+   anel de busca nos dois seria mentira desenhada. */
+const temArea = (p) => p && p.tipo === 'perdido' && p.status === 'aberto';
+
+/* Horas desde o ÚLTIMO ponto conhecido — não desde o sumiço. `rastroDoPost`
+   devolve do mais novo para o mais antigo, então `rastro[0]` é o avistamento
+   mais recente. Um avistamento de 10 minutos atrás encolhe a área para o
+   tamanho real do problema, e é a vantagem que nenhum estudo tinha como dar. */
+function horasDoUltimoPonto(p, rastro) {
+  const ultimo = rastro?.[0]?.ocorrido_em || p.ocorrido_em;
+  return (Date.now() - Date.parse(ultimo)) / 3600e3;
+}
+
+function areaHTML(p, rastro) {
+  if (!temArea(p)) return '';
+
+  const horas = horasDoUltimoPonto(p, rastro);
+  const a = areaDeBusca({ especie: p.especie, acessoRua: p.acesso_rua, horas });
+  const c = conselho(p.especie, p.acesso_rua);
+  const recente = (rastro?.length || 0) > 1;
+
+  return `
+  <div class="secao">
+    <h3 class="secao__titulo">Onde procurar agora</h3>
+
+    <ol class="zonas">
+      ${a.zonas.map((z, i) => `
+        <li class="zona" data-zona="${i}">
+          <span class="zona__cor" aria-hidden="true"></span>
+          <span class="zona__texto">
+            <strong>${i === 0 ? ACOES[0] : ACOES[1]}</strong>
+            <em>até ${fmtDistancia(z.raio)} — ${esc(z.mede)}</em>
+          </span>
+        </li>`).join('')}
+      <li class="zona zona--alem">
+        <span class="zona__cor" aria-hidden="true"></span>
+        <span class="zona__texto">
+          <strong>Espalhe o link e avise clínicas e o canil</strong>
+          <em>${a.alem.porcento}% aparecem além disso — aí o mapa já não ajuda</em>
+        </span>
+      </li>
+    </ol>
+
+    <p class="secao__nota">
+      Medido ${recente ? '<b>a partir do último avistamento</b>' : 'a partir de onde sumiu'},
+      há ${fmtTempo(rastro?.[0]?.ocorrido_em || p.ocorrido_em).replace(/^há /, '')}.
+      ${a.cheio ? '' : 'A área ainda está crescendo com o tempo. '}
+      <button class="elo" type="button" data-acao="fontes">De onde vêm estes números</button>
+    </p>
+
+    <div class="conselho">
+      <h4>${esc(c.titulo)}</h4>
+      ${c.linhas.map((l) => `<p>${negrito(l)}</p>`).join('')}
+    </div>
+  </div>`;
+}
+
+const ACOES = ['Procure a pé, com lanterna', 'Cole cartaz e fale com os vizinhos'];
+
+/* Os textos de conselho vêm de area-busca.js com **destaque** em markdown-ish.
+   É a ÚNICA interpolação de HTML a partir de texto no app, e ela é segura
+   porque o texto é nosso, constante, e passa por esc() antes: o ** vira <b> e
+   mais nada. Texto de usuário continua sem esta porta. */
+const negrito = (t) => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+
+function desenharMapa(pontos, post = null) {
   if (mapa) { mapa.remove(); mapa = null; }
   mapa = L.map('mapa', { scrollWheelZoom: false });
+
+  /* Vista ANTES de qualquer camada. Sem centro e zoom, o Leaflet não projeta o
+     que é adicionado — e um `L.circle` sem projeção estoura ao calcular os
+     próprios limites, derrubando o resto desta função em silêncio: mapa cinza,
+     sem ladrilho e sem alfinete. O enquadramento definitivo vem no fim. */
+  mapa.setView([pontos[0].lat, pontos[0].lng], 15);
 
   // OpenStreetMap: sem chave. O 'cartodbpositron' do protótipo passou a exigir
   // cadastro e estampava "API KEY REQUIRED" sobre o mapa inteiro.
@@ -524,6 +599,33 @@ function desenharMapa(pontos) {
   }).addTo(mapa);
 
   const coords = pontos.map((r) => [r.lat, r.lng]);
+
+  /* Os anéis ANTES dos marcadores: o Leaflet empilha na ordem de inserção, e
+     um círculo por cima rouba o clique do alfinete que ele cobre.
+     `L.circle` recebe o raio em METROS e projeta sozinho — a geodésia em 64
+     pontos que o documento original trazia seria reescrever o que a biblioteca
+     já faz certo. */
+  let maiorRaio = 0;
+  if (temArea(post)) {
+    const a = areaDeBusca({
+      especie: post.especie, acessoRua: post.acesso_rua,
+      horas: horasDoUltimoPonto(post, pontos),
+    });
+    maiorRaio = Math.max(...a.zonas.map((z) => z.raio));
+    // Do maior para o menor, senão o externo tapa os internos.
+    [...a.zonas].reverse().forEach((z, i) => {
+      const dentro = i === a.zonas.length - 1;
+      L.circle(coords[0], {
+        radius: z.raio,
+        color: dentro ? '#DD8C18' : '#15719F',
+        weight: dentro ? 2 : 1.5,
+        fillColor: dentro ? '#DD8C18' : '#15719F',
+        fillOpacity: dentro ? .12 : .07,
+        interactive: false,          // o mapa é para ver os pontos, não os anéis
+      }).addTo(mapa);
+    });
+  }
+
   pontos.forEach((r, i) => {
     const ultimo = i === 0;
     L.circleMarker([r.lat, r.lng], {
@@ -534,6 +636,15 @@ function desenharMapa(pontos) {
 
   if (coords.length > 1) {
     L.polyline(coords, { color: '#15719F', weight: 2, dashArray: '5,6', opacity: .75 }).addTo(mapa);
+  }
+
+  /* O enquadramento segue o MAIOR anel quando ele existe: de nada adianta
+     desenhar a área e abrir o mapa num zoom que corta a metade dela.
+     `toBounds` faz a conta com o raio em metros e NÃO depende de camada
+     projetada — que foi exatamente o que quebrou na primeira versão. */
+  if (maiorRaio > 0) {
+    mapa.fitBounds(L.latLng(coords[0]).toBounds(maiorRaio * 2.2), { padding: [12, 12] });
+  } else if (coords.length > 1) {
     // maxZoom: sem isto, dois pontos quase no mesmo lugar levam o mapa ao
     // zoom máximo e a pessoa perde a referência da rua.
     mapa.fitBounds(coords, { padding: [34, 34], maxZoom: 16 });
@@ -691,13 +802,15 @@ document.addEventListener('click', (ev) => {
                           marcarAba(mapaTela.estaAberto() ? 'ir-mapa' : 'ir-feed'); return;
     case 'publicar':    form.abrirPublicar(ORIGEM); return;
     case 'ir-mapa':     location.hash = '#/mapa'; return;
-    case 'centralizar': mapaTela.centralizarEmMim(alvo); return;
+    case 'centralizar':  mapaTela.centralizarEmMim(alvo); return;
+    case 'camada-area': mapaTela.alternarArea(alvo); return;
     case 'ir-feed':     if (!$('#detalhe').hidden) fecharDetalhe();
                         if (mapaTela.estaAberto()) { mapaTela.fechar(); history.replaceState(null, '', '#/'); }
                         marcarAba('ir-feed');
                         window.scrollTo({ top: 0, behavior: 'smooth' }); return;
     case 'conta':     estaLogado() ? (location.hash = `#/perfil/${meuId()}`) : form.abrirConta('entrar'); return;
     case 'ir-admin':  location.hash = '#/admin'; return;
+    case 'fontes':    form.abrirFontes(FONTES); return;
     case 'instalar':           pwa.instalar(alvo); return;
     case 'dispensar-instalar': pwa.dispensarInstalar(); return;
     case 'usar-local':      pedirLocal(alvo); return;
