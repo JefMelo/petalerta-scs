@@ -5,13 +5,24 @@
   "main": "worker.js",
   "compatibility_date": "2026-09-01",
 
+  // Públicos de propósito: a chave VAPID pública é o que o navegador usa para
+  // se inscrever, e a anon do Supabase é protegida pelo RLS, não por segredo.
+  // Os segredos (VAPID_PRIVADA, SUPABASE_SERVICE_ROLE) entram por
+  // `wrangler secret put` e, no desenvolvimento, pelo .dev.vars.
+  "vars": {
+    "VAPID_PUBLICA": "BCsSDuAe-dnWTr1LvdHMk0Q7dOI2HLbPWoV7VfXK3qerPC4HmGG-MIebEnmw0I70hknVNzVo-OArQbnq9sctVCw",
+    "VAPID_CONTATO": "mailto:contato@vadeon.com.br",
+    "SUPABASE_URL": "https://sxnyeokxkczrcdnsanbu.supabase.co",
+    "SUPABASE_ANON": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4bnllb2t4a2N6cmNkbnNhbmJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4MTc4MDIsImV4cCI6MjEwNDM5MzgwMn0.uDtW_mSW4B8C--RAJWXHsH2ts6B8854oXxv0QAayVk0"
+  },
+
   "assets": {
     "directory": "./web",
     "binding": "ASSETS",
 
-    // Só /c/* passa pelo Worker (a prévia de link). Todo o resto é servido
-    // direto dos assets, sem invocar código.
-    "run_worker_first": ["/c/*"],
+    // Só estes passam pelo Worker: a prévia de link e o envio dos avisos.
+    // Todo o resto é servido direto dos assets, sem invocar código.
+    "run_worker_first": ["/c/*", "/avisar"],
 
     // Caminho desconhecido cai no app em vez de um 404 seco. Não afeta /c/*,
     // que é resolvido antes pelo run_worker_first.

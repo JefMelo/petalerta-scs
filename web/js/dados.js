@@ -4,7 +4,7 @@
    ============================================================================= */
 
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-import { SUPABASE_URL, SUPABASE_ANON } from './config.js?v=32';
+import { SUPABASE_URL, SUPABASE_ANON } from './config.js?v=44';
 
 export const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
@@ -89,6 +89,16 @@ export async function feedPorRaio({ lat, lng, raioM = 3000, tipos = null } = {})
     ...(tipos ? { p_tipos: tipos } : {}),
   });
   if (error) throw error;
+  return data.map((r) => ({ ...normalizar(r), autor_avatar: montarFoto(r.autor_avatar) }));
+}
+
+/* Reencontros: casos que terminaram bem. Ordem cronológica, não urgência —
+   ver o cabeçalho do schema-17. */
+export async function reencontros({ lat, lng, raioM = 20000 } = {}) {
+  const { data, error } = await sb.rpc('reencontros', {
+    p_lat: lat, p_lng: lng, p_raio_m: raioM,
+  });
+  if (error) throw new Error(error.message);
   return data.map((r) => ({ ...normalizar(r), autor_avatar: montarFoto(r.autor_avatar) }));
 }
 
@@ -224,6 +234,52 @@ export const marcarNovidadesVistas = () => {
   try { localStorage.setItem(VISTAS, new Date().toISOString()); } catch { /* ok */ }
 };
 
+// --- avisos no celular (web push) ---------------------------------------------
+
+/* A inscrição é do APARELHO, não da conta: o mesmo endereço de push reaparece
+   igual a cada visita do mesmo navegador. Por isso `endpoint` é a chave de
+   tudo aqui — inclusive para trocar o dono, quando alguém entra com outra
+   conta no mesmo celular. */
+export async function salvarPush({ endpoint, p256dh, auth, lat, lng, raioM, querBairro }) {
+  const { error } = await sb.rpc('salvar_push', {
+    p_endpoint: endpoint, p_p256dh: p256dh, p_auth: auth,
+    p_lat: lat ?? null, p_lng: lng ?? null,
+    p_raio_m: raioM ?? null, p_quer_bairro: querBairro !== false,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function apagarPush(endpoint) {
+  const { error } = await sb.rpc('apagar_push', { p_endpoint: endpoint });
+  if (error) throw new Error(error.message);
+}
+
+/** O que o banco sabe sobre ESTE aparelho. Null = nunca se inscreveu. */
+export async function meuPush(endpoint) {
+  const { data, error } = await sb.rpc('meu_push', { p_endpoint: endpoint });
+  if (error) throw new Error(error.message);
+  return data?.[0] || null;
+}
+
+/* Pede ao Worker que mande os avisos deste post. Quem decide quem recebe é o
+   banco; daqui só vai o id e o token da sessão, que o Worker confere.
+
+   Nada aqui pode derrubar o que já deu certo: o caso foi publicado, e se o
+   aviso falhar o caso continua no feed, no mapa e no link compartilhado. */
+export async function dispararAvisos(postId) {
+  if (!postId || !sessao?.access_token) return;
+  try {
+    await fetch('/avisar', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${sessao.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ post_id: postId }),
+    });
+  } catch { /* o caso está publicado; o aviso é o que se perde */ }
+}
+
 export async function criarPost(campos) {
   const { data, error } = await sb.rpc('criar_post', campos);
   if (error) throw new Error(error.message);
@@ -282,10 +338,16 @@ export async function apagarFotosDoBucket(paths = []) {
 // --- sessão -------------------------------------------------------------------
 
 let sessao = null;
+let papelCache = null;      // ver meuPapel(), mais abaixo
 const ouvintes = new Set();
 
 export const aoMudarSessao = (fn) => { ouvintes.add(fn); fn(sessao); };
-const avisar = () => ouvintes.forEach((fn) => fn(sessao));
+const avisar = () => {
+  // O papel é da CONTA. Trocar de conta no mesmo navegador sem esquecer isto
+  // faria a pessoa nova herdar os poderes da anterior — inclusive os de admin.
+  papelCache = null;
+  ouvintes.forEach((fn) => fn(sessao));
+};
 
 sb.auth.getSession().then(({ data }) => { sessao = data.session; avisar(); });
 sb.auth.onAuthStateChange((evento, s) => {
@@ -309,14 +371,134 @@ export async function entrar(email, senha) {
   return sessao;
 }
 
-export async function criarConta({ nome, whatsapp, email, senha }) {
+/* `papel` e `sobre` vão no metadado, que é escrito pelo CLIENTE — então o
+   banco não acredita neles para nada que dê poder. O trigger do schema-14 só
+   aceita 'ong' e 'protetor' daqui, e os dois nascem PENDENTES. Administrador
+   vem exclusivamente de uma lista de e-mails no servidor. */
+export async function criarConta({ nome, whatsapp, email, senha, papel, sobre }) {
   const { data, error } = await sb.auth.signUp({
     email, password: senha,
-    options: { data: { nome, whatsapp: (whatsapp || '').replace(/\D/g, '') } },
+    options: { data: {
+      nome,
+      whatsapp: (whatsapp || '').replace(/\D/g, ''),
+      ...(papel && papel !== 'farejador' ? { papel, sobre: sobre || '' } : {}),
+    } },
   });
   if (error) throw new Error(traduzErroAuth(error.message));
   sessao = data.session; avisar();
   return sessao;                       // null se o projeto exigir confirmar e-mail
+}
+
+// --- papel da conta -----------------------------------------------------------
+
+/* O que ESTA conta é. Nulo quando ninguém está logado.
+   Guardado em memória porque a tela pergunta várias vezes por carga; zerado a
+   cada troca de sessão (ver `avisar`), senão o papel da conta anterior vaza
+   para a próxima pessoa que entrar no mesmo navegador. */
+export async function meuPapel() {
+  if (!sessao) return null;
+  if (papelCache) return papelCache;
+  const { data, error } = await sb.rpc('meu_papel', {});
+  if (error) throw new Error(error.message);
+  papelCache = data?.[0] || null;
+  return papelCache;
+}
+
+export const esquecerPapel = () => { papelCache = null; };
+
+/** Pedido de quem já tem conta e agora quer publicar adoção. */
+export async function pedirParaDoar(papel, sobre) {
+  const { error } = await sb.rpc('pedir_para_doar', { p_papel: papel, p_sobre: sobre });
+  if (error) throw new Error(error.message);
+  esquecerPapel();
+}
+
+// --- recados do Faro ----------------------------------------------------------
+
+export async function recadosAtivos() {
+  const { data, error } = await sb.rpc('recados_ativos', {});
+  if (error) return [];          // recado é acessório: nunca derruba o feed
+  return data || [];
+}
+
+export async function criarRecado({ titulo, texto, link, linkRotulo }) {
+  const { data, error } = await sb.rpc('criar_recado', {
+    p_titulo: titulo, p_texto: texto,
+    p_link: link || null, p_link_rotulo: linkRotulo || null });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function adminRecados() {
+  const { data, error } = await sb.rpc('admin_recados', {});
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
+export async function desligarRecado(id, ativo = false) {
+  const { error } = await sb.rpc('desligar_recado', { p_id: id, p_ativo: ativo });
+  if (error) throw new Error(error.message);
+}
+
+export async function apagarRecado(id) {
+  const { error } = await sb.rpc('apagar_recado', { p_id: id });
+  if (error) throw new Error(error.message);
+}
+
+/* Dispensar é POR APARELHO. Um recado que não se fecha vira cegueira: em duas
+   semanas ninguém enxerga mais nada no topo do feed, inclusive o que importa. */
+const LIDOS = 'faro:recados-lidos';
+export const recadosLidos = () => {
+  try { return new Set(JSON.parse(localStorage.getItem(LIDOS) || '[]')); }
+  catch { return new Set(); }
+};
+export const marcarRecadoLido = (id) => {
+  try {
+    const s = recadosLidos(); s.add(id);
+    // Teto: a lista não pode crescer para sempre no armazenamento.
+    localStorage.setItem(LIDOS, JSON.stringify([...s].slice(-40)));
+  } catch { /* ok */ }
+};
+
+// --- administração ------------------------------------------------------------
+
+/* Todas estas RPCs conferem `eh_admin()` na primeira linha, no servidor. O que
+   o front faz aqui é só não mostrar botão que vai dar erro — a autorização
+   nunca depende do que a tela decidiu esconder. */
+export async function adminPendentes() {
+  const { data, error } = await sb.rpc('admin_pendentes', {});
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
+export async function adminDecidir(id, aprovar) {
+  const { error } = await sb.rpc('admin_decidir', { p_id: id, p_aprovar: aprovar });
+  if (error) throw new Error(error.message);
+}
+
+export async function adminContas(busca = null) {
+  const { data, error } = await sb.rpc('admin_contas', { p_busca: busca });
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
+export async function adminMudarPapel(id, papel) {
+  const { error } = await sb.rpc('admin_mudar_papel', { p_id: id, p_papel: papel });
+  if (error) throw new Error(error.message);
+}
+
+/** O telefone de quem nunca publicou. Fica registrado em admin_log. */
+export async function adminContato(id) {
+  const { data, error } = await sb.rpc('admin_contato', { p_perfil_id: id });
+  if (error) throw new Error(error.message);
+  return data || null;
+}
+
+/** Quem já está aprovado para doar — a lista que o app oferece a quem não pode. */
+export async function ongsAtivas() {
+  const { data, error } = await sb.rpc('ongs_ativas', {});
+  if (error) throw new Error(error.message);
+  return (data || []).map((o) => ({ ...o, avatar: montarFoto(o.avatar_path) }));
 }
 
 /* Manda o e-mail com o link de volta. redirectTo precisa estar na lista de

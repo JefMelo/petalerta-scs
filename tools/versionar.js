@@ -20,6 +20,11 @@ import { fileURLToPath } from 'node:url';
 const web = join(dirname(fileURLToPath(import.meta.url)), '..', 'web');
 const PADRAO = /(\.(?:js|css))\?v=([0-9]+)/g;
 
+/* O service worker não é carregado com ?v= (o navegador compara os bytes do
+   arquivo), mas o nome do cache dele precisa mudar junto — senão a versão nova
+   do app continua sendo servida da caixa da versão velha. */
+const PADRAO_SW = /(const VERSAO\s*=\s*')([0-9]+)(')/g;
+
 async function arquivos(dir) {
   const saida = [];
   for (const item of await readdir(dir, { withFileTypes: true })) {
@@ -36,12 +41,15 @@ const achadas = new Map();   // versão → [onde]
 
 for (const arq of lista) {
   const txt = await readFile(arq, 'utf8');
+  const curto = arq.slice(web.length + 1);
   for (const m of txt.matchAll(PADRAO)) {
-    const curto = arq.slice(web.length + 1);
     achadas.set(m[2], [...(achadas.get(m[2]) || []), curto]);
   }
+  for (const m of txt.matchAll(PADRAO_SW)) {
+    achadas.set(m[2], [...(achadas.get(m[2]) || []), `${curto} (cache)`]);
+  }
   if (nova) {
-    const novo = txt.replace(PADRAO, `$1?v=${nova}`);
+    const novo = txt.replace(PADRAO, `$1?v=${nova}`).replace(PADRAO_SW, `$1${nova}$3`);
     if (novo !== txt) await writeFile(arq, novo);
   }
 }

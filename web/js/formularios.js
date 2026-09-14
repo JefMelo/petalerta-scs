@@ -3,7 +3,7 @@
    Uma folha por vez, sobe de baixo. Toda a escrita no banco passa por aqui.
    ============================================================================= */
 
-import * as dados from './dados.js?v=32';
+import * as dados from './dados.js?v=44';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) =>
@@ -240,6 +240,36 @@ const valor = (f, n) => (f.elements[n]?.value || '').trim();
 
 // --- conta --------------------------------------------------------------------
 
+/* Os três tipos de conta, ditos pelo que a pessoa FAZ — não por um rótulo
+   jurídico. "Sou uma ONG" é fácil de reconhecer; "papel: ong" não é.
+
+   A escolha vai no metadado do cadastro, que é escrito pelo cliente. Por isso
+   o banco só aceita daqui 'ong' e 'protetor', e os dois nascem esperando
+   aprovação: mentir aqui não dá poder nenhum, só entra numa fila. */
+const PAPEIS = [
+  ['farejador', 'Quero ajudar a achar pets',
+   'Publica casos, avisa quando vê um pet na rua, compartilha. É a maioria das contas.'],
+  ['protetor',  'Sou protetor independente',
+   'Resgata por conta própria e precisa anunciar adoção. Passa por aprovação.'],
+  ['ong',       'Somos uma ONG ou abrigo',
+   'Organização que cuida e dá para adoção. Passa por aprovação.'],
+];
+
+const PAPEIS_HTML = `
+  <div class="campo">
+    <span class="campo__rotulo">Que tipo de conta é a sua</span>
+    <div class="papeis" role="radiogroup" aria-label="Tipo de conta">
+      ${PAPEIS.map(([v, t, d], i) => `
+        <label class="papel">
+          <input type="radio" name="papel" value="${v}" ${i === 0 ? 'checked' : ''}>
+          <span class="papel__corpo">
+            <strong>${esc(t)}</strong>
+            <em>${esc(d)}</em>
+          </span>
+        </label>`).join('')}
+    </div>
+  </div>`;
+
 export function abrirConta(modo = 'entrar') {
   const entrando = modo === 'entrar';
   abrir({
@@ -259,9 +289,19 @@ export function abrirConta(modo = 'entrar') {
         </p>
       </div>
 
+      ${entrando ? '' : PAPEIS_HTML}
       ${entrando ? '' : campo('nome', 'Seu nome', 'required autocomplete="name"')}
       ${entrando ? '' : campo('whatsapp', 'WhatsApp', 'inputmode="tel" autocomplete="tel"',
         'É por aqui que quem achar o seu pet vai te chamar.')}
+      ${entrando ? '' : `<div data-so-doador hidden>
+        ${area('sobre', 'Conte sobre o seu trabalho',
+               'Há quanto tempo, quantos resgates, onde ficam os animais, redes sociais…')}
+        <p class="folha__ajuda">
+          Um administrador lê isto antes de liberar. Até lá você já usa o Faro
+          normalmente — publica, avisa avistamento, ajuda. Só a publicação de
+          adoção é que espera.
+        </p>
+      </div>`}
       ${campo('email', 'E-mail', 'type="email" required autocomplete="email"')}
       ${campo('senha', 'Senha', `type="password" required autocomplete="${entrando ? 'current' : 'new'}-password"`)}
       <button class="botao-fraco" type="button" data-trocar>
@@ -269,6 +309,13 @@ export function abrirConta(modo = 'entrar') {
       </button>
       ${entrando ? '<button class="elo" type="button" data-esqueci>Esqueci minha senha</button>' : ''}`,
     aoAbrir: (f) => {
+      // "Conte sobre o seu trabalho" só faz sentido para quem vai ser avaliado.
+      const caixa = $('[data-so-doador]', f);
+      if (caixa) {
+        f.addEventListener('change', (ev) => {
+          if (ev.target.name === 'papel') caixa.hidden = ev.target.value === 'farejador';
+        });
+      }
       $('[data-trocar]', f).addEventListener('click', () => {
         fechar(); abrirConta(entrando ? 'criar' : 'entrar');
       });
@@ -284,8 +331,13 @@ export function abrirConta(modo = 'entrar') {
         await dados.entrar(email, senha);
       } else {
         if (!valor(form, 'nome')) throw new Error('Diga o seu nome.');
+        const papel = form.elements.papel?.value || 'farejador';
+        const sobre = valor(form, 'sobre');
+        if (papel !== 'farejador' && !sobre) {
+          throw new Error('Conte um pouco sobre o seu trabalho — é o que o administrador lê para decidir.');
+        }
         const s = await dados.criarConta({
-          nome: valor(form, 'nome'), whatsapp: valor(form, 'whatsapp'), email, senha });
+          nome: valor(form, 'nome'), whatsapp: valor(form, 'whatsapp'), email, senha, papel, sobre });
         if (!s) throw new Error('Conta criada. Confirme o e-mail e depois entre.');
       }
       aoMudar();
@@ -366,6 +418,224 @@ export function abrirRecado(titulo, texto) {
   });
 }
 
+/* Quem pode publicar adoção, para quem não pode.
+   Uma lista de nomes reais resolve o problema de hoje — a ninhada que está na
+   caixa agora — enquanto o cadastro, que leva dias, resolve o de sempre. */
+async function ongsHTML() {
+  const lista = await dados.ongsAtivas().catch(() => []);
+  if (!lista.length) return '';
+  return `
+    <p class="campo__rotulo" style="margin-top:18px">Quem já publica adoção aqui</p>
+    <div class="lista-opcoes">
+      ${lista.map((o) => `
+        <button class="opcao" type="button" data-perfil="${esc(o.id)}">
+          ${esc(o.nome)}${o.cidade ? ` · ${esc(o.cidade)}` : ''}
+        </button>`).join('')}
+    </div>
+    <p class="folha__ajuda">Abra o perfil e fale com eles — vão saber o caminho.</p>`;
+}
+
+/* A folha fica POR CIMA do perfil. Sem fechar antes, o toque numa ONG abre o
+   perfil atrás dela e parece que o botão não fez nada. */
+const fecharAoIrNoPerfil = (f) => {
+  f.addEventListener('click', (ev) => {
+    if (ev.target.closest('[data-perfil]')) fechar();
+  });
+};
+
+/* O pedido de quem já tem conta. Mesma pergunta do cadastro, feita depois. */
+export async function abrirPedirParaDoar(papelAtual) {
+  const esperando = papelAtual?.papel && papelAtual.papel !== 'farejador' && !papelAtual.aprovado;
+  const ongs = await ongsHTML();
+
+  if (esperando) {
+    return abrir({
+      titulo: 'Pedido em análise',
+      corpo: `
+        <p class="folha__ajuda">
+          Seu pedido para publicar adoção está com o administrador. Enquanto isso
+          você usa o Faro normalmente — e pode publicar como
+          <em>“Encontrei e está comigo”</em>.
+        </p>
+        ${ongs}
+        <button class="botao-fraco" type="button" data-fechar>Entendi</button>`,
+      aoAbrir: fecharAoIrNoPerfil,
+      aoConfirmar: async () => {},
+    });
+  }
+
+  abrir({
+    titulo: 'Cadastro para doar',
+    acao: 'Enviar pedido',
+    corpo: `
+      <p class="folha__ajuda">
+        A adoção fica com quem faz acompanhamento e busca lar responsável. Se é
+        o seu caso, conte aqui — um administrador lê e libera.
+      </p>
+      <div class="campo">
+        <span class="campo__rotulo">Você é</span>
+        <div class="papeis" role="radiogroup" aria-label="Tipo de cadastro">
+          ${PAPEIS.filter(([v]) => v !== 'farejador').map(([v, t, d], i) => `
+            <label class="papel">
+              <input type="radio" name="papel" value="${v}" ${i === 0 ? 'checked' : ''}>
+              <span class="papel__corpo"><strong>${esc(t)}</strong><em>${esc(d)}</em></span>
+            </label>`).join('')}
+        </div>
+      </div>
+      ${area('sobre', 'Conte sobre o seu trabalho',
+             'Há quanto tempo, quantos resgates, onde ficam os animais, redes sociais…')}
+      ${ongs}`,
+    aoAbrir: fecharAoIrNoPerfil,
+    aoConfirmar: async (form) => {
+      const sobre = valor(form, 'sobre');
+      if (!sobre) throw new Error('Conte um pouco sobre o seu trabalho — é o que o administrador lê para decidir.');
+      await dados.pedirParaDoar(form.elements.papel.value, sobre);
+      fechar();
+      abrirRecado('Pedido enviado',
+        'Um administrador vai olhar. Até lá, você continua usando o Faro normalmente.');
+    },
+  });
+}
+
+/* Todas as contas, para o administrador. Folha e não seção do perfil porque é
+   uma lista longa, e lista longa dentro do perfil empurra a grade de casos
+   para depois do fim do mundo. */
+const PAPEL_ROTULO = { farejador: 'Farejador', protetor: 'Protetor', ong: 'ONG', admin: 'Administrador' };
+const PAPEIS_ADMIN = ['farejador', 'protetor', 'ong', 'admin'];
+
+export function abrirContas(lista, { aoMudarPapel, aoBuscar } = {}) {
+  abrir({
+    titulo: 'Contas',
+    corpo: `
+      ${campo('busca', 'Procurar pelo nome', 'autocomplete="off"')}
+      <div class="contas">
+        ${lista.length ? lista.map((c) => `
+          <article class="conta">
+            <button class="conta__nome" type="button" data-perfil="${esc(c.id)}">
+              ${esc(c.nome)}
+            </button>
+            <p class="conta__dados">
+              ${c.n_casos} ${c.n_casos === 1 ? 'caso' : 'casos'}
+              ${c.cidade ? ` · ${esc(c.cidade)}` : ''}
+              ${!c.aprovado ? ' · <b>esperando aprovação</b>' : ''}
+            </p>
+            <select class="conta__papel" data-papel-de="${esc(c.id)}"
+                    aria-label="Papel de ${esc(c.nome)}">
+              ${PAPEIS_ADMIN.map((v) => `
+                <option value="${v}" ${v === c.papel ? 'selected' : ''}>${esc(PAPEL_ROTULO[v])}</option>`).join('')}
+            </select>
+          </article>`).join('')
+        : '<p class="admin__vazio">Nenhuma conta com esse nome.</p>'}
+      </div>`,
+    aoAbrir: (f) => {
+      fecharAoIrNoPerfil(f);
+
+      // Busca conforme digita, sem botão. Espera a pessoa parar de teclar.
+      let tempo;
+      $('[name=busca]', f).addEventListener('input', (ev) => {
+        clearTimeout(tempo);
+        const termo = ev.target.value;
+        tempo = setTimeout(() => aoBuscar?.(termo), 350);
+      });
+
+      f.addEventListener('change', async (ev) => {
+        const alvo = ev.target.closest('[data-papel-de]');
+        if (!alvo) return;
+        alvo.disabled = true;
+        try {
+          await aoMudarPapel?.(alvo.dataset.papelDe, alvo.value);
+        } catch (erro) {
+          abrirRecado('Não consegui mudar', erro.message);
+          return;
+        }
+        alvo.disabled = false;
+      });
+    },
+    aoConfirmar: async () => {},
+  });
+}
+
+/* Recados do Faro. É o único lugar do app que aceita link externo — por isso o
+   campo é separado do texto, e não "cole o endereço no meio do recado":
+   endereço no meio de texto teria de virar link por varredura, e varredura de
+   link é exatamente o que o resto do app não faz de propósito. */
+export function abrirNovoRecado({ aoSalvar } = {}) {
+  abrir({
+    titulo: 'Novo recado',
+    acao: 'Publicar',
+    corpo: `
+      <p class="folha__ajuda">
+        Aparece no topo do feed, acima dos casos. Cada pessoa pode dispensar o
+        seu. <strong>Recado não manda aviso no celular</strong> — é informação,
+        não urgência.
+      </p>
+      ${campo('titulo', 'Título', 'required maxlength="90"')}
+      ${area('texto', 'O recado', 'Direto ao ponto. Quem está procurando um pet não lê parágrafo longo.')}
+      ${campo('link', 'Link (opcional)', 'type="url" inputmode="url" placeholder="https://"',
+              'Só https. O endereço de destino aparece ao lado do botão, para ninguém clicar às cegas.')}
+      ${campo('link_rotulo', 'Texto do botão', 'maxlength="40"', 'Por exemplo: "Ler o guia completo".')}`,
+    aoConfirmar: async (form) => {
+      const titulo = valor(form, 'titulo'), texto = valor(form, 'texto');
+      if (!titulo || !texto) throw new Error('Título e recado são obrigatórios.');
+      const link = valor(form, 'link');
+      if (link && !/^https:\/\//.test(link)) throw new Error('O endereço precisa começar com https://');
+      await dados.criarRecado({ titulo, texto, link, linkRotulo: valor(form, 'link_rotulo') });
+      aoSalvar?.();
+    },
+  });
+}
+
+/** Lista dos recados, para ligar, desligar e apagar. */
+export function abrirRecadosDoFaro(lista, { aoMudar: aoMexer, aoNovo } = {}) {
+  abrir({
+    titulo: 'Recados do Faro',
+    corpo: `
+      <button class="botao-fraco" type="button" data-novo-recado>Escrever um recado</button>
+      <div class="contas">
+        ${lista.length ? lista.map((r) => `
+          <article class="conta">
+            <p class="conta__nome">${esc(r.titulo)}</p>
+            <p class="conta__dados">
+              ${r.ativo ? 'no ar' : '<b>desligado</b>'}
+              ${r.link ? ` · ${esc(new URL(r.link).hostname)}` : ''}
+            </p>
+            <div class="conta__papel" style="border:0;padding:0;display:flex;gap:6px">
+              <button class="botao-fraco" type="button" style="margin:0;width:auto;padding:6px 10px"
+                      data-recado-virar="${esc(r.id)}" data-ativo="${r.ativo ? '1' : '0'}">
+                ${r.ativo ? 'Desligar' : 'Religar'}
+              </button>
+              <button class="botao-fraco" type="button" style="margin:0;width:auto;padding:6px 10px"
+                      data-recado-apagar="${esc(r.id)}">Apagar</button>
+            </div>
+          </article>`).join('')
+        : '<p class="admin__vazio">Nenhum recado ainda.</p>'}
+      </div>`,
+    aoAbrir: (f) => {
+      f.addEventListener('click', async (ev) => {
+        const novo = ev.target.closest('[data-novo-recado]');
+        if (novo) { fechar(); aoNovo?.(); return; }
+
+        const virar = ev.target.closest('[data-recado-virar]');
+        if (virar) {
+          virar.disabled = true;
+          try { await dados.desligarRecado(virar.dataset.recadoVirar, virar.dataset.ativo !== '1'); }
+          catch (erro) { abrirRecado('Não consegui', erro.message); return; }
+          aoMexer?.();
+          return;
+        }
+
+        const apagar = ev.target.closest('[data-recado-apagar]');
+        if (apagar && confirm('Apagar este recado? Não dá para desfazer.')) {
+          try { await dados.apagarRecado(apagar.dataset.recadoApagar); }
+          catch (erro) { abrirRecado('Não consegui', erro.message); return; }
+          aoMexer?.();
+        }
+      });
+    },
+    aoConfirmar: async () => {},
+  });
+}
+
 // --- publicar -----------------------------------------------------------------
 
 const TIPOS = [
@@ -380,12 +650,18 @@ export const abrirEditar    = (post, centro) => abrirCaso(centro, post);
 
 /* Publicar e editar são o mesmo formulário. A única diferença é de onde vêm os
    valores iniciais e qual função do banco recebe o resultado. */
-function abrirCaso(centro, post) {
+async function abrirCaso(centro, post) {
   if (!dados.estaLogado()) return abrirConta('entrar');
   const editando = !!post;
 
   // Num avistamento ligado a um caso, o tipo não se escolhe: ele já é o que é.
   const ehAvistamentoLigado = editando && post.post_origem_id;
+
+  /* A trava de verdade é o RLS (schema-14). Aqui é só para a opção não ficar
+     clicável e depois estourar um erro — barrar depois do esforço é pior que
+     barrar antes. */
+  const papel = await dados.meuPapel().catch(() => null);
+  const podeDoar = !!papel?.pode_doar;
 
   abrir({
     titulo: editando ? 'Editar' : 'Publicar',
@@ -396,10 +672,23 @@ function abrirCaso(centro, post) {
         ${TIPOS.map(([v, t]) => `
           <label class="tipo">
             <input type="radio" name="tipo" value="${v}"
+              ${v === 'adocao' && !podeDoar ? 'disabled' : ''}
               ${(editando ? post.tipo === v : v === 'perdido') ? 'checked' : ''}>
             <span>${esc(t)}</span>
           </label>`).join('')}
-      </div>`}
+      </div>
+      ${podeDoar ? '' : `
+      <p class="folha__ajuda">
+        <strong>A adoção é publicada por ONGs e protetores cadastrados.</strong>
+        É o que evita que um anúncio vire abandono com etiqueta.<br>
+        Se o pet está com você e você não sabe de quem é, use
+        <em>“Encontrei e está comigo”</em> — o tutor pode estar procurando agora.
+      </p>
+      <button class="botao-fraco" type="button" data-quero-doar>
+        ${papel?.papel && papel.papel !== 'farejador' && !papel.aprovado
+          ? 'Seu pedido está em análise — ver'
+          : 'Quero me cadastrar para doar'}
+      </button>`}`}
       ${fotosHTML(ehAvistamentoLigado ? 1 : 3)}
       ${campo('titulo', 'Nome do pet', 'required maxlength="60"')}
       ${escolha('especie', 'Espécie', [['cao', 'Cão'], ['gato', 'Gato'], ['outro', 'Outro']])}
@@ -414,6 +703,10 @@ function abrirCaso(centro, post) {
       ${campo('quando', 'Quando foi', 'type="datetime-local"')}`,
 
     aoAbrir: (f) => {
+      $('[data-quero-doar]', f)?.addEventListener('click', () => {
+        fechar(); abrirPedirParaDoar(papel);
+      });
+
       const jaExistem = editando
         ? (post.fotos_path || []).map((path, i) => ({ path, url: post.fotos[i] }))
         : [];
@@ -497,7 +790,11 @@ function abrirCaso(centro, post) {
         const sobraram = new Set(fotos);
         await dados.apagarFotosDoBucket((f._originais || []).filter((p) => !sobraram.has(p)));
       } else {
-        await dados.criarPost({ p_tipo: form.elements.tipo.value, ...comum });
+        /* O id volta da própria criação: é com ele que o Worker descobre quem
+           precisa saber. Editar NÃO avisa ninguém — corrigir a cor do pet não
+           é notícia para o bairro. */
+        const id = await dados.criarPost({ p_tipo: form.elements.tipo.value, ...comum });
+        dados.dispararAvisos(id);
       }
       aoMudar();
     },
@@ -589,10 +886,17 @@ const iniciaisDe = (nome) => (nome || '?').trim().split(/\s+/).slice(0, 2)
 export async function abrirAcoesDoDono(post, { aoApagar } = {}) {
   const encerrado = post.status === 'resolvido';
   const ligados = post.post_origem_id ? 0 : await dados.avistamentosLigados(post.id);
+  // Mexer no caso de outra pessoa tem de ficar dito. Um menu idêntico ao do
+  // dono, sem aviso, é o jeito mais fácil de apagar algo achando que era seu.
+  const deOutro = post.autor_id && post.autor_id !== dados.meuId();
 
   abrir({
     titulo: post.titulo,
     corpo: `
+      ${deOutro ? `<p class="folha__ajuda folha__ajuda--alerta">
+        Você está moderando o caso de <strong>${esc(post.autor_nome || 'outra pessoa')}</strong>.
+        O que você fizer aqui vale para essa pessoa.
+      </p>` : ''}
       <div class="lista-opcoes">
         <button class="opcao" type="button" data-fazer="editar">Editar</button>
         <button class="opcao" type="button" data-fazer="${encerrado ? 'reabrir' : 'resolver'}">
@@ -621,7 +925,10 @@ export async function abrirAcoesDoDono(post, { aoApagar } = {}) {
           return;
         }
 
-        if (acao === 'resolver') await dados.resolverPost(post.id);
+        if (acao === 'resolver') {
+          await dados.resolverPost(post.id);
+          dados.dispararAvisos(post.id);   // quem ajudou merece saber que acabou
+        }
         if (acao === 'reabrir')  await dados.reabrirPost(post.id);
         fechar(); aoMudar();
       });
@@ -656,7 +963,7 @@ export function abrirAvistar(post, centro) {
       const fotos = [];
       for (const arq of (f._fotos || [])) fotos.push(await dados.enviarFoto(arq));
       const quando = valor(form, 'quando');
-      await dados.criarAvistamento({
+      const idAvistamento = await dados.criarAvistamento({
         p_origem: post.id,
         p_lat: f._ponto.lat,
         p_lng: f._ponto.lng,
@@ -665,6 +972,8 @@ export function abrirAvistar(post, centro) {
         p_ocorrido_em: quando ? new Date(quando).toISOString() : null,
         p_fotos: fotos,
       });
+      // O tutor está esperando por isto. É o aviso mais importante do app.
+      dados.dispararAvisos(idAvistamento);
       aoMudar();
     },
   });

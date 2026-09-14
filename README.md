@@ -36,14 +36,24 @@ A **service_role nunca** pode ir para `web/`.
 supabase/schema-0*.sql   migrations, em ordem
 web/index.html           casca do app
 web/css/app.css          folha única, tokens no :root
-web/js/config.js         URL + chave anon do Supabase
+web/js/config.js         URL + chave anon do Supabase + chave VAPID pública
 web/js/dados.js          acesso ao Supabase (RPC, PostgREST, auth, storage)
 web/js/formularios.js    folhas de conta, publicar, avistar e raio
 web/js/mapa.js           mapa dos pets procurados
-web/js/perfil.js         perfil próprio e dos outros
-worker.js                Worker: roteia /c/<id>, o resto vai para os assets
+web/js/perfil.js         perfil próprio e dos outros (inclui o ajuste de avisos)
+web/js/pwa.js            instalar na tela de início + inscrição dos avisos
+web/sw.js                service worker: cache do app e recebimento dos avisos
+web/manifest.webmanifest nome, ícones e atalhos do app instalado
+worker.js                Worker: roteia /c/<id> e /avisar; o resto vai aos assets
 wrangler.jsonc           configuração do Cloudflare
 src/compartilhar.js      monta o HTML com as meta tags og:
+src/avisar.js            POST /avisar: decide e dispara os avisos
+src/push.js              Web Push (RFC 8291/8292) com a Web Crypto do Worker
+tools/gerar-icones.py    gera os ícones do app a partir do logo
+tools/gerar-vapid.js     gera o par de chaves dos avisos (uma vez só)
+tools/testar-push.js     prova a criptografia contra o vetor do RFC 8291
+tools/testar-papeis.js   prova as travas de papel pelos caminhos de ataque
+tools/versionar.js       carimba a MESMA versão em todo ?v= (e no cache do sw)
 web/js/app.js            feed, detalhe, rastro, mapa
 legado/app.py            o protótipo Streamlit, guardado para consulta
 legado/dados-falso.js    o adaptador de dados em memória, guardado para consulta
@@ -82,6 +92,11 @@ Um **feed**, não um painel. As decisões que tiram a cara de "app gerado":
 | `schema-10.sql` | farejadores (pessoas distintas ajudando) e `minhas_novidades` |
 | `schema-11.sql` | foto do autor no feed (`autor_avatar`) |
 | `schema-12.sql` | `meu_perfil` e `atualizar_perfil`: o dono lê e edita o próprio |
+| `schema-14.sql` | papéis (farejador/protetor/ONG/admin), allowlist de admin, políticas de moderação |
+| `schema-15.sql` | adoção só de quem responde por ela (a mensagem; a trava é o RLS do 14) |
+| `schema-16.sql` | recados do Faro + selo de papel no feed |
+| `schema-17.sql` | Reencontros + conserto de `n_reencontros` no perfil |
+| `schema-13.sql` | avisos no celular: `push_subs` ganha o opt-in de bairro, `avisos_enviados` e `avisos_pendentes` |
 | `seed-teste.sql` | 6 casos + 3 avistamentos + 3 usuários `@teste.farejo.local` |
 
 ## Rodar
@@ -284,6 +299,153 @@ O mapa inclui dois tipos, porque os dois são "pet perdido" para quem olha:
 anel laranja = procurado pelo tutor; anel azul = visto solto e ainda sem dono
 reclamando.
 
+### App instalável (PWA) e avisos no celular
+
+**Instalar.** `web/manifest.webmanifest` mais `web/sw.js` fazem o Faro virar
+ícone na tela de início. Há um convite dentro do app, dispensável de vez, que no
+Android usa o `beforeinstallprompt` do navegador e no iPhone só ensina o caminho
+(lá não existe botão — é o menu Compartilhar do Safari). Os ícones saem todos do
+logo por `tools/gerar-icones.py`; o "maskable" tem margem sobrando porque o
+Android recorta o ícone em círculo, losango ou squircle conforme o aparelho.
+
+**O service worker não pré-carrega lista nenhuma.** O site não tem build, e
+manter aqui uma lista de caminhos com `?v=` seria uma segunda fonte de verdade
+para desencontrar de `tools/versionar.js`. Ele guarda o que a pessoa de fato
+pediu. O que NUNCA é guardado: as chamadas ao Supabase — são dados vivos e
+carregam o token da sessão.
+
+> **Armadilha achada no teste:** o `+esm` do jsdelivr **não** é um pacote só. O
+> `supabase-js` puxa mais nove módulos (`auth-js`, `postgrest-js`, `realtime-js`,
+> `tslib`…). Faltando qualquer um, o app não SOBE sem rede. Por isso o jsdelivr
+> inteiro entra no cache de CDN, não só o endereço que aparece no `import`.
+
+E o service worker novo **espera**: não há `skipWaiting`. Trocar o app debaixo de
+quem está preenchendo um formulário perde o que foi digitado; a versão nova
+assume quando todas as janelas fecharem.
+
+**Avisos.** Quatro motivos, nesta ordem de valor:
+
+| motivo | quem recebe | quando |
+|---|---|---|
+| `meu_caso` | o dono do caso | alguém avistou o pet dele |
+| `ajudo` | quem compartilhou ou avistou | o caso que ajudou teve novidade |
+| `bairro` | quem optou, dentro do raio | sumiu ou apareceu um pet perto |
+| `resolvido` | quem ajudou | o caso terminou |
+
+Adoção **não** dispara alerta de bairro: acordar o bairro por uma adoção é o
+caminho mais curto para a pessoa desligar os avisos — e aí ela também não recebe
+o que importa.
+
+**Quem dispara é o app de quem publicou**, logo depois de publicar. Não há
+gatilho no banco nem fila: o evento que importa acontece na mão de alguém, e
+essa pessoa está com a rede na mão. O que vai daqui é só o id do post; **quem
+decide quem recebe é o banco** (`avisos_pendentes`), com três travas no Worker:
+o token é conferido no Supabase, quem chama tem de ser o autor, e o post tem de
+ser recente (10 min) — senão alguém varreria posts velhos e acordaria a cidade
+de novo. A repetição está travada em `avisos_enviados`, então recarregar a
+página depois de publicar não manda nada duas vezes.
+
+**A criptografia é escrita à mão** (`src/push.js`), porque as bibliotecas
+conhecidas são de Node e o Worker não tem `crypto` nativo. Ou está certa até o
+último byte, ou o celular descarta o pacote **em silêncio** — sem erro, sem log.
+Por isso `tools/testar-push.js` não confere "se parece funcionar": ele compara
+os bytes com o exemplo publicado no RFC 8291 §5.
+
+```bash
+node tools/testar-push.js
+```
+
+**No iPhone os avisos só existem com o app instalado** (iOS 16.4+). É o motivo
+técnico de o convite de instalação não ser enfeite.
+
+### Papéis, e por que são quatro
+
+| papel | vale quando | publica adoção |
+|---|---|---|
+| `farejador` | na hora | não |
+| `protetor` | depois de aprovado | sim |
+| `ong` | depois de aprovado | sim |
+| `admin` | vem da lista de e-mails | sim |
+
+O **protetor independente** existe porque a regra "só ONG publica adoção",
+sozinha, expulsaria justamente quem mais resgata na cidade — gente que tira
+ninhada da rua e não tem CNPJ. A porta é a mesma (pedido + aprovação), só muda
+como a pessoa se apresenta. Quem não pode publicar adoção vê, no lugar da
+opção, o caminho: publicar como *"Encontrei e está comigo"*, pedir cadastro, ou
+falar com uma das ONGs já aprovadas (a lista aparece ali mesmo).
+
+**Quem espera aprovação usa o app normalmente.** Só a publicação de adoção
+espera — o resto (publicar caso, avisar avistamento, compartilhar) vale desde o
+primeiro minuto. Decisão do fundador: travar tudo perderia alguém que podia
+estar ajudando hoje.
+
+### A regra da adoção tem TRÊS portas, não uma
+
+Fechar só a RPC daria a sensação de estar pronto:
+
+1. `criar_post` → a mensagem em português (`schema-15`);
+2. `POST /rest/v1/posts` direto → a política de INSERT (`schema-14`);
+3. `PATCH {"tipo":"adocao"}` num post já criado → a política de UPDATE.
+
+`node tools/testar-papeis.js` bate nas três, mais nos caminhos de escalada de
+privilégio. São 30 verificações, com sessões reais, e ele limpa o que criou.
+
+### O administrador não sai do cadastro
+
+`raw_user_meta_data` é escrito pelo **cliente**: quem se cadastra pode mandar
+`papel: "admin"` no corpo da requisição. O trigger só aceita de lá `'ong'` e
+`'protetor'` — e os dois nascem **pendentes**, então mentir não dá poder nenhum.
+`admin` vem exclusivamente da tabela `admins_email`, que é invisível pela API.
+
+O vetor mais direto, porém, não era esse: `profiles_self_update` deixava
+qualquer um dar `PATCH` na própria linha, e **RLS filtra linha, não coluna**. Com
+uma coluna `papel`, isso seria auto-promoção a administrador por uma requisição
+HTTP. O `schema-14` revoga `insert/update/delete` em `profiles` por inteiro (o
+app já só escrevia por RPC) e ainda põe um gatilho de reserva.
+
+### Privacidade da moderação
+
+O administrador **não** ganha leitura geral de telefone nem das inscrições de
+push. O WhatsApp aparece em dois lugares: na ficha de um pedido pendente — onde
+serve para conferir se a organização existe — e em `admin_contato()`, que
+**registra quem olhou** em `admin_log`. Moderar não é ler a agenda da cidade.
+
+### As três seções do topo
+
+Saíram os cinco filtros de texto: o feed já vem ordenado por urgência, e o
+filtro competia com essa ordem. No lugar, três destinos com rota própria:
+
+| aba | rota | o que mostra | área |
+|---|---|---|---|
+| Buscas | `#/` | perdido, avistado, encontrado | a que você escolheu |
+| Adoção | `#/adocao` | só adoção | a cidade toda |
+| Reencontros | `#/reencontros` | casos que terminaram bem | a cidade toda |
+
+Adoção e Reencontros varrem a cidade de propósito: em nenhuma das duas a
+distância decide, e página vazia afasta mais que caso distante.
+
+**Reencontros** é a página que faltava. O feed filtra `status='aberto'`, então
+um caso resolvido simplesmente sumia — some a prova de que o Faro funciona e o
+agradecimento a quem farejou. A ordem ali é cronológica, não por urgência:
+reencontro não pede ação, pede leitura.
+
+### Recados do Faro — o único link externo do app
+
+Tabela própria (`recados`), **não** um valor novo em `post_tipo`. Um recado não
+tem lugar no mapa (`posts.local` é NOT NULL), não entra na urgência, não vira
+"resolvido" — e onze funções vivas consultam `posts`, de modo que bastaria
+esquecer uma para um recado institucional virar alfinete no mapa ou acordar o
+bairro com push.
+
+**Recado não manda aviso no celular.** É institucional, não é urgente. Está dito
+na própria folha de publicação, porque é a primeira pergunta que aparece.
+
+Sobre o link: todo texto do app passa por `esc()` e **nunca** vira `<a>` — isso é
+proteção e não se afrouxa. O link do recado vem de uma **coluna** própria, o
+banco só aceita `https://` (constraint), o cliente reconfere com `new URL`, e o
+`<a>` sai com `rel="noopener noreferrer nofollow"` **mostrando o domínio de
+destino** ao lado do rótulo. Ninguém deve tocar num link sem saber para onde vai.
+
 ## No ar
 
 <https://petalerta-scs.faro-scs.workers.dev>
@@ -324,6 +486,21 @@ de assets do Cloudflare. O `wrangler.jsonc` diz tudo:
 
 O comando de deploy do projeto é `npx wrangler deploy`, o padrão dos Workers
 Builds. Não mexer nele.
+
+### Os dois segredos dos avisos (uma vez só, antes do primeiro deploy com push)
+
+O deploy vem do GitHub, então os segredos são cadastrados no painel da
+Cloudflare (Worker → Settings → Variables and Secrets → **Secret**) e ficam lá:
+
+| Segredo | De onde sai |
+|---|---|
+| `VAPID_PRIVADA` | `~/.config/farejo/vapid.json`, campo `privada` |
+| `SUPABASE_SERVICE_ROLE` | `~/.config/farejo/service_role.key` |
+
+Sem eles, `/avisar` responde 503 e diz que não está configurado — de propósito,
+para não deixar o app achar que avisou alguém. O par VAPID **não se troca**:
+gerar outro invalida todas as inscrições e cada aparelho teria de se reinscrever.
+A parte pública já vai versionada em `wrangler.jsonc` e `web/js/config.js`.
 
 ### Verificado em produção (13/09/2026)
 
@@ -368,17 +545,50 @@ decisão do fundador, não foi tomada.
 Quando o domínio existir: `./tools/configurar-email.sh` e o checklist de
 "Ao trocar de endereço" mais acima.
 
+### Primeiro passo depois deste trabalho
+
+**Criar a conta `melo.jeferson@hotmail.com` pelo formulário do app.** A conta
+ainda não existe, e é ela que vira administradora — o e-mail já está em
+`admins_email`, então o papel é atribuído sozinho no cadastro. Enquanto ela não
+existir, **não há nenhum administrador**: a fila de pedidos de ONG não tem quem
+decida e a seção Administração não aparece para ninguém.
+
+O servidor de e-mail embutido do Supabase manda 2 confirmações por hora — para
+uma conta, dá.
+
 ### Independentes do domínio
 
 1. Filtrar o mapa por espécie e por quão recente é o avistamento
-2. PWA: manifest, service worker, web push
-3. Faxina de fotos órfãs no bucket: a limpeza existe no front (ao editar e ao
+2. Faxina de fotos órfãs no bucket: a limpeza existe no front (ao editar e ao
    apagar), mas quem mexer no banco por fora deixa arquivo para trás
-4. Limpar os dados de teste antes de mostrar a alguém — hoje o feed tem
+3. Limpar os dados de teste antes de mostrar a alguém — hoje o feed tem
    "Pipoca (editada)", fotos de placeholder e três contas `@teste.farejo.local`
 
 ## Armadilhas encontradas, para não repetir
 
+- **`.recado` já existia.** A classe do balão de aviso do rodapé. O card novo
+  do "Recado do Faro" nasceu com o mesmo nome, herdou `position: fixed` e
+  desapareceu da tela — sem erro, sem log, sem nada. Hoje é `.recado-faro`.
+  Antes de criar classe, procurar se o nome já está tomado.
+- **`references` sem `on delete` trava exclusão de conta.** `aprovado_por`
+  nasceu assim e tornava IMPOSSÍVEL apagar um administrador que já tivesse
+  aprovado alguém. Ponteiro de auditoria leva `on delete set null`.
+- **Coluna nova em `profiles` nasce invisível.** O `schema-02` revogou o
+  `select` da tabela e devolveu coluna a coluna. Toda coluna nova precisa de
+  `grant select (nome_da_coluna)` — senão nem o front nem uma função `stable`
+  comum a enxergam.
+- **Trava de segurança grossa demais barra o caminho legítimo.** O gatilho que
+  impede auto-promoção bloqueava também o *pedido* de cadastro (a pessoa
+  mexendo no próprio papel para entrar na fila). Entrar na fila não dá poder;
+  aprovar-se é que dá — a regra tem de distinguir as duas coisas.
+- **O `+esm` do jsdelivr não é um pacote só.** O `supabase-js` puxa mais nove
+  módulos por baixo. Um cache que guarde só o endereço do `import` não faz o app
+  abrir sem rede — e a falha só aparece offline de verdade, nunca com o servidor
+  local desligado (o CDN continua no ar).
+- **Editou arquivo versionado? Carimbe.** Uma edição em `app.css` sem rodar
+  `node tools/versionar.js N` some por completo: o service worker continua
+  servindo a URL antiga, que para ele é imutável. Aconteceu no meio deste
+  trabalho e custou três telas para entender.
 - **`img { display: block }` anula o atributo `hidden`.** Uma prévia de foto
   "escondida" ocupava 438px de altura. A folha declara `[hidden] { display: none
   !important }` logo abaixo da regra de imagem.

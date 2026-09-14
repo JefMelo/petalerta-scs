@@ -4,8 +4,14 @@
    de ações: quem é dono vê "Sair"; as ações de cada caso ficam no detalhe.
    ============================================================================= */
 
-import { ORIGEM, perfilPublico, postsDoPerfil, meuId, sair, meuPerfil } from './dados.js?v=32';
-import { abrirEditarPerfil } from './formularios.js?v=32';
+import { ORIGEM, perfilPublico, postsDoPerfil, meuId, sair, meuPerfil,
+         meuPapel, adminPendentes, adminDecidir, adminContas, adminMudarPapel,
+         adminContato, adminRecados } from './dados.js?v=44';
+import { abrirEditarPerfil, abrirRecado,
+         abrirContas as abrirFolhaContas,
+         abrirNovoRecado, abrirRecadosDoFaro } from './formularios.js?v=44';
+import * as pwa from './pwa.js?v=44';
+import { RAIO_AVISO_PADRAO } from './pwa.js?v=44';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) =>
@@ -16,6 +22,11 @@ let filtro = 'tudo';
 let cache = [];
 
 const SELO = { perdido: 'Perdido', avistado: 'Avistado', encontrado: 'Encontrado', adocao: 'Adoção' };
+
+/* A cidade inteira NÃO entra aqui de propósito: alerta municipal não é alerta
+   de bairro, é spam com outro nome — e quem o recebe desliga os avisos, e aí
+   perde também o aviso do próprio pet, que é a razão de tudo isto existir. */
+const RAIOS_AVISO = [[1000, '1 km'], [3000, '3 km'], [5000, '5 km']];
 
 const iniciais = (nome) => (nome || '?').trim().split(/\s+/).slice(0, 2)
   .map((n) => n[0]).join('').toUpperCase();
@@ -125,6 +136,39 @@ export async function abrir(id) {
     </div>
 
     ${souEu ? `
+      <section class="avisos" id="avisos-bloco" hidden>
+        <div class="avisos__linha">
+          <p class="avisos__texto">
+            <strong>Avisos no celular</strong>
+            <span data-avisos-nota></span>
+          </p>
+          <button class="interruptor" type="button" role="switch" aria-checked="false"
+                  data-acao="avisos" aria-label="Receber avisos no celular"><i></i></button>
+        </div>
+        <div class="avisos__linha avisos__linha--filha" data-bairro hidden>
+          <p class="avisos__texto">
+            <strong>Alerta de bairro</strong>
+            <span>Quando somem pets perto de onde você está.</span>
+          </p>
+          <button class="interruptor" type="button" role="switch" aria-checked="true"
+                  data-acao="bairro" aria-label="Alerta de bairro"><i></i></button>
+        </div>
+        <div class="avisos__linha avisos__linha--filha" data-area hidden>
+          <p class="avisos__texto">
+            <strong>Área de aviso</strong>
+            <span>Cada aparelho tem a sua — este mede de onde você estava na
+                  última vez que abriu o Faro.</span>
+          </p>
+          <div class="segmentos" role="radiogroup" aria-label="Área de aviso">
+            ${RAIOS_AVISO.map(([m, r]) => `
+              <button type="button" role="radio" aria-checked="false"
+                      data-area-raio="${m}">${r}</button>`).join('')}
+          </div>
+        </div>
+      </section>
+
+      <section class="admin" id="admin-bloco" hidden></section>
+
       <div class="perfil-acoes">
         <button class="botao-fraco" type="button" data-acao="editar-perfil">Editar perfil</button>
         <button class="botao-fraco" type="button" data-acao="sair">Sair da conta</button>
@@ -143,26 +187,202 @@ export async function abrir(id) {
 
     <div id="perfil-grade"></div>`;
 
-  $('#perfil-corpo').addEventListener('click', (ev) => {
-    const aba = ev.target.closest('[data-filtro]');
-    if (aba) {
-      filtro = aba.dataset.filtro;
-      $('#perfil-corpo').querySelectorAll('[data-filtro]').forEach((b) =>
-        b.setAttribute('aria-pressed', b === aba));
-      pintarGrade();
-      return;
-    }
-    if (ev.target.closest('[data-acao="editar-perfil"]')) {
-      meuPerfil().then((eu) => abrirEditarPerfil(eu, { aoSalvar: recarregar }));
-      return;
-    }
-    if (ev.target.closest('[data-acao="sair"]')) {
-      if (confirm('Sair da conta?')) sair().then(() => { fechar(); location.hash = '#/'; });
-    }
-  });
-
   pintarGrade();
   $('#perfil-tela').scrollTop = 0;
+  if (souEu) { pintarAvisos(); pintarAdmin(); }
+}
+
+// --- administração ------------------------------------------------------------
+
+const PAPEL_ROTULO = { farejador: 'Farejador', protetor: 'Protetor', ong: 'ONG', admin: 'Administrador' };
+
+/* Só aparece para quem é administrador, e a conferência de verdade está no
+   servidor: toda RPC admin_* recusa quem não é, mesmo que a tela mostre. */
+async function pintarAdmin() {
+  const bloco = $('#admin-bloco');
+  if (!bloco) return;
+
+  const papel = await meuPapel().catch(() => null);
+  if (!papel?.eh_admin) { bloco.hidden = true; return; }
+
+  const pendentes = await adminPendentes().catch(() => []);
+  bloco.hidden = false;
+  bloco.innerHTML = `
+    <h3 class="admin__titulo">Administração</h3>
+
+    <div class="admin__fila">
+      <p class="admin__rotulo">
+        Pedidos para publicar adoção
+        ${pendentes.length ? `<b>${pendentes.length}</b>` : ''}
+      </p>
+      ${pendentes.length ? pendentes.map(pedidoHTML).join('')
+        : '<p class="admin__vazio">Nenhum pedido esperando.</p>'}
+    </div>
+
+    <div class="admin__acoes">
+      <button class="botao-fraco" type="button" data-admin="contas">Contas</button>
+      <button class="botao-fraco" type="button" data-admin="recados">Recados do Faro</button>
+    </div>`;
+}
+
+/* A ficha traz o que decide: quem é, o que diz fazer e como falar com a pessoa.
+   O telefone aparece AQUI e só aqui — é com ele que se confere se a
+   organização existe de verdade, e o acesso fica registrado no banco. */
+function pedidoHTML(p) {
+  return `
+  <article class="pedido">
+    <header class="pedido__topo">
+      <button class="pedido__nome" type="button" data-perfil="${esc(p.id)}">${esc(p.nome)}</button>
+      <span class="etiqueta" data-papel="${esc(p.papel)}">${esc(PAPEL_ROTULO[p.papel] || p.papel)}</span>
+    </header>
+    ${p.cidade ? `<p class="pedido__onde">${esc(p.cidade)}</p>` : ''}
+    <p class="pedido__sobre">${esc(p.sobre || 'Não contou nada — vale perguntar antes de aprovar.')}</p>
+    <div class="pedido__acoes">
+      <button class="botao-fraco" type="button" data-decidir="sim" data-id="${esc(p.id)}">Aprovar</button>
+      <button class="botao-fraco" type="button" data-decidir="nao" data-id="${esc(p.id)}">Recusar</button>
+      ${p.whatsapp ? `<a class="elo" href="https://wa.me/55${esc(p.whatsapp)}"
+           target="_blank" rel="noopener noreferrer">Falar antes</a>` : ''}
+    </div>
+  </article>`;
+}
+
+async function decidir(botao) {
+  const aprovar = botao.dataset.decidir === 'sim';
+  const id = botao.dataset.id;
+  if (!aprovar && !confirm('Recusar? A conta continua valendo como farejador.')) return;
+
+  botao.disabled = true;
+  try {
+    await adminDecidir(id, aprovar);
+  } catch (erro) {
+    abrirRecado('Não consegui decidir', erro.message);
+  }
+  await pintarAdmin();
+}
+
+async function verRecados() {
+  const lista = await adminRecados().catch((erro) => {
+    abrirRecado('Não consegui listar', erro.message);
+    return [];
+  });
+  abrirRecadosDoFaro(lista, {
+    aoMudar: verRecados,
+    aoNovo: () => abrirNovoRecado({ aoSalvar: verRecados }),
+  });
+}
+
+/** Abre (ou reabre, depois de uma busca) a folha de contas. */
+async function verContas(busca = null) {
+  const lista = await adminContas(busca).catch((erro) => {
+    abrirRecado('Não consegui listar', erro.message);
+    return [];
+  });
+  abrirFolhaContas(lista, {
+    aoBuscar: (termo) => verContas(termo || null),
+    aoMudarPapel: async (id, papel) => {
+      await adminMudarPapel(id, papel);
+      pintarAdmin();            // um pedido a menos na fila, talvez
+    },
+  });
+}
+
+// --- avisos no celular --------------------------------------------------------
+
+/* Um interruptor que mente é pior que não existir: ele fica onde o APARELHO
+   está de fato, conferido no navegador e no banco, e não onde a última ação
+   do usuário sugeriu. */
+async function pintarAvisos() {
+  const bloco = $('#avisos-bloco');
+  if (!bloco) return;
+
+  const e = await pwa.estadoDosAvisos().catch(() => null);
+  if (!e) return;
+  bloco.hidden = false;
+
+  const chave  = bloco.querySelector('[data-acao="avisos"]');
+  const nota   = bloco.querySelector('[data-avisos-nota]');
+  const bairro = bloco.querySelector('[data-bairro]');
+
+  if (!e.suportado) {
+    chave.disabled = true;
+    chave.setAttribute('aria-checked', 'false');
+    nota.textContent = e.motivo;
+    bairro.hidden = true;
+    return;
+  }
+
+  if (e.bloqueado) {
+    chave.disabled = true;
+    chave.setAttribute('aria-checked', 'false');
+    nota.textContent = 'Bloqueado neste navegador. Para reverter, é nas configurações do site.';
+    bairro.hidden = true;
+    return;
+  }
+
+  chave.disabled = false;
+  chave.setAttribute('aria-checked', String(!!e.ligado));
+  nota.textContent = e.ligado
+    ? 'Quando avistarem um pet seu, ou um caso que você ajuda andar.'
+    : 'Saber na hora em que alguém vir o seu pet.';
+
+  bairro.hidden = !e.ligado;
+  bairro.querySelector('.interruptor').setAttribute('aria-checked', String(!!e.querBairro));
+
+  /* O raio já vinha do banco em estadoDosAvisos() e a tela o IGNORAVA — o texto
+     dizia "3 km" fixo mesmo para quem tivesse outro valor gravado. */
+  const area = bloco.querySelector('[data-area]');
+  area.hidden = !(e.ligado && e.querBairro);
+  area.querySelectorAll('[data-area-raio]').forEach((b) => {
+    b.setAttribute('aria-checked', String(Number(b.dataset.areaRaio) === (e.raioM || RAIO_AVISO_PADRAO)));
+  });
+}
+
+/** O raio que está marcado na tela; o padrão quando ainda não há nenhum. */
+function raioMarcado() {
+  const m = $('#avisos-bloco [data-area-raio][aria-checked="true"]');
+  return m ? Number(m.dataset.areaRaio) : RAIO_AVISO_PADRAO;
+}
+
+/* Mudar a área grava na hora. Enquanto o banco não responde, os três botões
+   ficam travados — senão dois toques rápidos mandam dois valores e o último a
+   chegar vence, que não é necessariamente o último tocado. */
+async function mudarArea(botao) {
+  const novo = Number(botao.dataset.areaRaio);
+  const grupo = botao.closest('.segmentos');
+  grupo.querySelectorAll('button').forEach((b) => { b.disabled = true; });
+
+  try {
+    await pwa.mudarBairro(true, novo);
+  } catch (erro) {
+    abrirRecado('Não consegui mudar a área', erro.message);
+  }
+  grupo.querySelectorAll('button').forEach((b) => { b.disabled = false; });
+  await pintarAvisos();
+}
+
+async function virarChave(botao) {
+  const ligado = botao.getAttribute('aria-checked') === 'true';
+  botao.disabled = true;
+
+  try {
+    if (botao.dataset.acao === 'bairro') {
+      await pwa.mudarBairro(!ligado, raioMarcado());
+    } else if (ligado) {
+      await pwa.desligarAvisos();
+    } else {
+      const r = await pwa.ligarAvisos({ raioM: raioMarcado() });
+      if (!r.ok && r.motivo === 'bloqueado') {
+        abrirRecado('Avisos bloqueados',
+          'Este navegador já tinha recusado os avisos do Faro. Dá para reverter nas '
+          + 'configurações do site, no cadeado ao lado do endereço.');
+      }
+    }
+  } catch (erro) {
+    abrirRecado('Não consegui mudar isso', erro.message);
+  }
+
+  botao.disabled = false;
+  await pintarAvisos();
 }
 
 export function fechar() {
@@ -178,3 +398,45 @@ export const perfilAberto = () => idAtual;
 export async function recarregar() {
   if (idAtual) await abrir(idAtual);
 }
+
+// --- cliques ------------------------------------------------------------------
+
+/* UM ouvinte, no documento, registrado uma vez quando o módulo carrega.
+   Antes ele era registrado dentro de abrir() — e como recarregar() chama
+   abrir() de novo, eles se acumulavam: depois de N aberturas do perfil, um
+   toque em "Sair" empilhava N confirmações, e um toque numa ação de
+   administrador a executaria N vezes. Um `addEventListener` dentro de uma
+   função que roda mais de uma vez é sempre isto. */
+document.addEventListener('click', (ev) => {
+  if (!ev.target.closest('#perfil-corpo')) return;
+
+  const aba = ev.target.closest('[data-filtro]');
+  if (aba) {
+    filtro = aba.dataset.filtro;
+    $('#perfil-corpo').querySelectorAll('[data-filtro]').forEach((b) =>
+      b.setAttribute('aria-pressed', b === aba));
+    pintarGrade();
+    return;
+  }
+
+  if (ev.target.closest('[data-acao="editar-perfil"]')) {
+    meuPerfil().then((eu) => abrirEditarPerfil(eu, { aoSalvar: recarregar }));
+    return;
+  }
+
+  const chave = ev.target.closest('[data-acao="avisos"],[data-acao="bairro"]');
+  if (chave) { virarChave(chave); return; }
+
+  const area = ev.target.closest('[data-area-raio]');
+  if (area) { mudarArea(area); return; }
+
+  const decisao = ev.target.closest('[data-decidir]');
+  if (decisao) { decidir(decisao); return; }
+
+  if (ev.target.closest('[data-admin="contas"]'))  { verContas(); return; }
+  if (ev.target.closest('[data-admin="recados"]')) { verRecados(); return; }
+
+  if (ev.target.closest('[data-acao="sair"]')) {
+    if (confirm('Sair da conta?')) sair().then(() => { fechar(); location.hash = '#/'; });
+  }
+});

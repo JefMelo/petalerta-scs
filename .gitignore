@@ -3,3 +3,9 @@
 node_modules/
 dist/
 *.log
+
+# Segredos do wrangler dev (chave de serviço, VAPID privada). Nunca no git.
+.dev.vars
+
+# Cache local do wrangler dev.
+.wrangler/

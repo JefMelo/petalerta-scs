@@ -160,6 +160,47 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 
 /* --- FILTROS: aba sublinhada, não fila de pílulas ---------------------------- */
 
+/* Três seções, cada uma com ícone e palavra. Herda o sublinhado âmbar que
+   `.filtros` já usava — o estado ativo continua sendo a mesma linguagem, só
+   mudou o que está sendo escolhido: destino, não filtro. */
+.abas {
+  max-width: var(--coluna);
+  margin: 0 auto;
+  padding: 0 16px;
+  display: flex;
+}
+.abas button {
+  flex: 1;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 4px 0 8px;
+  color: var(--tinta-2);
+  border-bottom: 2px solid transparent;
+}
+.abas svg { width: 21px; height: 21px; }
+.abas span { font-size: .72rem; font-weight: 600; }
+.abas button:hover { color: var(--tinta); }
+.abas [aria-current="page"] {
+  color: var(--tinta);
+  border-bottom-color: var(--perdido);
+}
+.abas [aria-current="page"] span { font-weight: 750; }
+.abas [aria-current="page"] svg { stroke-width: 2.3; }
+
+/* Fita do reencontro: a linha que só esta aba tem. Verde do "encontrado",
+   que já é a cor de desfecho bom na casa. */
+/* O selo "Perdido" na foto contradiz a fita verde logo abaixo: o caso ACABOU.
+   A fita é que conta a história aqui. */
+.reencontro .selo { display: none; }
+
+.reencontro__fita {
+  display: flex; align-items: center; gap: 6px;
+  margin: 0 0 3px;
+  font-size: .88rem; font-weight: 700; color: var(--encontrado);
+}
+.reencontro__fita svg { width: 16px; height: 16px; flex: none; }
+.reencontro .legenda__quando { display: inline; }
+.reencontro .farejadores { margin-left: 0; display: inline-flex; }
+
 .filtros {
   max-width: var(--coluna);
   margin: 0 auto;
@@ -432,6 +473,34 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 }
 .tipo input:checked + span { border-color: var(--tinta); background: var(--tinta); color: var(--papel); }
 .tipo input:focus-visible + span { outline: 2px solid var(--acento); outline-offset: 2px; }
+
+/* Tipo de conta, no cadastro. Empilhado e não em grade como .tipos: cada
+   opção carrega uma frase explicando o que muda, e frase não cabe em pílula. */
+.papeis { display: flex; flex-direction: column; gap: 8px; }
+
+.papel input { position: absolute; opacity: 0; width: 0; height: 0; }
+.papel__corpo {
+  display: block;
+  padding: 11px 13px;
+  border: 1px solid var(--fio);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.papel__corpo strong { display: block; font-size: .87rem; font-weight: 650; color: var(--tinta); }
+.papel__corpo em { display: block; margin-top: 2px; font-style: normal;
+                   font-size: .78rem; line-height: 1.35; color: var(--tinta-2); }
+.papel input:checked + .papel__corpo { border-color: var(--tinta); background: var(--toque); }
+.papel input:checked + .papel__corpo strong { font-weight: 750; }
+.papel input:focus-visible + .papel__corpo { outline: 2px solid var(--acento); outline-offset: 2px; }
+
+/* Opção desligada: continua visível de propósito. Sumir com "Quero doar" faria
+   a pessoa achar que o app não serve para isso; mostrar desbotado e explicar o
+   porquê é o que a leva ao caminho certo. */
+.tipo input:disabled + span {
+  opacity: .45;
+  cursor: default;
+  border-style: dashed;
+}
 
 /* Seletor de fotos: lado a lado, com a capa marcada. */
 .fotos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
@@ -816,6 +885,226 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .perfil-id { padding: 8px 16px 0; }
 .perfil-id strong { display: block; font-size: .95rem; }
 .perfil-id span { font-size: .82rem; color: var(--tinta-2); }
+
+/* Avisos no celular. Fica ACIMA das ações do perfil de propósito: é ajuste de
+   como o app fala com a pessoa, não uma ação de uma vez só. */
+.avisos {
+  margin: 14px 16px 0;
+  border: 1px solid var(--fio);
+  border-radius: 10px;
+}
+
+.avisos__linha {
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px 14px;
+}
+/* A do bairro é filha da de cima: sem os avisos ligados ela não existe. */
+.avisos__linha--filha { border-top: 1px solid var(--fio); padding-left: 26px; }
+.avisos__linha--filha[hidden] { display: none; }
+
+/* Três valores lado a lado, um marcado. Segmentado e não lista: são poucos e
+   a escolha é uma comparação, não uma navegação. */
+.segmentos {
+  flex: none;
+  display: flex;
+  border: 1px solid var(--fio);
+  border-radius: 9px;
+  overflow: hidden;
+}
+.segmentos button {
+  padding: 7px 10px;
+  font-size: .76rem; font-weight: 600;
+  color: var(--tinta-2);
+  border-left: 1px solid var(--fio);
+}
+.segmentos button:first-child { border-left: 0; }
+.segmentos button:hover:not([aria-checked="true"]) { background: var(--toque); color: var(--tinta); }
+.segmentos [aria-checked="true"] { background: var(--tinta); color: var(--papel); font-weight: 750; }
+.segmentos button:disabled { opacity: .5; cursor: default; }
+
+.avisos__texto { margin: 0; flex: 1; font-size: .78rem; color: var(--tinta-2); }
+.avisos__texto strong { display: block; font-size: .88rem; color: var(--tinta); font-weight: 650; }
+
+/* Interruptor. O estado mora no aria-checked — o que o leitor de tela anuncia
+   e o que o CSS pinta são a mesma coisa, e não podem discordar. */
+.interruptor {
+  flex: none;
+  width: 44px; height: 26px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--fio);
+  transition: background .18s ease;
+}
+.interruptor i {
+  display: block;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--papel);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .22);
+  transition: transform .18s ease;
+}
+.interruptor[aria-checked="true"] { background: var(--perdido); }
+.interruptor[aria-checked="true"] i { transform: translateX(18px); }
+.interruptor:disabled { opacity: .45; cursor: default; }
+
+@media (prefers-reduced-motion: reduce) {
+  .interruptor, .interruptor i { transition: none; }
+}
+
+/* =============================================================================
+   RECADO DO FARO
+   ATENÇÃO AO NOME: a classe `.recado` JÁ EXISTE — é o balão flutuante de aviso
+   do rodapé (lá embaixo, ~linha 1240). Usar o mesmo nome aqui fez o card
+   herdar `position: fixed` e sumir da tela sem erro nenhum, em silêncio.
+   Daí `.recado-faro`.
+
+   Não é um caso e não pode parecer um. Sem foto sangrando, sem selo de tipo,
+   sem distância, sem ações. O que o distingue é estrutural, não só a cor:
+   fundo escuro da marca, o símbolo no lugar do avatar, e um rótulo dizendo o
+   que é.
+   ============================================================================= */
+.recado-faro {
+  max-width: var(--coluna);
+  margin: 0 auto;
+  padding: 14px 16px 16px;
+  background: var(--adocao);            /* azul-escuro institucional dos tokens */
+  color: #EDF1F4;
+  border-bottom: 1px solid var(--fio);
+}
+
+.recado-faro__marca { display: flex; align-items: center; gap: 8px; }
+.recado-faro__marca img { width: 18px; height: auto; filter: brightness(0) invert(1); opacity: .9; }
+.recado-faro__marca span {
+  flex: 1;
+  font-size: .68rem; font-weight: 750; letter-spacing: .05em;
+  text-transform: uppercase; color: #9FB3C2;
+}
+.recado-faro__fechar {
+  width: 26px; height: 26px;
+  display: grid; place-items: center;
+  border-radius: 50%; color: #9FB3C2;
+}
+.recado-faro__fechar svg { width: 15px; height: 15px; }
+.recado-faro__fechar:hover { background: rgba(255,255,255,.1); color: #fff; }
+
+.recado-faro__titulo { margin: 9px 0 0; font-size: 1rem; font-weight: 700; color: #fff; }
+.recado-faro__texto  { margin: 5px 0 0; font-size: .86rem; line-height: 1.5; color: #D3DDE4; }
+
+/* O ÚNICO link do app. Mostra o domínio de destino ao lado do rótulo: ninguém
+   deve tocar num link sem saber para onde vai. */
+.recado-faro__elo {
+  display: inline-flex; align-items: baseline; gap: 7px;
+  margin-top: 11px; padding: 8px 13px;
+  border-radius: 999px;
+  background: var(--perdido); color: var(--tinta);
+  font-size: .82rem; font-weight: 700;
+  text-decoration: none;
+}
+.recado-faro__elo em { font-style: normal; font-weight: 500; font-size: .72rem; opacity: .75; }
+.recado-faro__elo:hover { background: #E9A03A; }
+
+/* O selo de papel cabe dentro da linha do nome, sem empurrar o resto. */
+.post__autor .etiqueta { margin-left: 6px; vertical-align: 1px; }
+
+/* Aviso dentro de uma folha: o fundo âmbar claro do convite, que já é a cor
+   de "preste atenção" na casa. */
+.folha__ajuda--alerta {
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: #FFF9F4;
+  border: 1px solid #F0DCC6;
+  color: var(--tinta-2);
+}
+.folha__ajuda--alerta strong { color: var(--tinta); }
+
+/* =============================================================================
+   ADMINISTRAÇÃO
+   Mora dentro do perfil, e só do próprio. Fica visualmente à parte — borda
+   escura em vez da cinza dos outros blocos — porque é poder sobre a conta dos
+   outros, e isso não deve parecer mais um ajuste.
+   ============================================================================= */
+.admin {
+  margin: 14px 16px 0;
+  padding: 13px 14px 12px;
+  border: 1px solid var(--tinta);
+  border-radius: 10px;
+}
+.admin[hidden] { display: none; }
+
+.admin__titulo { margin: 0 0 10px; font-size: .82rem; font-weight: 750; color: var(--tinta); }
+
+.admin__rotulo {
+  margin: 0 0 8px;
+  display: flex; align-items: center; gap: 7px;
+  font-size: .78rem; color: var(--tinta-2);
+}
+.admin__rotulo b {
+  min-width: 18px; padding: 0 5px;
+  border-radius: 999px;
+  background: var(--perdido); color: var(--tinta);
+  font-size: .68rem; font-weight: 800; line-height: 17px; text-align: center;
+}
+
+.admin__acoes { display: flex; gap: 8px; }
+.admin__acoes .botao-fraco { margin: 0; flex: 1; }
+
+.admin__vazio { margin: 0 0 10px; font-size: .8rem; color: var(--tinta-3); }
+
+/* Ficha de um pedido. Tem de caber a decisão inteira: quem é, o que diz fazer,
+   e como falar com a pessoa antes de decidir. */
+.pedido {
+  padding: 11px 0;
+  border-top: 1px solid var(--fio);
+}
+.pedido:first-of-type { border-top: 0; padding-top: 0; }
+
+.pedido__topo { display: flex; align-items: center; gap: 8px; }
+.pedido__nome { font-size: .88rem; font-weight: 650; color: var(--tinta); text-align: left; }
+.pedido__nome:hover { text-decoration: underline; }
+.pedido__onde  { margin: 1px 0 0; font-size: .76rem; color: var(--tinta-2); }
+.pedido__sobre {
+  margin: 7px 0 0;
+  font-size: .81rem; line-height: 1.45; color: var(--tinta-2);
+}
+.pedido__acoes { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.pedido__acoes .botao-fraco { margin: 0; width: auto; padding: 7px 14px; }
+
+/* Etiqueta de papel. Aparece no pedido e ao lado do nome de quem publica
+   adoção — é o que dá sentido à restrição aos olhos de quem lê o feed. */
+.etiqueta {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--toque);
+  color: var(--tinta-2);
+  font-size: .66rem; font-weight: 750;
+  white-space: nowrap;
+}
+.etiqueta[data-papel="ong"]      { background: #E7EEF4; color: #10496B; }
+.etiqueta[data-papel="protetor"] { background: #E6F1EB; color: #0B5C3E; }
+.etiqueta[data-papel="admin"]    { background: var(--tinta); color: var(--papel); }
+
+/* Lista de contas, na folha. */
+.contas { display: flex; flex-direction: column; }
+.conta {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 10px;
+  align-items: center;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--fio);
+}
+.conta__nome  { grid-column: 1; font-size: .87rem; font-weight: 600; color: var(--tinta); text-align: left; }
+.conta__nome:hover { text-decoration: underline; }
+.conta__dados { grid-column: 1; margin: 0; font-size: .75rem; color: var(--tinta-2); }
+.conta__dados b { color: var(--acento); font-weight: 700; }
+.conta__papel {
+  grid-column: 2; grid-row: 1 / span 2;
+  padding: 7px 8px;
+  border: 1px solid var(--fio); border-radius: 8px;
+  background: var(--papel);
+  font: inherit; font-size: .78rem;
+}
+.conta__papel:disabled { opacity: .5; }
 
 .perfil-acoes { padding: 14px 16px 4px; display: flex; gap: 8px; }
 .perfil-acoes .botao-fraco { margin: 0; flex: 1; }

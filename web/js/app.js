@@ -2,21 +2,50 @@
    Faro — interface
    ============================================================================= */
 
-import { ORIGEM, feedPorRaio, postPorId, rastroDoPost, contatoDoPost,
+import { ORIGEM, feedPorRaio, reencontros, postPorId, rastroDoPost, contatoDoPost,
          aoMudarSessao, estaLogado, meuId, meuNome,
          aplicarOrigem, localGuardado, permissaoDeLocal, adotarMinhaLocalizacao,
          conviteDispensado, dispensarConvite,
          registrarCompartilhamento, minhasNovidades,
          novidadesVistasEm, marcarNovidadesVistas, CENTRO,
-         aoRecuperarSenha } from './dados.js?v=32';
-import * as form from './formularios.js?v=32';
-import * as mapaTela from './mapa.js?v=32';
-import * as perfilTela from './perfil.js?v=32';
+         aoRecuperarSenha, meuPapel, recadosAtivos, recadosLidos,
+         marcarRecadoLido } from './dados.js?v=44';
+import * as form from './formularios.js?v=44';
+import * as mapaTela from './mapa.js?v=44';
+import * as perfilTela from './perfil.js?v=44';
+import * as pwa from './pwa.js?v=44';
 
 // MARCA — nome de trabalho. Trocar aqui e em .marca no CSS/HTML. -------------
 export const MARCA = { nome: 'Faro', cidade: 'Santa Cruz do Sul' };
 
-const estado = { raioM: 3000, tipo: 'todos' };
+/* Três destinos, não um filtro. `rotear()` é a ÚNICA coisa que muda `aba` —
+   antes, `tipo` era mutável por clique solto, e um toque na legenda de um post
+   trocava o filtro do feed em silêncio (o `<article class="post" data-tipo>`
+   casava com o mesmo seletor do delegador). */
+const ABAS = {
+  buscas: {
+    hash: '#/', rotulo: 'Buscas',
+    tipos: ['perdido', 'avistado', 'encontrado'],
+  },
+  adocao: {
+    hash: '#/adocao', rotulo: 'Adoção',
+    tipos: ['adocao'],
+    // Adotar não é urgência de quarteirão, e página vazia afasta mais que
+    // caso distante. Estas duas abas varrem a cidade inteira.
+    raio: 20000,
+  },
+  reencontros: {
+    hash: '#/reencontros', rotulo: 'Reencontros',
+    tipos: null,                                  // função própria
+    raio: 20000,
+  },
+};
+
+const estado = { raioM: 3000, aba: 'buscas' };
+
+/* Se ESTA conta modera. Só muda o que a tela oferece — a autorização de
+   verdade está no RLS e nas RPCs, que recusam mesmo com o botão na mão. */
+let souAdmin = false;
 
 const $  = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -62,6 +91,11 @@ const fmtData = (iso) => new Date(iso).toLocaleString('pt-BR',
   { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
 const SELO    = { perdido: 'Perdido', avistado: 'Avistado', encontrado: 'Encontrado', adocao: 'Adoção' };
+
+/* Sem isto, a regra "só ONG publica adoção" é invisível: some uma opção do
+   formulário e nada aparece em troca. O selo é o que a explica ao leitor.
+   Farejador não tem selo — o normal não precisa de etiqueta. */
+const SELO_PAPEL = { ong: 'ONG', protetor: 'Protetor', admin: 'Faro' };
 const ESPECIE = { cao: 'cão', gato: 'gato', outro: 'pet' };
 const PORTE   = { pequeno: 'porte pequeno', medio: 'porte médio', grande: 'porte grande' };
 const SEXO    = { macho: 'macho', femea: 'fêmea', desconhecido: '' };
@@ -196,14 +230,20 @@ function avatarHTML(nome, foto, classe = 'avatar') {
 
 /* Quem publicou é um link para o perfil. O "..." só aparece para o dono. */
 function cabecalhoHTML(p, comMenu = false) {
-  const dono = comMenu && p.autor_id && p.autor_id === meuId();
+  // O administrador vê o mesmo "..." em qualquer caso: um caminho só, o do dono,
+  // em vez de uma segunda porta de moderação para manter em dia.
+  const dono = comMenu && ((p.autor_id && p.autor_id === meuId()) || souAdmin);
   return `
     <header class="post__quem">
       <button class="post__autor-link" type="button" data-perfil="${p.autor_id || ''}"
               aria-label="Ver o perfil de ${esc(p.autor_nome)}">
         ${avatarHTML(p.autor_nome, p.autor_avatar)}
         <span class="post__id">
-          <span class="post__autor">${esc(p.autor_nome)}</span>
+          <span class="post__autor">
+            ${esc(p.autor_nome)}
+            ${SELO_PAPEL[p.autor_papel] ? `<span class="etiqueta" data-papel="${p.autor_papel}"
+              >${SELO_PAPEL[p.autor_papel]}</span>` : ''}
+          </span>
           <span class="post__local">${esc(p.endereco || MARCA.cidade)}</span>
         </span>
       </button>
@@ -279,15 +319,109 @@ function postHTML(p) {
   </article>`;
 }
 
+/* O ÚNICO link clicável do app.
+   Todo texto de caso passa por esc() e nunca vira `<a>` — isso é proteção, não
+   descuido, e não se afrouxa. Aqui o endereço vem de uma COLUNA própria, já
+   barrado no banco a https, e ainda assim é reconferido: `new URL` rejeita
+   lixo, e o protocolo é testado à mão porque a constraint pode um dia mudar. */
+function linkSeguro(url) {
+  try {
+    const u = new URL(url);
+    return u.protocol === 'https:' ? u : null;
+  } catch { return null; }
+}
+
+/* Não é um `.post`: sem avatar, sem distância, sem selo de tipo, sem ações de
+   farejador. Um card que se parece com caso e não se comporta como caso é pior
+   que um aviso assumidamente diferente. */
+function recadoHTML(r) {
+  const u = linkSeguro(r.link || '');
+  return `
+  <article class="recado-faro">
+    <div class="recado-faro__marca">
+      <img src="img/faro-marca.png" alt="" width="600" height="668">
+      <span>Recado do Faro</span>
+      <button class="recado-faro__fechar" type="button" data-recado-fechar="${esc(r.id)}"
+              aria-label="Dispensar este recado">
+        ${svg('<path d="M18 6 6 18M6 6l12 12"/>')}
+      </button>
+    </div>
+    <h2 class="recado-faro__titulo">${esc(r.titulo)}</h2>
+    <p class="recado-faro__texto">${esc(r.texto)}</p>
+    ${u ? `<a class="recado-faro__elo" href="${esc(u.href)}"
+              target="_blank" rel="noopener noreferrer nofollow">
+             ${esc(r.link_rotulo || u.hostname)}
+             <em>${esc(u.hostname)}</em>
+           </a>` : ''}
+  </article>`;
+}
+
+async function pintarRecados() {
+  // Nunca derruba o feed: se falhar, simplesmente não há recado.
+  const lidos = recadosLidos();
+  const lista = (await recadosAtivos()).filter((r) => !lidos.has(r.id));
+  return lista.map(recadoHTML).join('');
+}
+
+/* O card que fecha o ciclo. Sem distância, sem botão de avistar, sem "falar
+   com o tutor" — não há nada a fazer, e oferecer ação seria falso. O que ele
+   mostra é o que a pessoa quer saber: quanto tempo o pet ficou fora e quantos
+   farejadores ajudaram. */
+function reencontroHTML(p) {
+  const dias = Math.max(0, Math.round(p.dias_fora || 0));
+  const tempo = dias === 0 ? 'no mesmo dia'
+    : dias === 1 ? 'depois de 1 dia'
+    : `depois de ${dias} dias`;
+
+  const ajuda = p.n_farejadores > 0
+    ? `<span class="farejadores">${IC_PATA}
+         <b>${p.n_farejadores}</b> ${p.n_farejadores === 1 ? 'farejador ajudou' : 'farejadores ajudaram'}
+       </span>`
+    : '';
+
+  return `
+  <article class="post reencontro" data-tipo="${p.tipo}">
+    ${cabecalhoHTML(p)}
+    ${fotoHTML({ ...p, tipo: p.tipo })}
+    <div class="legenda">
+      <p class="reencontro__fita">
+        ${svg('<path d="M20 6 9 17l-5-5"/>')}
+        ${esc(comArtigo(p))} voltou para casa ${tempo}
+      </p>
+      <p class="legenda__tracos">${tracos(p)}</p>
+      ${p.texto ? `<p class="legenda__texto">${esc(p.texto)}</p>` : ''}
+      <p class="legenda__quando">${fmtTempo(p.resolvido_em)}${ajuda ? ' · ' : ''}</p>
+      ${ajuda}
+    </div>
+  </article>`;
+}
+
 async function pintarFeed() {
   const alvo = $('#feed');
+  const aba = ABAS[estado.aba] || ABAS.buscas;
+  const raio = aba.raio || estado.raioM;
+
   try {
-    const tipos = estado.tipo === 'todos' ? null : [estado.tipo];
-    const posts = await feedPorRaio({ ...ORIGEM, raioM: estado.raioM, tipos });
-    alvo.innerHTML = posts.length
+    if (estado.aba === 'reencontros') {
+      const lista = await reencontros({ ...ORIGEM, raioM: raio });
+      alvo.innerHTML = lista.length
+        ? lista.map(reencontroHTML).join('')
+        : `<div class="vazio"><strong>Ainda não há reencontros por aqui</strong>
+           Quando um caso terminar bem, ele aparece nesta página.</div>`;
+      return;
+    }
+
+    const [posts, recados] = await Promise.all([
+      feedPorRaio({ ...ORIGEM, raioM: raio, tipos: aba.tipos }),
+      pintarRecados(),
+    ]);
+    alvo.innerHTML = recados + (posts.length
       ? posts.map(postHTML).join('')
-      : `<div class="vazio"><strong>Nada por aqui agora</strong>
-         Nenhum caso aberto neste raio. Aumente a distância ou troque o filtro.</div>`;
+      : estado.aba === 'adocao'
+        ? `<div class="vazio"><strong>Nenhum pet para adoção agora</strong>
+           As adoções são publicadas por ONGs e protetores da cidade.</div>`
+        : `<div class="vazio"><strong>Nada por aqui agora</strong>
+           Nenhum caso aberto nesta área. Aumente a distância no seu perfil.</div>`);
   } catch (e) {
     alvo.innerHTML = `<div class="vazio"><strong>Não consegui carregar</strong>${esc(e.message)}</div>`;
   }
@@ -513,7 +647,7 @@ document.addEventListener('click', (ev) => {
      closest() não casa e o clique morre em silêncio. Já aconteceu com
      data-perfil e data-menu: o link do autor e o "..." do dono ficaram inertes. */
   const alvo = ev.target.closest(
-    '[data-abrir],[data-vi],[data-zap],[data-partilhar],[data-acao],[data-tipo],[data-perfil],[data-menu]');
+    '[data-abrir],[data-vi],[data-zap],[data-partilhar],[data-acao],[data-aba],[data-perfil],[data-menu],[data-recado-fechar]');
   if (!alvo) return;
   const d = alvo.dataset;
 
@@ -524,6 +658,12 @@ document.addEventListener('click', (ev) => {
     location.hash = `#/post/${d.abrir}`;
     return;
   }
+  if (d.recadoFechar) {
+    marcarRecadoLido(d.recadoFechar);
+    alvo.closest('.recado-faro')?.remove();
+    return;
+  }
+  if (d.aba)       { location.hash = ABAS[d.aba]?.hash || '#/'; return; }
   if (d.zap)       { falarComTutor(d.zap); return; }
   if (d.partilhar) { partilhar(d.partilhar); return; }
   if (d.vi)        { avistar(d.vi); return; }
@@ -543,16 +683,13 @@ document.addEventListener('click', (ev) => {
                         marcarAba('ir-feed');
                         window.scrollTo({ top: 0, behavior: 'smooth' }); return;
     case 'conta':     estaLogado() ? (location.hash = `#/perfil/${meuId()}`) : form.abrirConta('entrar'); return;
+    case 'instalar':           pwa.instalar(alvo); return;
+    case 'dispensar-instalar': pwa.dispensarInstalar(); return;
     case 'usar-local':      pedirLocal(alvo); return;
     case 'dispensar-local': dispensarConvite(); $('#convite-local').hidden = true; return;
     case 'lugar':     alternarLugar(); return;
   }
 
-  if (d.tipo) {
-    estado.tipo = d.tipo;
-    $$('.filtros button').forEach((b) => b.setAttribute('aria-pressed', b === alvo));
-    pintarFeed();
-  }
 });
 
 /* Só chega aqui por toque explícito no convite. O pedido do navegador aparece
@@ -638,8 +775,9 @@ async function pintarLugar(contagem = null) {
 
   if (contagem) return;
   try {
-    const tipos = estado.tipo === 'todos' ? null : [estado.tipo];
-    const todos = await feedPorRaio({ ...ORIGEM, raioM: 20000, tipos });
+    // A contagem é da aba em que a pessoa está: "5 km, 7 casos" tem de bater
+    // com o que ela vai ver ao escolher 5 km.
+    const todos = await feedPorRaio({ ...ORIGEM, raioM: 20000, tipos: (ABAS[estado.aba] || ABAS.buscas).tipos });
     const conta = {};
     for (const [m] of RAIOS) conta[m] = todos.filter((p) => p.distancia_m <= m).length;
     if (!$('#popover-lugar').hidden) pintarLugar(conta);
@@ -754,6 +892,14 @@ function rotear() {
   const m = location.hash.match(/^#\/post\/(.+)$/);
   if (m) { abrirDetalhe(m[1]); return; }
 
+  /* Atalho do ícone instalado: /#/publicar. Abre a folha e limpa o endereço,
+     senão o botão "voltar" reabriria o formulário para sempre. */
+  if (location.hash === '#/publicar') {
+    history.replaceState(null, '', '#/');
+    form.abrirPublicar(ORIGEM);
+    return;
+  }
+
   const perfil = location.hash.match(/^#\/perfil\/(.+)$/);
   if (perfil) {
     if (!$('#detalhe').hidden) fecharDetalhe();
@@ -768,10 +914,25 @@ function rotear() {
   if (location.hash === '#/mapa') {
     marcarAba('ir-mapa');
     mapaTela.abrir();
-  } else if (mapaTela.estaAberto()) {
-    mapaTela.fechar();
-    marcarAba('ir-feed');
+    return;
   }
+  if (mapaTela.estaAberto()) mapaTela.fechar();
+  marcarAba('ir-feed');
+
+  // As três seções do topo. Todas são "feed" para a barra de baixo.
+  const nova = Object.keys(ABAS).find((a) => ABAS[a].hash === (location.hash || '#/')) || 'buscas';
+  if (nova !== estado.aba || !$('#feed').children.length) {
+    estado.aba = nova;
+    marcarSecao();
+    pintarFeed();
+  }
+}
+
+function marcarSecao() {
+  $$('.abas button').forEach((b) => {
+    if (b.dataset.aba === estado.aba) b.setAttribute('aria-current', 'page');
+    else b.removeAttribute('aria-current');
+  });
 }
 window.addEventListener('hashchange', rotear);
 
@@ -792,6 +953,15 @@ aoMudarSessao(() => {
   const b = $('[data-conta-texto]');
   if (b) b.textContent = estaLogado() ? (meuNome().split(' ')[0] || 'Conta') : 'Entrar';
   carregarNovidades();
+
+  souAdmin = false;
+  if (estaLogado()) {
+    meuPapel().then((p) => {
+      souAdmin = !!p?.eh_admin;
+      // Repinta só se mudou algo: quem não modera não paga por isto.
+      if (souAdmin) pintarFeed();
+    }).catch(() => {});
+  }
 });
 
 /* Ordem importa: situar antes de pintar, senão o primeiro feed sai com as
@@ -817,3 +987,7 @@ situarUsuario()
   .then(pintarChip)
   .then(pintarFeed)
   .then(rotear);
+
+/* Service worker e convite de instalação. Fica por último de propósito: nada
+   aqui é necessário para o feed aparecer. */
+pwa.comecar({ aoNavegar: (url) => { location.href = url; } });
