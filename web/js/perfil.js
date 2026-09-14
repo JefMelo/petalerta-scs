@@ -4,14 +4,14 @@
    de ações: quem é dono vê "Sair"; as ações de cada caso ficam no detalhe.
    ============================================================================= */
 
-import { ORIGEM, perfilPublico, postsDoPerfil, meuId, sair, meuPerfil,
+import { ORIGEM, adotarMinhaLocalizacao, perfilPublico, postsDoPerfil, meuId, sair, meuPerfil,
          meuPapel, adminPendentes, adminDecidir, adminContas, adminMudarPapel,
-         adminContato, adminRecados } from './dados.js?v=44';
+         adminContato, adminRecados } from './dados.js?v=46';
 import { abrirEditarPerfil, abrirRecado,
          abrirContas as abrirFolhaContas,
-         abrirNovoRecado, abrirRecadosDoFaro } from './formularios.js?v=44';
-import * as pwa from './pwa.js?v=44';
-import { RAIO_AVISO_PADRAO } from './pwa.js?v=44';
+         abrirNovoRecado, abrirRecadosDoFaro } from './formularios.js?v=46';
+import * as pwa from './pwa.js?v=46';
+import { RAIO_AVISO_PADRAO } from './pwa.js?v=46';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) =>
@@ -328,6 +328,14 @@ async function pintarAvisos() {
   bairro.hidden = !e.ligado;
   bairro.querySelector('.interruptor').setAttribute('aria-checked', String(!!e.querBairro));
 
+  /* Sem GPS, o alerta de bairro não tem como existir — o app mediria a partir
+     do Centro, e avisar "sumiu um pet a 2 km do Centro" para quem mora longe
+     dali é barulho. A regra é certa; o que estava errado era não dizer isso.
+     Antes o interruptor voltava para desligado sozinho, sem uma palavra. */
+  bairro.querySelector('span').textContent = ORIGEM.ehReal
+    ? 'Quando somem pets perto de onde você está.'
+    : 'Precisa da sua localização: é ela que diz qual é o seu bairro.';
+
   /* O raio já vinha do banco em estadoDosAvisos() e a tela o IGNORAVA — o texto
      dizia "3 km" fixo mesmo para quem tivesse outro valor gravado. */
   const area = bloco.querySelector('[data-area]');
@@ -366,6 +374,25 @@ async function virarChave(botao) {
 
   try {
     if (botao.dataset.acao === 'bairro') {
+      /* Ligar o bairro sem localização não funcionaria. Como este toque É um
+         gesto da pessoa, dá para pedir o GPS aqui mesmo — o navegador só
+         permite o pedido dentro de um gesto, e adiar para depois significaria
+         não poder pedir mais. */
+      if (!ligado && !ORIGEM.ehReal) {
+        try {
+          await adotarMinhaLocalizacao();
+        } catch {
+          botao.disabled = false;
+          await pintarAvisos();
+          abrirRecado('Preciso saber qual é o seu bairro',
+            'O alerta de bairro mede a partir de onde você está. Sem a sua '
+            + 'localização, ele mediria do Centro — e avisaria sobre pets a '
+            + 'quarteirões de distância de você.\n\n'
+            + 'Se você recusou o pedido do navegador, dá para liberar nas '
+            + 'configurações do site, no cadeado ao lado do endereço.');
+          return;
+        }
+      }
       await pwa.mudarBairro(!ligado, raioMarcado());
     } else if (ligado) {
       await pwa.desligarAvisos();

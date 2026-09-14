@@ -385,6 +385,9 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .folha__ajuda {
   margin: 0 0 4px;
   color: var(--tinta-2);
+  /* Deixa um recado ter parágrafo sem precisar aceitar HTML: o texto continua
+     passando por esc(), e a quebra de linha é respeitada pelo CSS. */
+  white-space: pre-line;
 }
 
 .secao { padding: 16px; border-top: 1px solid var(--fio); }

@@ -105,14 +105,23 @@ async function quemChama(pedido, env) {
   return (await r.json()).id || null;
 }
 
+/* Devolve o post, ou um MOTIVO — não um `null` que serve para tudo.
+
+   A primeira versão devolvia null em qualquer falha, e o endpoint respondia
+   "post não encontrado". Quando a chave de serviço estava errada, portanto, a
+   mensagem mandava procurar o post — que existia — em vez da chave, que era o
+   problema. Custou uma investigação inteira. Erro de autenticação e ausência
+   são coisas diferentes e têm de ser ditas diferentes. */
 async function oPost(id, env) {
   const r = await fetch(
     `${url(env)}/rest/v1/posts?id=eq.${encodeURIComponent(id)}`
     + '&select=id,autor_id,criado_em,status,resolvido_em,especie',
     { headers: { apikey: env.SUPABASE_SERVICE_ROLE,
                  Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE}` } });
-  if (!r.ok) return null;
-  return (await r.json())[0] || null;
+
+  if (r.status === 401 || r.status === 403) return { erroDeChave: true };
+  if (!r.ok) return { erroDeLeitura: r.status };
+  return { post: (await r.json())[0] || null };
 }
 
 // --- o caminho principal -------------------------------------------------------
@@ -134,7 +143,14 @@ export async function avisar(pedido, env) {
     return resposta(400, { erro: 'post_id ausente' });
   }
 
-  const post = await oPost(postId, env);
+  const achado = await oPost(postId, env);
+  if (achado.erroDeChave) {
+    return resposta(503, { erro: 'a chave de serviço do Worker não é aceita pelo Supabase' });
+  }
+  if (achado.erroDeLeitura) {
+    return resposta(502, { erro: `o Supabase respondeu ${achado.erroDeLeitura} ao ler o post` });
+  }
+  const post = achado.post;
   if (!post) return resposta(404, { erro: 'post não encontrado' });
   if (post.autor_id !== quem) return resposta(403, { erro: 'não é seu' });
 
