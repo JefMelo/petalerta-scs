@@ -260,6 +260,10 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 }
 .post__foto img { width: 100%; height: 100%; object-fit: cover; }
 
+/* A foto é a porta de entrada do caso — e era inerte até aqui. É o maior alvo
+   do card, e quem toca nela espera ver o pet maior e o resto da história. */
+.post__foto[data-abrir], .carrossel__foto[data-abrir] { cursor: pointer; }
+
 .selo {
   position: absolute; top: 11px; left: 11px;
   padding: 4px 9px;
@@ -297,7 +301,15 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .social--fraca { font-weight: 400; color: var(--tinta-2); }
 .social--fraca b { color: var(--tinta); font-weight: 650; }
 
-.legenda__pet { font-weight: 700; }
+/* Virou <button> para abrir o caso, mas tem de continuar LENDO como texto:
+   o nome do pet é a legenda, não um botão. Só o sublinhado no toque revela
+   que ali há uma porta. */
+.legenda__pet {
+  font: inherit; font-weight: 700; color: inherit;
+  padding: 0; background: none; border: 0; text-align: left;
+  cursor: pointer;
+}
+.legenda__pet:hover { text-decoration: underline; }
 .legenda__tracos { color: var(--tinta-2); }
 
 .legenda__texto {

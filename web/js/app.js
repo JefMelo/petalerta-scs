@@ -9,14 +9,14 @@ import { ORIGEM, feedPorRaio, reencontros, postPorId, rastroDoPost, contatoDoPos
          registrarCompartilhamento, minhasNovidades,
          novidadesVistasEm, marcarNovidadesVistas, CENTRO,
          aoRecuperarSenha, meuPapel, recadosAtivos, recadosLidos,
-         marcarRecadoLido } from './dados.js?v=59';
-import * as form from './formularios.js?v=59';
-import * as mapaTela from './mapa.js?v=59';
-import * as perfilTela from './perfil.js?v=59';
-import * as pwa from './pwa.js?v=59';
-import * as adminTela from './admin.js?v=59';
+         marcarRecadoLido } from './dados.js?v=60';
+import * as form from './formularios.js?v=60';
+import * as mapaTela from './mapa.js?v=60';
+import * as perfilTela from './perfil.js?v=60';
+import * as pwa from './pwa.js?v=60';
+import * as adminTela from './admin.js?v=60';
 import { areaDeBusca, conselho, FONTES,
-         horasDesdeUltimoPonto } from './area-busca.js?v=59';
+         horasDesdeUltimoPonto } from './area-busca.js?v=60';
 
 // MARCA — nome de trabalho. Trocar aqui e em .marca no CSS/HTML. -------------
 export const MARCA = { nome: 'Faro', cidade: 'Santa Cruz do Sul' };
@@ -143,12 +143,21 @@ const IC_PATA = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"
 
 /* Caso sem foto existe — quem acha um cão na rua nem sempre consegue fotografar.
    Um quadrado cinza vazio seria pior que assumir a ausência. */
-function fotoHTML(p) {
+/* `abrivel` marca a foto como porta de entrada do caso. A foto é o maior alvo
+   da tela e era INERTE: quem tocava nela não ia a lugar nenhum, e a única
+   forma de abrir um caso no feed era a linha "2 pessoas viram o Bidu" — que só
+   existe depois do primeiro avistamento. Caso sem avistamento não tinha porta.
+
+   Vai na FOTO e não no `<article>` inteiro para não sequestrar a seleção de
+   texto da legenda nem os espaços vazios do card. As setas do carrossel são
+   tratadas antes no delegador, então continuam virando a foto em vez de abrir. */
+function fotoHTML(p, abrivel = false) {
   const selo = `<span class="selo">${SELO[p.tipo]}</span>`;
   const fotos = p.fotos || [];
+  const porta = abrivel ? ` data-abrir="${esc(p.id)}"` : '';
 
   if (!fotos.length) {
-    return `<div class="post__foto post__foto--sem">
+    return `<div class="post__foto post__foto--sem"${porta}>
       ${selo}
       <span class="sem-foto">${svg('<path d="M3 3l18 18"/><path d="M21 15V7a2 2 0 0 0-2-2H9"/><path d="M3 7v12a2 2 0 0 0 2 2h14"/>')}
         Sem foto</span>
@@ -156,7 +165,7 @@ function fotoHTML(p) {
   }
 
   if (fotos.length === 1) {
-    return `<figure class="post__foto">
+    return `<figure class="post__foto"${porta}>
       <img src="${esc(fotos[0])}" alt="Foto de ${esc(p.titulo)}" loading="lazy" onerror="this.remove()">
       ${selo}
     </figure>`;
@@ -171,7 +180,7 @@ function fotoHTML(p) {
       <div class="carrossel__trilho" tabindex="0" role="group"
            aria-label="${n} fotos de ${esc(p.titulo)}">
         ${fotos.map((f, i) => `
-          <figure class="carrossel__foto">
+          <figure class="carrossel__foto"${porta}>
             <img src="${esc(f)}" alt="Foto ${i + 1} de ${n} de ${esc(p.titulo)}"
                  loading="lazy" onerror="this.closest('.carrossel__foto').remove()">
           </figure>`).join('')}
@@ -308,13 +317,14 @@ function postHTML(p) {
   <article class="post" data-tipo="${p.tipo}">
     ${cabecalhoHTML(p)}
 
-    ${fotoHTML(p)}
+    ${fotoHTML(p, true)}
 
     ${acoesHTML(p)}
 
     <div class="legenda">
       ${linhaSocialHTML(p)}
-      <p><span class="legenda__pet">${esc(p.titulo)}</span>
+      <p><button class="legenda__pet" type="button" data-abrir="${esc(p.id)}"
+           >${esc(p.titulo)}</button>
          <span class="legenda__tracos">${esc(tracos(p))}</span></p>
       <p class="legenda__texto">${esc(p.texto || '')}</p>
       <p class="legenda__quando">${fmtDistancia(p.distancia_m)} ${deOndeVem()} · ${quando(p)}</p>
@@ -402,6 +412,39 @@ function intercalar(posts, recados) {
     saida.splice(Math.min(onde, saida.length), 0, recadoHTML(r));
   });
   return saida.join('');
+}
+
+/* O card que fecha o ciclo. Sem distância, sem botão de avistar, sem "falar
+   com o tutor" — não há nada a fazer, e oferecer ação seria falso. O que ele
+   mostra é o que a pessoa quer saber: quanto tempo o pet ficou fora e quantos
+   farejadores ajudaram. */
+function reencontroHTML(p) {
+  const dias = Math.max(0, Math.round(p.dias_fora || 0));
+  const tempo = dias === 0 ? 'no mesmo dia'
+    : dias === 1 ? 'depois de 1 dia'
+    : `depois de ${dias} dias`;
+
+  const ajuda = p.n_farejadores > 0
+    ? `<span class="farejadores">${IC_PATA}
+         <b>${p.n_farejadores}</b> ${p.n_farejadores === 1 ? 'farejador ajudou' : 'farejadores ajudaram'}
+       </span>`
+    : '';
+
+  return `
+  <article class="post reencontro" data-tipo="${p.tipo}">
+    ${cabecalhoHTML(p)}
+    ${fotoHTML(p, true)}
+    <div class="legenda">
+      <p class="reencontro__fita">
+        ${svg('<path d="M20 6 9 17l-5-5"/>')}
+        ${esc(comArtigo(p))} voltou para casa ${tempo}
+      </p>
+      <p class="legenda__tracos">${tracos(p)}</p>
+      ${p.texto ? `<p class="legenda__texto">${esc(p.texto)}</p>` : ''}
+      <p class="legenda__quando">${fmtTempo(p.resolvido_em)}${ajuda ? ' · ' : ''}</p>
+      ${ajuda}
+    </div>
+  </article>`;
 }
 
 async function pintarRecados() {
