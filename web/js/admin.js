@@ -15,8 +15,8 @@
 
 import { adminPendentes, adminDecidir, adminContas, adminMudarPapel,
          adminRecados, desligarRecado, apagarRecado, meuPapel,
-         padroesLocais } from './dados.js?v=65';
-import { abrirRecado, abrirNovoRecado } from './formularios.js?v=65';
+         padroesLocais } from './dados.js?v=66';
+import { abrirRecado, abrirNovoRecado } from './formularios.js?v=66';
 
 const $  = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];

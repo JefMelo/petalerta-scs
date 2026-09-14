@@ -3,7 +3,8 @@
    Uma folha por vez, sobe de baixo. Toda a escrita no banco passa por aqui.
    ============================================================================= */
 
-import * as dados from './dados.js?v=65';
+import * as dados from './dados.js?v=66';
+import { recortar, recortarVarias } from './recortar.js?v=66';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) =>
@@ -225,11 +226,14 @@ function ligarFotos(f, jaExistem = []) {
     if (ev.target.closest('[data-add]')) input.click();
   });
 
-  input.addEventListener('change', () => {
-    const novos = [...(input.files || [])];
-    // O celular manda tudo de uma vez; o limite é aqui, não na confiança.
-    f._fotos = [...f._fotos, ...novos].slice(0, max);
+  input.addEventListener('change', async () => {
+    // O celular manda tudo de uma vez; o limite é aqui, não na confiança. E o
+    // corte vem ANTES de entrar na lista: o que se vê aqui é o que vai subir.
+    const cabem = max - f._fotos.length;
+    const novos = [...(input.files || [])].slice(0, Math.max(0, cabem));
     input.value = '';                  // permite reescolher o mesmo arquivo
+    if (!novos.length) return;
+    f._fotos = [...f._fotos, ...await recortarVarias(novos)].slice(0, max);
     pintar();
   });
 
@@ -906,8 +910,13 @@ export function abrirEditarPerfil(perfil, { aoSalvar } = {}) {
       const input = $('[name=avatar]', f);
 
       $('[data-trocar-foto]', f).addEventListener('click', () => input.click());
-      input.addEventListener('change', () => {
-        const arq = input.files?.[0];
+      input.addEventListener('change', async () => {
+        const escolhida = input.files?.[0];
+        input.value = '';
+        if (!escolhida) return;
+        // O avatar aparece redondo e pequeno em toda tela do app: se o corte
+        // não for quadrado, é o rosto que sai fora do círculo.
+        const arq = await recortar(escolhida);
         if (!arq) return;
         f._avatar = arq;
         previa.style.backgroundImage = `url('${URL.createObjectURL(arq)}')`;

@@ -294,8 +294,56 @@ atualizados por **um único** ouvinte de `scroll` em modo de captura no
 documento — `scroll` não borbulha, mas é capturável, e assim o ouvinte sobrevive
 a cada repintura do feed.
 
-As fotos são reduzidas a 1440px no navegador antes de subir (as de teste caíram
-de 21 KB para 13 KB) e vão para a pasta do próprio usuário no bucket.
+As fotos vão para a pasta do próprio usuário no bucket, e passam antes pelo
+recorte.
+
+#### O recorte quadrado (`web/js/recortar.js`)
+
+Antes, o app aceitava a foto como ela vinha e o CSS resolvia: `aspect-ratio: 1/1`
+mais `object-fit: cover`. O feed **parecia** certo e estava errado por baixo —
+quem escolhia o recorte era o navegador, cortando pelo centro. Uma foto na
+vertical, que é como todo mundo fotografa o próprio cachorro, perdia a cabeça do
+animal ou as patas. Justamente o que identifica.
+
+Agora quem enquadra é a pessoa, numa tela que abre sobre o formulário: arrastar,
+aproximar (pinça, roda ou barra) e pronto. Não gira, não filtra, não ajusta
+brilho — isso é trabalho de editor de foto, e quem acabou de perder um cão não
+vai usar.
+
+Três coisas de uma vez:
+
+- **O feed fica parelho.** Todo card com a mesma altura, rolagem sem solavanco.
+- **O arquivo fica pequeno.** Sai sempre em JPEG de no máximo 1080 px de lado.
+  Uma foto de celular moderno tem 4 MB; esta sai perto de 200 KB. Quem publica
+  está na rua, com pressa e sinal ruim.
+- **A cabeça do pet aparece**, que é o ponto inteiro de ter foto.
+
+Detalhes que valem ser ditos:
+
+- O palco **é** o quadro: o que está dentro dele é exatamente o que vira
+  arquivo. Nada de moldura desenhada por cima "sugerindo" o corte.
+- O arraste é travado para o quadro nunca descobrir. `tools/testar-recorte.js`
+  prova a propriedade em 6 formatos (retrato, paisagem, quadrada, panorâmica,
+  minúscula, tira vertical) × 5 zooms × 25 posições de canto — porque recorte
+  errado não quebra nada: gera um JPEG bonito com tarja branca na borda.
+- A saída **acompanha o recorte** entre 640 e 1080 px. Esticar um pedaço de
+  200 px até 1080 não inventa detalhe, só peso.
+- **Teto de 25 MB na entrada.** Não é economia: decodificar uma foto de 40 MP
+  num celular antigo estoura a memória da aba, e o que a pessoa vê é o app
+  fechando sozinho no meio da publicação.
+- Carrega pelo `<img>`, não por `createImageBitmap` — é o mesmo elemento que a
+  tela já mostra, e aceita o **HEIC** que sai da câmera de metade dos iPhones.
+- Fundo branco por baixo do canvas: PNG com transparência viraria mancha preta
+  ao salvar em JPEG, que não tem canal alfa.
+- O avatar passa pelo mesmo recorte: ele aparece **redondo** em toda tela, e um
+  corte que não seja quadrado põe o rosto para fora do círculo.
+
+O `object-fit: cover` do CSS continua onde está, para as fotos antigas que já
+estão no bucket com outros formatos.
+
+Depois do recorte, `enviarFoto` ainda reduz a 1440 px — que para uma foto já
+quadrada de 1080 não muda nada, e continua valendo para o que não passar por
+aqui.
 
 ### O ponto que o mapa mostra
 

@@ -441,6 +441,87 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 }
 .folha--form { z-index: 60; }
 
+/* =============================================================================
+   RECORTAR A FOTO
+
+   Fica ACIMA da folha de formulário (z-index 70): é uma etapa dentro dela, e a
+   folha continua viva por baixo com tudo o que já foi digitado. Fundo escuro
+   porque aqui só existe a foto — é a única tela do app que não é sobre ler.
+   ============================================================================= */
+.recorte {
+  position: fixed; inset: 0; z-index: 70;
+  display: flex; flex-direction: column;
+  background: #0E1013;
+  color: #fff;
+  overscroll-behavior: contain;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.recorte__topo {
+  display: flex; align-items: center; gap: 8px;
+  height: 50px; padding: 0 6px;
+  max-width: var(--coluna); width: 100%; margin: 0 auto;
+}
+.recorte__nome { flex: 1; margin: 0; text-align: center; font-size: .95rem; font-weight: 700; }
+.recorte__texto {
+  padding: 8px 10px;
+  color: #fff; font: inherit; font-size: .95rem;
+  background: none; border: 0; border-radius: 8px; cursor: pointer;
+}
+.recorte__texto--forte { color: #F0A93A; font-weight: 750; }
+.recorte__texto[disabled] { opacity: .6; cursor: default; }
+
+/* O palco é o próprio quadro: o que está dentro dele é exatamente o que vai
+   virar arquivo. Nada de moldura desenhada por cima "sugerindo" o corte — a
+   pessoa tem de ver o resultado, não uma promessa dele. */
+.recorte__palco {
+  position: relative;
+  width: 100%; max-width: min(100vw, 560px);
+  aspect-ratio: 1 / 1;
+  margin: auto;
+  overflow: hidden;
+  background: #000;
+  touch-action: none;            /* o arraste é nosso, não da página */
+  cursor: grab;
+  user-select: none;
+}
+.recorte__palco:active { cursor: grabbing; }
+.recorte__palco img {
+  position: absolute; left: 50%; top: 50%;
+  transform-origin: center;
+  max-width: none;               /* o reset do topo põe 100% e achataria a foto */
+  will-change: transform;
+}
+
+/* Regra dos terços, a mesma linha fina de qualquer câmera. Ajuda a pôr a cabeça
+   do pet fora do centro morto, que é o enquadramento que funciona. */
+.recorte__grade {
+  position: absolute; inset: 0; pointer-events: none;
+  background:
+    linear-gradient(to right,  transparent calc(33.33% - .5px), rgba(255,255,255,.28) calc(33.33% - .5px) calc(33.33% + .5px), transparent calc(33.33% + .5px)),
+    linear-gradient(to right,  transparent calc(66.66% - .5px), rgba(255,255,255,.28) calc(66.66% - .5px) calc(66.66% + .5px), transparent calc(66.66% + .5px)),
+    linear-gradient(to bottom, transparent calc(33.33% - .5px), rgba(255,255,255,.28) calc(33.33% - .5px) calc(33.33% + .5px), transparent calc(33.33% + .5px)),
+    linear-gradient(to bottom, transparent calc(66.66% - .5px), rgba(255,255,255,.28) calc(66.66% - .5px) calc(66.66% + .5px), transparent calc(66.66% + .5px));
+}
+
+.recorte__baixo { max-width: var(--coluna); width: 100%; margin: 0 auto; padding: 14px 20px 20px; }
+.recorte__zoom { display: flex; align-items: center; gap: 12px; }
+.recorte__zoom svg { width: 18px; height: 18px; flex: none; opacity: .75; }
+.recorte__zoom input { flex: 1; accent-color: #F0A93A; }
+.recorte__dica { margin: 12px 0 0; font-size: .8rem; line-height: 1.5; color: #A8B0B8; }
+
+.recorte__aviso {
+  margin: auto; padding: 24px;
+  max-width: 34ch; text-align: center;
+}
+.recorte__aviso p { margin: 0 0 18px; line-height: 1.55; }
+.recorte__sair {
+  padding: 10px 20px;
+  border: 1px solid rgba(255,255,255,.35); border-radius: 999px;
+  background: none; color: #fff; font: inherit; font-weight: 650; cursor: pointer;
+}
+.recorte__sair:hover { background: rgba(255,255,255,.1); }
+
 .folha__topo {
   position: sticky; top: 0; z-index: 5;
   background: var(--papel);
