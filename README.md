@@ -41,6 +41,7 @@ web/js/dados.js          acesso ao Supabase (RPC, PostgREST, auth, storage)
 web/js/formularios.js    folhas de conta, publicar, avistar e raio
 web/js/mapa.js           mapa dos pets procurados
 web/js/perfil.js         perfil próprio e dos outros (inclui o ajuste de avisos)
+web/js/admin.js          a tela do administrador: pedidos, contas e recados
 web/js/pwa.js            instalar na tela de início + inscrição dos avisos
 web/sw.js                service worker: cache do app e recebimento dos avisos
 web/manifest.webmanifest nome, ícones e atalhos do app instalado
@@ -96,6 +97,7 @@ Um **feed**, não um painel. As decisões que tiram a cara de "app gerado":
 | `schema-15.sql` | adoção só de quem responde por ela (a mensagem; a trava é o RLS do 14) |
 | `schema-16.sql` | recados do Faro + selo de papel no feed |
 | `schema-17.sql` | Reencontros + conserto de `n_reencontros` no perfil |
+| `schema-18.sql` | o recado ganha foto (é anúncio no meio do feed, não faixa de topo) |
 | `schema-13.sql` | avisos no celular: `push_subs` ganha o opt-in de bairro, `avisos_enviados` e `avisos_pendentes` |
 | `seed-teste.sql` | 6 casos + 3 avistamentos + 3 usuários `@teste.farejo.local` |
 
@@ -403,6 +405,18 @@ uma coluna `papel`, isso seria auto-promoção a administrador por uma requisiç
 HTTP. O `schema-14` revoga `insert/update/delete` em `profiles` por inteiro (o
 app já só escrevia por RPC) e ainda põe um gatilho de reserva.
 
+### A área do administrador é uma TELA, não um bloco no perfil
+
+Na primeira versão a administração morava dentro do perfil, e a mesma tela
+dizia duas coisas ao mesmo tempo: "estes são os SEUS casos" e "estas são as
+contas de TODO MUNDO". Perfil é identidade; administração é poder sobre a
+identidade dos outros — e empilhar as duas confunde justamente na hora em que
+confundir custa caro: apagar, aprovar, mudar papel.
+
+Entra-se por um escudo no topo do próprio perfil (`#ir-admin`), visível só para
+quem administra, e a tela tem rota própria (`#/admin`) com três seções:
+Pedidos, Contas e Recados. Vive em `web/js/admin.js`.
+
 ### Privacidade da moderação
 
 O administrador **não** ganha leitura geral de telefone nem das inscrições de
@@ -436,6 +450,19 @@ tem lugar no mapa (`posts.local` é NOT NULL), não entra na urgência, não vir
 "resolvido" — e onze funções vivas consultam `posts`, de modo que bastaria
 esquecer uma para um recado institucional virar alfinete no mapa ou acordar o
 bairro com push.
+
+**Onde aparece: NO MEIO do feed, como o anúncio do Instagram.** Tem a mesma
+casca de um post — avatar, foto sangrando, legenda — porque é isso que faz
+alguém ler em vez de pular. O que o separa não é a forma, é a etiqueta: onde um
+post diz o endereço, este diz **Recado**; e tem uma barra de ação com o link,
+que post nenhum tem.
+
+Entra depois do 3º post (`DEPOIS_DE` em `app.js`), e de 6 em 6 se houver mais de
+um. Com feed curto, vai para o fim — melhor no fim que empurrando o primeiro
+caso urgente para baixo. Dispensável por aparelho (`faro:recados-lidos`).
+
+> A primeira versão era uma faixa escura **fixa no topo**. Parecia banner de
+> site, e banner de topo o olho aprende a pular em dois dias.
 
 **Recado não manda aviso no celular.** É institucional, não é urgente. Está dito
 na própria folha de publicação, porque é a primeira pergunta que aparece.
