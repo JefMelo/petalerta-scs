@@ -9,14 +9,14 @@ import { ORIGEM, feedPorRaio, reencontros, novosReencontros, postPorId, rastroDo
          registrarCompartilhamento, minhasNovidades,
          novidadesVistasEm, marcarNovidadesVistas, CENTRO,
          aoRecuperarSenha, meuPapel, recadosAtivos, recadosLidos,
-         marcarRecadoLido } from './dados.js?v=64';
-import * as form from './formularios.js?v=64';
-import * as mapaTela from './mapa.js?v=64';
-import * as perfilTela from './perfil.js?v=64';
-import * as pwa from './pwa.js?v=64';
-import * as adminTela from './admin.js?v=64';
+         marcarRecadoLido } from './dados.js?v=65';
+import * as form from './formularios.js?v=65';
+import * as mapaTela from './mapa.js?v=65';
+import * as perfilTela from './perfil.js?v=65';
+import * as pwa from './pwa.js?v=65';
+import * as adminTela from './admin.js?v=65';
 import { areaDeBusca, conselho, FONTES,
-         horasDesdeUltimoPonto } from './area-busca.js?v=64';
+         horasDesdeUltimoPonto } from './area-busca.js?v=65';
 
 // MARCA — nome de trabalho. Trocar aqui e em .marca no CSS/HTML. -------------
 export const MARCA = { nome: 'Faro', cidade: 'Santa Cruz do Sul' };
@@ -731,13 +731,13 @@ function desenharMapa(pontos, post = null) {
      `L.circle` recebe o raio em METROS e projeta sozinho — a geodésia em 64
      pontos que o documento original trazia seria reescrever o que a biblioteca
      já faz certo. */
-  let maiorRaio = 0;
+  let menorRaio = 0;
   if (temArea(post)) {
     const a = areaDeBusca({
       especie: post.especie, acessoRua: post.acesso_rua,
       horas: horasDesdeUltimoPonto(post, pontos),
     });
-    maiorRaio = Math.max(...a.zonas.map((z) => z.raio));
+    menorRaio = Math.min(...a.zonas.map((z) => z.raio));
     // Do maior para o menor, senão o externo tapa os internos.
     [...a.zonas].reverse().forEach((z, i) => {
       const dentro = i === a.zonas.length - 1;
@@ -764,16 +764,29 @@ function desenharMapa(pontos, post = null) {
     L.polyline(coords, { color: '#15719F', weight: 2, dashArray: '5,6', opacity: .75 }).addTo(mapa);
   }
 
-  /* O enquadramento segue o MAIOR anel quando ele existe: de nada adianta
-     desenhar a área e abrir o mapa num zoom que corta a metade dela.
-     `toBounds` faz a conta com o raio em metros e NÃO depende de camada
-     projetada — que foi exatamente o que quebrou na primeira versão. */
-  if (maiorRaio > 0) {
-    mapa.fitBounds(L.latLng(coords[0]).toBounds(maiorRaio * 2.2), { padding: [12, 12] });
-  } else if (coords.length > 1) {
+  /* O ENQUADRAMENTO: O RASTRO GANHA DO ANEL.
+
+     A primeira versão abria enquadrando o MAIOR anel. Parecia certo — "de nada
+     adianta desenhar a área e cortar metade dela" — e destruía o mapa: um anel
+     de 8 km põe a cidade inteira num polegar, e um rastro de trezentos metros
+     vira uma linha de seis pixels debaixo do alfinete. Os pontos continuavam
+     desenhados; ninguém conseguia vê-los.
+
+     Não dá para mostrar 8 km e 300 m na mesma tela de celular — é preciso
+     escolher, e a escolha é o rastro: ele é FATO (alguém viu o pet ali, e a
+     rua importa), o anel é MODELO. E o anel não se perde: continua desenhado
+     para quem afastar, e a legenda logo abaixo diz os raios em palavras
+     ("até 1,6 km", "até 8,0 km"), que é onde um número grande se lê melhor.
+
+     Só quando não há rastro o anel decide o zoom — e aí é o anel INTERNO, o
+     que quer dizer "saia a pé agora". `toBounds` faz a conta com o raio em
+     metros e não depende de camada projetada, que foi o que quebrou antes. */
+  if (coords.length > 1) {
     // maxZoom: sem isto, dois pontos quase no mesmo lugar levam o mapa ao
     // zoom máximo e a pessoa perde a referência da rua.
     mapa.fitBounds(coords, { padding: [34, 34], maxZoom: 16 });
+  } else if (menorRaio > 0) {
+    mapa.fitBounds(L.latLng(coords[0]).toBounds(menorRaio * 2.2), { padding: [12, 12], maxZoom: 16 });
   } else {
     mapa.setView(coords[0], 15);
   }
