@@ -487,6 +487,29 @@ de assets do Cloudflare. O `wrangler.jsonc` diz tudo:
 O comando de deploy do projeto é `npx wrangler deploy`, o padrão dos Workers
 Builds. Não mexer nele.
 
+### Onde vivem as credenciais (nenhuma no repositório)
+
+`~/.config/farejo/`, modo 600:
+
+| arquivo | para quê |
+|---|---|
+| `service_role.key` | chave de serviço do Supabase (JWT **legado**, 219 caracteres) |
+| `anon.key` | chave pública do Supabase |
+| `supabase-token` | PAT do Supabase (rodar SQL pela API de management) |
+| `vapid.json` | o par de chaves dos avisos (`publica` + `privada`) |
+| `cloudflare-token` | API token da Cloudflare — segredos do Worker e diagnóstico |
+| `cloudflare-account` | o Account ID |
+
+> **A chave de serviço é a LEGADA.** O painel do Supabase mostra em destaque as
+> do formato novo (`sb_publishable_` com 46 caracteres e `sb_secret_` com 41);
+> elas ficam numa seção separada de *Legacy API keys*. O Worker precisa da
+> legada, de **219 caracteres**, começando com `eyJhbGciOi`. Pegar a errada
+> custou uma noite: o envio falhava e o erro apontava para o post.
+
+O token da Cloudflare precisa de **Account · Workers Scripts · Edit** para
+gravar segredo. Só com *Read* toda escrita volta `code 10000 Authentication
+error` — que a Cloudflare usa para dizer "sem permissão", não "token inválido".
+
 ### Os dois segredos dos avisos (uma vez só, antes do primeiro deploy com push)
 
 O deploy vem do GitHub, então os segredos são cadastrados no painel da
@@ -581,6 +604,14 @@ uma conta, dá.
   impede auto-promoção bloqueava também o *pedido* de cadastro (a pessoa
   mexendo no próprio papel para entrar na fila). Entrar na fila não dá poder;
   aprovar-se é que dá — a regra tem de distinguir as duas coisas.
+- **Falha de autenticação disfarçada de "não encontrado".** `oPost()` devolvia
+  `null` para qualquer erro, e `/avisar` respondia "post não encontrado" quando
+  a chave de serviço é que estava errada. Erro de credencial e ausência de dado
+  precisam de mensagens diferentes, senão a investigação começa no lugar errado.
+- **Segredo colado à mão vem com lixo nas pontas.** Um `cat` no terminal já
+  acrescenta a quebra de linha, e o campo do painel a preserva —
+  `Bearer eyJ...\n` é recusado com 401 sem dizer por quê. Todo segredo lido do
+  ambiente passa por `trim` no Worker.
 - **O `+esm` do jsdelivr não é um pacote só.** O `supabase-js` puxa mais nove
   módulos por baixo. Um cache que guarde só o endereço do `import` não faz o app
   abrir sem rede — e a falha só aparece offline de verdade, nunca com o servidor
