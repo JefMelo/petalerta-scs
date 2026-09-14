@@ -3,7 +3,7 @@
    Uma folha por vez, sobe de baixo. Toda a escrita no banco passa por aqui.
    ============================================================================= */
 
-import * as dados from './dados.js?v=46';
+import * as dados from './dados.js?v=49';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) =>
@@ -412,7 +412,7 @@ export function abrirTrocarSenha() {
 export function abrirRecado(titulo, texto) {
   abrir({
     titulo,
-    corpo: `<p class="folha__ajuda">${esc(texto)}</p>
+    corpo: `<p class="folha__ajuda folha__ajuda--paragrafos">${esc(texto)}</p>
             <button class="botao-fraco" type="button" data-fechar>Entendi</button>`,
     aoConfirmar: async () => {},
   });
@@ -497,64 +497,6 @@ export async function abrirPedirParaDoar(papelAtual) {
   });
 }
 
-/* Todas as contas, para o administrador. Folha e não seção do perfil porque é
-   uma lista longa, e lista longa dentro do perfil empurra a grade de casos
-   para depois do fim do mundo. */
-const PAPEL_ROTULO = { farejador: 'Farejador', protetor: 'Protetor', ong: 'ONG', admin: 'Administrador' };
-const PAPEIS_ADMIN = ['farejador', 'protetor', 'ong', 'admin'];
-
-export function abrirContas(lista, { aoMudarPapel, aoBuscar } = {}) {
-  abrir({
-    titulo: 'Contas',
-    corpo: `
-      ${campo('busca', 'Procurar pelo nome', 'autocomplete="off"')}
-      <div class="contas">
-        ${lista.length ? lista.map((c) => `
-          <article class="conta">
-            <button class="conta__nome" type="button" data-perfil="${esc(c.id)}">
-              ${esc(c.nome)}
-            </button>
-            <p class="conta__dados">
-              ${c.n_casos} ${c.n_casos === 1 ? 'caso' : 'casos'}
-              ${c.cidade ? ` · ${esc(c.cidade)}` : ''}
-              ${!c.aprovado ? ' · <b>esperando aprovação</b>' : ''}
-            </p>
-            <select class="conta__papel" data-papel-de="${esc(c.id)}"
-                    aria-label="Papel de ${esc(c.nome)}">
-              ${PAPEIS_ADMIN.map((v) => `
-                <option value="${v}" ${v === c.papel ? 'selected' : ''}>${esc(PAPEL_ROTULO[v])}</option>`).join('')}
-            </select>
-          </article>`).join('')
-        : '<p class="admin__vazio">Nenhuma conta com esse nome.</p>'}
-      </div>`,
-    aoAbrir: (f) => {
-      fecharAoIrNoPerfil(f);
-
-      // Busca conforme digita, sem botão. Espera a pessoa parar de teclar.
-      let tempo;
-      $('[name=busca]', f).addEventListener('input', (ev) => {
-        clearTimeout(tempo);
-        const termo = ev.target.value;
-        tempo = setTimeout(() => aoBuscar?.(termo), 350);
-      });
-
-      f.addEventListener('change', async (ev) => {
-        const alvo = ev.target.closest('[data-papel-de]');
-        if (!alvo) return;
-        alvo.disabled = true;
-        try {
-          await aoMudarPapel?.(alvo.dataset.papelDe, alvo.value);
-        } catch (erro) {
-          abrirRecado('Não consegui mudar', erro.message);
-          return;
-        }
-        alvo.disabled = false;
-      });
-    },
-    aoConfirmar: async () => {},
-  });
-}
-
 /* Recados do Faro. É o único lugar do app que aceita link externo — por isso o
    campo é separado do texto, e não "cole o endereço no meio do recado":
    endereço no meio de texto teria de virar link por varredura, e varredura de
@@ -565,74 +507,33 @@ export function abrirNovoRecado({ aoSalvar } = {}) {
     acao: 'Publicar',
     corpo: `
       <p class="folha__ajuda">
-        Aparece no topo do feed, acima dos casos. Cada pessoa pode dispensar o
-        seu. <strong>Recado não manda aviso no celular</strong> — é informação,
-        não urgência.
+        Aparece <strong>no meio do feed</strong>, com a mesma cara de um post e
+        marcado como recado — do jeito que o Instagram mostra anúncio. Cada
+        pessoa pode dispensar o seu.
+        <strong>Recado não manda aviso no celular</strong> — é informação, não
+        urgência.
       </p>
+      ${fotosHTML(1)}
       ${campo('titulo', 'Título', 'required maxlength="90"')}
       ${area('texto', 'O recado', 'Direto ao ponto. Quem está procurando um pet não lê parágrafo longo.')}
       ${campo('link', 'Link (opcional)', 'type="url" inputmode="url" placeholder="https://"',
               'Só https. O endereço de destino aparece ao lado do botão, para ninguém clicar às cegas.')}
       ${campo('link_rotulo', 'Texto do botão', 'maxlength="40"', 'Por exemplo: "Ler o guia completo".')}`,
+    aoAbrir: (f) => ligarFotos(f),
     aoConfirmar: async (form) => {
       const titulo = valor(form, 'titulo'), texto = valor(form, 'texto');
       if (!titulo || !texto) throw new Error('Título e recado são obrigatórios.');
       const link = valor(form, 'link');
       if (link && !/^https:\/\//.test(link)) throw new Error('O endereço precisa começar com https://');
-      await dados.criarRecado({ titulo, texto, link, linkRotulo: valor(form, 'link_rotulo') });
+
+      // Mesmo caminho de upload dos casos: mesmo bucket, mesma política.
+      const f = $('#folha-form');
+      const arq = (f._fotos || [])[0];
+      const foto = arq instanceof File ? await dados.enviarFoto(arq) : arq?.path || null;
+
+      await dados.criarRecado({ titulo, texto, link, linkRotulo: valor(form, 'link_rotulo'), foto });
       aoSalvar?.();
     },
-  });
-}
-
-/** Lista dos recados, para ligar, desligar e apagar. */
-export function abrirRecadosDoFaro(lista, { aoMudar: aoMexer, aoNovo } = {}) {
-  abrir({
-    titulo: 'Recados do Faro',
-    corpo: `
-      <button class="botao-fraco" type="button" data-novo-recado>Escrever um recado</button>
-      <div class="contas">
-        ${lista.length ? lista.map((r) => `
-          <article class="conta">
-            <p class="conta__nome">${esc(r.titulo)}</p>
-            <p class="conta__dados">
-              ${r.ativo ? 'no ar' : '<b>desligado</b>'}
-              ${r.link ? ` · ${esc(new URL(r.link).hostname)}` : ''}
-            </p>
-            <div class="conta__papel" style="border:0;padding:0;display:flex;gap:6px">
-              <button class="botao-fraco" type="button" style="margin:0;width:auto;padding:6px 10px"
-                      data-recado-virar="${esc(r.id)}" data-ativo="${r.ativo ? '1' : '0'}">
-                ${r.ativo ? 'Desligar' : 'Religar'}
-              </button>
-              <button class="botao-fraco" type="button" style="margin:0;width:auto;padding:6px 10px"
-                      data-recado-apagar="${esc(r.id)}">Apagar</button>
-            </div>
-          </article>`).join('')
-        : '<p class="admin__vazio">Nenhum recado ainda.</p>'}
-      </div>`,
-    aoAbrir: (f) => {
-      f.addEventListener('click', async (ev) => {
-        const novo = ev.target.closest('[data-novo-recado]');
-        if (novo) { fechar(); aoNovo?.(); return; }
-
-        const virar = ev.target.closest('[data-recado-virar]');
-        if (virar) {
-          virar.disabled = true;
-          try { await dados.desligarRecado(virar.dataset.recadoVirar, virar.dataset.ativo !== '1'); }
-          catch (erro) { abrirRecado('Não consegui', erro.message); return; }
-          aoMexer?.();
-          return;
-        }
-
-        const apagar = ev.target.closest('[data-recado-apagar]');
-        if (apagar && confirm('Apagar este recado? Não dá para desfazer.')) {
-          try { await dados.apagarRecado(apagar.dataset.recadoApagar); }
-          catch (erro) { abrirRecado('Não consegui', erro.message); return; }
-          aoMexer?.();
-        }
-      });
-    },
-    aoConfirmar: async () => {},
   });
 }
 

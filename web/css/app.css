@@ -385,10 +385,12 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .folha__ajuda {
   margin: 0 0 4px;
   color: var(--tinta-2);
-  /* Deixa um recado ter parágrafo sem precisar aceitar HTML: o texto continua
-     passando por esc(), e a quebra de linha é respeitada pelo CSS. */
-  white-space: pre-line;
 }
+
+/* Só onde o TEXTO vem de uma variável e pode ter parágrafo. Aplicar isto em
+   toda `.folha__ajuda` fez as quebras de linha do CÓDIGO-FONTE virarem quebras
+   na tela — frases partidas no meio, porque o HTML estava indentado. */
+.folha__ajuda--paragrafos { white-space: pre-line; }
 
 .secao { padding: 16px; border-top: 1px solid var(--fio); }
 .secao--limpa { padding: 0; }
@@ -955,56 +957,60 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 }
 
 /* =============================================================================
-   RECADO DO FARO
-   ATENÇÃO AO NOME: a classe `.recado` JÁ EXISTE — é o balão flutuante de aviso
-   do rodapé (lá embaixo, ~linha 1240). Usar o mesmo nome aqui fez o card
-   herdar `position: fixed` e sumir da tela sem erro nenhum, em silêncio.
-   Daí `.recado-faro`.
+   RECADO DO FARO — o anúncio no meio do feed
 
-   Não é um caso e não pode parecer um. Sem foto sangrando, sem selo de tipo,
-   sem distância, sem ações. O que o distingue é estrutural, não só a cor:
-   fundo escuro da marca, o símbolo no lugar do avatar, e um rótulo dizendo o
-   que é.
+   Reaproveita `.post` inteiro de propósito: mesma largura, mesma foto
+   sangrando, mesma legenda. O que o separa não é a forma, é a etiqueta — onde
+   um post diz o endereço, este diz "Recado" — mais a barra de ação, que post
+   nenhum tem.
+
+   A primeira versão era uma faixa escura fixa no topo do feed. Parecia banner
+   de site, e banner de topo o olho aprende a pular em dois dias.
+
+   ATENÇÃO AO NOME: `.recado` sozinho JÁ EXISTE — é o balão flutuante de aviso
+   do rodapé (lá embaixo). Daí `.post--recado` e `.recado__acao`.
    ============================================================================= */
-.recado-faro {
-  max-width: var(--coluna);
-  margin: 0 auto;
-  padding: 14px 16px 16px;
-  background: var(--adocao);            /* azul-escuro institucional dos tokens */
-  color: #EDF1F4;
-  border-bottom: 1px solid var(--fio);
+.post--recado .post__local {
+  color: var(--acento);
+  font-weight: 700;
 }
 
-.recado-faro__marca { display: flex; align-items: center; gap: 8px; }
-.recado-faro__marca img { width: 18px; height: auto; filter: brightness(0) invert(1); opacity: .9; }
-.recado-faro__marca span {
-  flex: 1;
-  font-size: .68rem; font-weight: 750; letter-spacing: .05em;
-  text-transform: uppercase; color: #9FB3C2;
-}
-.recado-faro__fechar {
-  width: 26px; height: 26px;
+/* O símbolo da marca no lugar do avatar de pessoa. Fundo escuro para destacar
+   do branco da foto e não sumir. */
+.avatar--faro {
   display: grid; place-items: center;
-  border-radius: 50%; color: #9FB3C2;
+  background: var(--adocao);
 }
-.recado-faro__fechar svg { width: 15px; height: 15px; }
-.recado-faro__fechar:hover { background: rgba(255,255,255,.1); color: #fff; }
+.avatar--faro img { width: 62%; height: auto; filter: brightness(0) invert(1); }
 
-.recado-faro__titulo { margin: 9px 0 0; font-size: 1rem; font-weight: 700; color: #fff; }
-.recado-faro__texto  { margin: 5px 0 0; font-size: .86rem; line-height: 1.5; color: #D3DDE4; }
+/* `.post__autor-link` é botão num post (leva ao perfil). Aqui é um span: não
+   há perfil para abrir, e um cursor de mão prometendo destino é mentira. */
+.post--recado .post__autor-link { cursor: default; }
 
-/* O ÚNICO link do app. Mostra o domínio de destino ao lado do rótulo: ninguém
-   deve tocar num link sem saber para onde vai. */
-.recado-faro__elo {
-  display: inline-flex; align-items: baseline; gap: 7px;
-  margin-top: 11px; padding: 8px 13px;
-  border-radius: 999px;
-  background: var(--perdido); color: var(--tinta);
-  font-size: .82rem; font-weight: 700;
+/* A barra de ação: o que o anúncio tem e o post não. Mostra o domínio de
+   destino ao lado do rótulo — ninguém deve tocar num link sem saber para onde
+   vai. */
+.recado__acao {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--fio);
+  border-bottom: 1px solid var(--fio);
+  background: var(--toque);
+  color: var(--tinta);
+  font-size: .86rem; font-weight: 700;
   text-decoration: none;
 }
-.recado-faro__elo em { font-style: normal; font-weight: 500; font-size: .72rem; opacity: .75; }
-.recado-faro__elo:hover { background: #E9A03A; }
+.recado__acao em {
+  font-style: normal; font-weight: 500; font-size: .76rem;
+  color: var(--tinta-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.recado__acao svg { width: 17px; height: 17px; margin-left: auto; flex: none; color: var(--tinta-2); }
+.recado__acao:hover { background: #ECEFF1; }
+
+/* O texto do recado não é legenda de pet: não se corta em 3 linhas, porque é
+   a informação inteira que ele veio dar. */
+.legenda__texto--inteiro { -webkit-line-clamp: unset; display: block; }
 
 /* O selo de papel cabe dentro da linha do nome, sem empurrar o resto. */
 .post__autor .etiqueta { margin-left: 6px; vertical-align: 1px; }
@@ -1026,18 +1032,12 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
    escura em vez da cinza dos outros blocos — porque é poder sobre a conta dos
    outros, e isso não deve parecer mais um ajuste.
    ============================================================================= */
-.admin {
-  margin: 14px 16px 0;
-  padding: 13px 14px 12px;
-  border: 1px solid var(--tinta);
-  border-radius: 10px;
-}
-.admin[hidden] { display: none; }
+.icone-botao--fim { margin-left: auto; }
 
-.admin__titulo { margin: 0 0 10px; font-size: .82rem; font-weight: 750; color: var(--tinta); }
+.admin__rotulo, .admin__vazio { max-width: var(--coluna); margin-left: auto; margin-right: auto; }
 
 .admin__rotulo {
-  margin: 0 0 8px;
+  margin: 14px 16px 8px;
   display: flex; align-items: center; gap: 7px;
   font-size: .78rem; color: var(--tinta-2);
 }
@@ -1048,10 +1048,19 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
   font-size: .68rem; font-weight: 800; line-height: 17px; text-align: center;
 }
 
-.admin__acoes { display: flex; gap: 8px; }
-.admin__acoes .botao-fraco { margin: 0; flex: 1; }
+.admin__vazio { margin: 14px 16px; font-size: .85rem; color: var(--tinta-3); }
 
-.admin__vazio { margin: 0 0 10px; font-size: .8rem; color: var(--tinta-3); }
+/* Linhas de conta e de recado ganham a coluna do feed, para a tela do
+   administrador não virar uma parede de texto de ponta a ponta. */
+#admin-corpo .contas,
+#admin-corpo .pedido,
+#admin-corpo .campo,
+#admin-corpo > .perfil-abas { max-width: var(--coluna); margin-left: auto; margin-right: auto; }
+#admin-corpo .contas, #admin-corpo .pedido, #admin-corpo .campo { padding-left: 16px; padding-right: 16px; }
+#admin-corpo .botao-fraco { max-width: var(--coluna); margin: 10px auto; display: block; width: calc(100% - 32px); }
+
+.conta__acoes { grid-column: 2; grid-row: 1 / span 2; display: flex; gap: 6px; }
+.conta__acoes .botao-fraco { margin: 0 !important; width: auto !important; padding: 6px 10px; }
 
 /* Ficha de um pedido. Tem de caber a decisão inteira: quem é, o que diz fazer,
    e como falar com a pessoa antes de decidir. */

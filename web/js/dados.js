@@ -4,7 +4,7 @@
    ============================================================================= */
 
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-import { SUPABASE_URL, SUPABASE_ANON } from './config.js?v=46';
+import { SUPABASE_URL, SUPABASE_ANON } from './config.js?v=49';
 
 export const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
@@ -418,13 +418,13 @@ export async function pedirParaDoar(papel, sobre) {
 export async function recadosAtivos() {
   const { data, error } = await sb.rpc('recados_ativos', {});
   if (error) return [];          // recado é acessório: nunca derruba o feed
-  return data || [];
+  return (data || []).map((r) => ({ ...r, foto: montarFoto(r.foto_path) }));
 }
 
-export async function criarRecado({ titulo, texto, link, linkRotulo }) {
+export async function criarRecado({ titulo, texto, link, linkRotulo, foto }) {
   const { data, error } = await sb.rpc('criar_recado', {
     p_titulo: titulo, p_texto: texto,
-    p_link: link || null, p_link_rotulo: linkRotulo || null });
+    p_link: link || null, p_link_rotulo: linkRotulo || null, p_foto: foto || null });
   if (error) throw new Error(error.message);
   return data;
 }

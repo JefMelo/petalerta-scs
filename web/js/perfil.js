@@ -4,14 +4,11 @@
    de ações: quem é dono vê "Sair"; as ações de cada caso ficam no detalhe.
    ============================================================================= */
 
-import { ORIGEM, adotarMinhaLocalizacao, perfilPublico, postsDoPerfil, meuId, sair, meuPerfil,
-         meuPapel, adminPendentes, adminDecidir, adminContas, adminMudarPapel,
-         adminContato, adminRecados } from './dados.js?v=46';
-import { abrirEditarPerfil, abrirRecado,
-         abrirContas as abrirFolhaContas,
-         abrirNovoRecado, abrirRecadosDoFaro } from './formularios.js?v=46';
-import * as pwa from './pwa.js?v=46';
-import { RAIO_AVISO_PADRAO } from './pwa.js?v=46';
+import { ORIGEM, adotarMinhaLocalizacao, perfilPublico, postsDoPerfil,
+         meuId, sair, meuPerfil, meuPapel } from './dados.js?v=49';
+import { abrirEditarPerfil, abrirRecado } from './formularios.js?v=49';
+import * as pwa from './pwa.js?v=49';
+import { RAIO_AVISO_PADRAO } from './pwa.js?v=49';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) =>
@@ -167,8 +164,6 @@ export async function abrir(id) {
         </div>
       </section>
 
-      <section class="admin" id="admin-bloco" hidden></section>
-
       <div class="perfil-acoes">
         <button class="botao-fraco" type="button" data-acao="editar-perfil">Editar perfil</button>
         <button class="botao-fraco" type="button" data-acao="sair">Sair da conta</button>
@@ -189,101 +184,20 @@ export async function abrir(id) {
 
   pintarGrade();
   $('#perfil-tela').scrollTop = 0;
-  if (souEu) { pintarAvisos(); pintarAdmin(); }
+  if (souEu) { pintarAvisos(); revelarAdmin(); }
+  else $('#ir-admin').hidden = true;
 }
 
 // --- administração ------------------------------------------------------------
 
-const PAPEL_ROTULO = { farejador: 'Farejador', protetor: 'Protetor', ong: 'ONG', admin: 'Administrador' };
-
-/* Só aparece para quem é administrador, e a conferência de verdade está no
-   servidor: toda RPC admin_* recusa quem não é, mesmo que a tela mostre. */
-async function pintarAdmin() {
-  const bloco = $('#admin-bloco');
-  if (!bloco) return;
-
+/* O perfil não administra nada: só abre a porta. Tudo o que é poder sobre a
+   conta dos outros vive em js/admin.js, numa tela separada — ver o cabeçalho
+   de lá para o porquê. */
+async function revelarAdmin() {
+  const botao = $('#ir-admin');
+  if (!botao) return;
   const papel = await meuPapel().catch(() => null);
-  if (!papel?.eh_admin) { bloco.hidden = true; return; }
-
-  const pendentes = await adminPendentes().catch(() => []);
-  bloco.hidden = false;
-  bloco.innerHTML = `
-    <h3 class="admin__titulo">Administração</h3>
-
-    <div class="admin__fila">
-      <p class="admin__rotulo">
-        Pedidos para publicar adoção
-        ${pendentes.length ? `<b>${pendentes.length}</b>` : ''}
-      </p>
-      ${pendentes.length ? pendentes.map(pedidoHTML).join('')
-        : '<p class="admin__vazio">Nenhum pedido esperando.</p>'}
-    </div>
-
-    <div class="admin__acoes">
-      <button class="botao-fraco" type="button" data-admin="contas">Contas</button>
-      <button class="botao-fraco" type="button" data-admin="recados">Recados do Faro</button>
-    </div>`;
-}
-
-/* A ficha traz o que decide: quem é, o que diz fazer e como falar com a pessoa.
-   O telefone aparece AQUI e só aqui — é com ele que se confere se a
-   organização existe de verdade, e o acesso fica registrado no banco. */
-function pedidoHTML(p) {
-  return `
-  <article class="pedido">
-    <header class="pedido__topo">
-      <button class="pedido__nome" type="button" data-perfil="${esc(p.id)}">${esc(p.nome)}</button>
-      <span class="etiqueta" data-papel="${esc(p.papel)}">${esc(PAPEL_ROTULO[p.papel] || p.papel)}</span>
-    </header>
-    ${p.cidade ? `<p class="pedido__onde">${esc(p.cidade)}</p>` : ''}
-    <p class="pedido__sobre">${esc(p.sobre || 'Não contou nada — vale perguntar antes de aprovar.')}</p>
-    <div class="pedido__acoes">
-      <button class="botao-fraco" type="button" data-decidir="sim" data-id="${esc(p.id)}">Aprovar</button>
-      <button class="botao-fraco" type="button" data-decidir="nao" data-id="${esc(p.id)}">Recusar</button>
-      ${p.whatsapp ? `<a class="elo" href="https://wa.me/55${esc(p.whatsapp)}"
-           target="_blank" rel="noopener noreferrer">Falar antes</a>` : ''}
-    </div>
-  </article>`;
-}
-
-async function decidir(botao) {
-  const aprovar = botao.dataset.decidir === 'sim';
-  const id = botao.dataset.id;
-  if (!aprovar && !confirm('Recusar? A conta continua valendo como farejador.')) return;
-
-  botao.disabled = true;
-  try {
-    await adminDecidir(id, aprovar);
-  } catch (erro) {
-    abrirRecado('Não consegui decidir', erro.message);
-  }
-  await pintarAdmin();
-}
-
-async function verRecados() {
-  const lista = await adminRecados().catch((erro) => {
-    abrirRecado('Não consegui listar', erro.message);
-    return [];
-  });
-  abrirRecadosDoFaro(lista, {
-    aoMudar: verRecados,
-    aoNovo: () => abrirNovoRecado({ aoSalvar: verRecados }),
-  });
-}
-
-/** Abre (ou reabre, depois de uma busca) a folha de contas. */
-async function verContas(busca = null) {
-  const lista = await adminContas(busca).catch((erro) => {
-    abrirRecado('Não consegui listar', erro.message);
-    return [];
-  });
-  abrirFolhaContas(lista, {
-    aoBuscar: (termo) => verContas(termo || null),
-    aoMudarPapel: async (id, papel) => {
-      await adminMudarPapel(id, papel);
-      pintarAdmin();            // um pedido a menos na fila, talvez
-    },
-  });
+  botao.hidden = !papel?.eh_admin;
 }
 
 // --- avisos no celular --------------------------------------------------------
@@ -456,12 +370,6 @@ document.addEventListener('click', (ev) => {
 
   const area = ev.target.closest('[data-area-raio]');
   if (area) { mudarArea(area); return; }
-
-  const decisao = ev.target.closest('[data-decidir]');
-  if (decisao) { decidir(decisao); return; }
-
-  if (ev.target.closest('[data-admin="contas"]'))  { verContas(); return; }
-  if (ev.target.closest('[data-admin="recados"]')) { verRecados(); return; }
 
   if (ev.target.closest('[data-acao="sair"]')) {
     if (confirm('Sair da conta?')) sair().then(() => { fechar(); location.hash = '#/'; });

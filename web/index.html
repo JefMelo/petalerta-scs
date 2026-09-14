@@ -19,7 +19,7 @@
 <!-- Uma família só. Duas fontes + uma mono era o que dava cara de painel. -->
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400..800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="css/app.css?v=46">
+<link rel="stylesheet" href="css/app.css?v=49">
 </head>
 <body>
 
@@ -178,9 +178,35 @@
           <path d="M19 12H5M12 19l-7-7 7-7"/></svg>
       </button>
       <h2 class="folha__nome" id="perfil-nome"></h2>
+      <!-- Só aparece no PRÓPRIO perfil de quem é administrador. A conferência
+           de verdade é no servidor: toda RPC admin_* recusa quem não é. -->
+      <button class="icone-botao icone-botao--fim" type="button" id="ir-admin"
+              data-acao="ir-admin" aria-label="Área do administrador" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 2.8 4.5 6v5.4c0 4.6 3.2 8.6 7.5 9.8 4.3-1.2 7.5-5.2 7.5-9.8V6L12 2.8Z"/>
+          <path d="m9.2 12.1 2 2 3.6-3.8"/></svg>
+      </button>
     </div>
   </div>
   <div class="folha__corpo" id="perfil-corpo"></div>
+</section>
+
+<!-- Área do administrador. Tela própria, e não um bloco no perfil: perfil é
+     identidade, administração é poder sobre a identidade dos outros. Empilhar
+     as duas confunde na hora em que confundir custa caro. -->
+<section class="folha" id="admin-tela" hidden aria-modal="true" role="dialog" aria-label="Área do administrador">
+  <div class="folha__topo">
+    <div class="interno">
+      <button class="icone-botao" type="button" data-acao="fechar-admin" aria-label="Voltar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      </button>
+      <h2 class="folha__nome">Administração</h2>
+    </div>
+  </div>
+  <div class="folha__corpo" id="admin-corpo"></div>
 </section>
 
 <!-- Formulários (conta, publicar, avistar, raio) -->
@@ -217,6 +243,6 @@
 </nav>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script type="module" src="js/app.js?v=46"></script>
+<script type="module" src="js/app.js?v=49"></script>
 </body>
 </html>

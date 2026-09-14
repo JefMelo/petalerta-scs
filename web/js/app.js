@@ -9,11 +9,12 @@ import { ORIGEM, feedPorRaio, reencontros, postPorId, rastroDoPost, contatoDoPos
          registrarCompartilhamento, minhasNovidades,
          novidadesVistasEm, marcarNovidadesVistas, CENTRO,
          aoRecuperarSenha, meuPapel, recadosAtivos, recadosLidos,
-         marcarRecadoLido } from './dados.js?v=46';
-import * as form from './formularios.js?v=46';
-import * as mapaTela from './mapa.js?v=46';
-import * as perfilTela from './perfil.js?v=46';
-import * as pwa from './pwa.js?v=46';
+         marcarRecadoLido } from './dados.js?v=49';
+import * as form from './formularios.js?v=49';
+import * as mapaTela from './mapa.js?v=49';
+import * as perfilTela from './perfil.js?v=49';
+import * as pwa from './pwa.js?v=49';
+import * as adminTela from './admin.js?v=49';
 
 // MARCA — nome de trabalho. Trocar aqui e em .marca no CSS/HTML. -------------
 export const MARCA = { nome: 'Faro', cidade: 'Santa Cruz do Sul' };
@@ -331,69 +332,80 @@ function linkSeguro(url) {
   } catch { return null; }
 }
 
-/* Não é um `.post`: sem avatar, sem distância, sem selo de tipo, sem ações de
-   farejador. Um card que se parece com caso e não se comporta como caso é pior
-   que um aviso assumidamente diferente. */
+/* RECADO DO FARO — o anúncio.
+
+   Tem a MESMA casca de um post de propósito: avatar, nome, foto sangrando,
+   legenda. É assim que anúncio funciona no Instagram, e é o que faz alguém
+   ler em vez de pular. O que o separa não é a forma, é a etiqueta: onde um
+   post diz o endereço, este diz "Recado" — e não tem ações de farejador,
+   porque não há pet nenhum para avistar.
+
+   A primeira versão era uma faixa escura fixa no topo. Parecia banner de
+   site, e banner de topo o olho aprende a pular em dois dias. */
 function recadoHTML(r) {
   const u = linkSeguro(r.link || '');
   return `
-  <article class="recado-faro">
-    <div class="recado-faro__marca">
-      <img src="img/faro-marca.png" alt="" width="600" height="668">
-      <span>Recado do Faro</span>
-      <button class="recado-faro__fechar" type="button" data-recado-fechar="${esc(r.id)}"
+  <article class="post post--recado">
+    <header class="post__quem">
+      <span class="post__autor-link">
+        <span class="avatar avatar--faro" aria-hidden="true">
+          <img src="img/faro-marca.png" alt="" width="600" height="668">
+        </span>
+        <span class="post__id">
+          <span class="post__autor">Faro</span>
+          <span class="post__local">Recado</span>
+        </span>
+      </span>
+      <button class="post__menu" type="button" data-recado-fechar="${esc(r.id)}"
               aria-label="Dispensar este recado">
         ${svg('<path d="M18 6 6 18M6 6l12 12"/>')}
       </button>
-    </div>
-    <h2 class="recado-faro__titulo">${esc(r.titulo)}</h2>
-    <p class="recado-faro__texto">${esc(r.texto)}</p>
-    ${u ? `<a class="recado-faro__elo" href="${esc(u.href)}"
+    </header>
+
+    ${r.foto ? `<figure class="post__foto">
+      <img src="${esc(r.foto)}" alt="" loading="lazy" onerror="this.closest('figure').remove()">
+    </figure>` : ''}
+
+    ${u ? `<a class="recado__acao" href="${esc(u.href)}"
               target="_blank" rel="noopener noreferrer nofollow">
-             ${esc(r.link_rotulo || u.hostname)}
+             <span>${esc(r.link_rotulo || 'Saiba mais')}</span>
              <em>${esc(u.hostname)}</em>
+             ${svg('<path d="M9 18l6-6-6-6"/>')}
            </a>` : ''}
+
+    <div class="legenda">
+      <p><span class="legenda__pet">${esc(r.titulo)}</span></p>
+      <p class="legenda__texto legenda__texto--inteiro">${esc(r.texto)}</p>
+    </div>
   </article>`;
+}
+
+/* Onde o anúncio entra.
+
+   No topo ele vira banner e o olho pula. Encostado no fim, ninguém chega. O
+   Instagram põe o primeiro por volta do quarto post, e é um bom lugar: depois
+   de a pessoa já ter visto que o feed vale a pena, e antes de ela sair.
+
+   Com feed curto (menos casos que a posição), entra no fim — melhor no fim
+   que empurrando o primeiro caso urgente para baixo. */
+const DEPOIS_DE = 3;      // posts antes do primeiro recado
+const ESPACO    = 6;      // e de quantos em quantos, se houver mais de um
+
+function intercalar(posts, recados) {
+  if (!recados.length) return posts.map(postHTML).join('');
+
+  const saida = posts.map(postHTML);
+  recados.forEach((r, i) => {
+    const onde = DEPOIS_DE + i * ESPACO + i;       // +i porque cada inserção desloca
+    saida.splice(Math.min(onde, saida.length), 0, recadoHTML(r));
+  });
+  return saida.join('');
 }
 
 async function pintarRecados() {
   // Nunca derruba o feed: se falhar, simplesmente não há recado.
   const lidos = recadosLidos();
-  const lista = (await recadosAtivos()).filter((r) => !lidos.has(r.id));
-  return lista.map(recadoHTML).join('');
-}
-
-/* O card que fecha o ciclo. Sem distância, sem botão de avistar, sem "falar
-   com o tutor" — não há nada a fazer, e oferecer ação seria falso. O que ele
-   mostra é o que a pessoa quer saber: quanto tempo o pet ficou fora e quantos
-   farejadores ajudaram. */
-function reencontroHTML(p) {
-  const dias = Math.max(0, Math.round(p.dias_fora || 0));
-  const tempo = dias === 0 ? 'no mesmo dia'
-    : dias === 1 ? 'depois de 1 dia'
-    : `depois de ${dias} dias`;
-
-  const ajuda = p.n_farejadores > 0
-    ? `<span class="farejadores">${IC_PATA}
-         <b>${p.n_farejadores}</b> ${p.n_farejadores === 1 ? 'farejador ajudou' : 'farejadores ajudaram'}
-       </span>`
-    : '';
-
-  return `
-  <article class="post reencontro" data-tipo="${p.tipo}">
-    ${cabecalhoHTML(p)}
-    ${fotoHTML({ ...p, tipo: p.tipo })}
-    <div class="legenda">
-      <p class="reencontro__fita">
-        ${svg('<path d="M20 6 9 17l-5-5"/>')}
-        ${esc(comArtigo(p))} voltou para casa ${tempo}
-      </p>
-      <p class="legenda__tracos">${tracos(p)}</p>
-      ${p.texto ? `<p class="legenda__texto">${esc(p.texto)}</p>` : ''}
-      <p class="legenda__quando">${fmtTempo(p.resolvido_em)}${ajuda ? ' · ' : ''}</p>
-      ${ajuda}
-    </div>
-  </article>`;
+  return (await recadosAtivos()).filter((r) => !lidos.has(r.id));
 }
 
 async function pintarFeed() {
@@ -415,13 +427,15 @@ async function pintarFeed() {
       feedPorRaio({ ...ORIGEM, raioM: raio, tipos: aba.tipos }),
       pintarRecados(),
     ]);
-    alvo.innerHTML = recados + (posts.length
-      ? posts.map(postHTML).join('')
+    alvo.innerHTML = (posts.length
+      ? intercalar(posts, recados)
       : estado.aba === 'adocao'
         ? `<div class="vazio"><strong>Nenhum pet para adoção agora</strong>
            As adoções são publicadas por ONGs e protetores da cidade.</div>`
+         + recados.map(recadoHTML).join('')
         : `<div class="vazio"><strong>Nada por aqui agora</strong>
-           Nenhum caso aberto nesta área. Aumente a distância no seu perfil.</div>`);
+           Nenhum caso aberto nesta área. Aumente a distância no seu perfil.</div>`
+         + recados.map(recadoHTML).join(''));
   } catch (e) {
     alvo.innerHTML = `<div class="vazio"><strong>Não consegui carregar</strong>${esc(e.message)}</div>`;
   }
@@ -660,7 +674,7 @@ document.addEventListener('click', (ev) => {
   }
   if (d.recadoFechar) {
     marcarRecadoLido(d.recadoFechar);
-    alvo.closest('.recado-faro')?.remove();
+    alvo.closest('.post--recado')?.remove();
     return;
   }
   if (d.aba)       { location.hash = ABAS[d.aba]?.hash || '#/'; return; }
@@ -683,6 +697,7 @@ document.addEventListener('click', (ev) => {
                         marcarAba('ir-feed');
                         window.scrollTo({ top: 0, behavior: 'smooth' }); return;
     case 'conta':     estaLogado() ? (location.hash = `#/perfil/${meuId()}`) : form.abrirConta('entrar'); return;
+    case 'ir-admin':  location.hash = '#/admin'; return;
     case 'instalar':           pwa.instalar(alvo); return;
     case 'dispensar-instalar': pwa.dispensarInstalar(); return;
     case 'usar-local':      pedirLocal(alvo); return;
@@ -899,6 +914,17 @@ function rotear() {
     form.abrirPublicar(ORIGEM);
     return;
   }
+
+  /* Área do administrador. Rota própria — dá endereço, botão voltar e história
+     no navegador; e o admin.js recusa e devolve para o feed se quem chegou
+     aqui não for administrador. */
+  if (location.hash === '#/admin') {
+    if (!$('#detalhe').hidden) fecharDetalhe();
+    if (perfilTela.estaAberto()) perfilTela.fechar();
+    adminTela.abrir();
+    return;
+  }
+  if (adminTela.estaAberto()) adminTela.fechar();
 
   const perfil = location.hash.match(/^#\/perfil\/(.+)$/);
   if (perfil) {
