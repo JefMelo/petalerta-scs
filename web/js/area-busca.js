@@ -97,6 +97,32 @@ export function perfilDe(especie, acessoRua) {
   return 'cao';                       // 'outro' também: é a curva mais larga
 }
 
+/* O RELÓGIO REINICIA A CADA AVISTAMENTO.
+
+   É a regra mais importante deste arquivo, e a que nenhum estudo publicado tem
+   como oferecer: eles medem "onde o pet foi achado", sem rastro pelo caminho.
+   Aqui, quando alguém avista o pet, a contagem recomeça DALI — e o círculo
+   encolhe para o tamanho real do problema. Um avistamento de dez minutos atrás
+   transforma "pode estar em 8 km" em "pode estar em 300 m".
+
+   `rastroDoPost` devolve ordenado do mais NOVO para o mais antigo, então o
+   primeiro elemento é o ponto mais recente. Se um avistamento for registrado
+   com data ANTERIOR à do sumiço — alguém que diz "vi ontem" — ele não vira o
+   mais recente, e o relógio continua no ponto do tutor. É o certo.
+
+   @param {{ocorrido_em: string}} post
+   @param {Array<{ocorrido_em: string}>} rastro  do mais novo para o mais antigo
+   @param {number} agora  só para teste; em produção é o relógio do aparelho
+ */
+export function horasDesdeUltimoPonto(post, rastro = [], agora = Date.now()) {
+  const marcos = [...(rastro || []), post]
+    .map((r) => Date.parse(r?.ocorrido_em))
+    .filter((t) => Number.isFinite(t));
+  if (!marcos.length) return 0;
+  // O MAIOR carimbo é o ponto mais recente — não confia na ordem recebida.
+  return Math.max(0, (agora - Math.max(...marcos)) / 3600e3);
+}
+
 /**
  * @param {object} p
  * @param {'cao'|'gato'|'outro'} p.especie

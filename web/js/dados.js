@@ -4,7 +4,7 @@
    ============================================================================= */
 
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-import { SUPABASE_URL, SUPABASE_ANON } from './config.js?v=58';
+import { SUPABASE_URL, SUPABASE_ANON } from './config.js?v=59';
 
 export const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 

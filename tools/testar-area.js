@@ -15,7 +15,8 @@
    continuam valendo.
    ============================================================================= */
 
-import { areaDeBusca, perfilDe, conselho, FONTES } from '../web/js/area-busca.js';
+import { areaDeBusca, perfilDe, conselho, FONTES,
+         horasDesdeUltimoPonto } from '../web/js/area-busca.js';
 
 let ok = 0, falhas = 0;
 const conferir = (nome, condicao, detalhe = '') => {
@@ -94,6 +95,48 @@ console.log('\n— SEM RESPOSTA, A CURVA MAIS APERTADA —');
    Errar para mais manda varrer a cidade com o gato embaixo do carro da frente. */
 conferir('gato sem resposta = gato que não sai', perfilDe('gato', null) === 'gato_nao_sai');
 conferir('e é mesmo o menor', raios('gato', null, 24)[1] < raios('gato', 'sai', 24)[1]);
+
+console.log('\n— O RELÓGIO REINICIA A CADA AVISTAMENTO —');
+/* A regra que o fundador enunciou, e a que nenhum estudo publicado oferece:
+   cada avistamento recomeça a contagem, e o círculo encolhe com ela. */
+const AGORA = Date.parse('2026-09-14T12:00:00Z');
+const em = (h) => ({ ocorrido_em: new Date(AGORA - h * 3600e3).toISOString() });
+
+const sumiu = em(24);
+conferir('sem avistamento, conta desde o sumiço',
+  horasDesdeUltimoPonto(sumiu, [], AGORA) === 24);
+
+/* rastro vem do mais NOVO para o mais antigo (é o que rastroDoPost devolve). */
+const comAvistamento = [em(1), sumiu];
+conferir('com avistamento de 1 h, a conta vira 1 h',
+  horasDesdeUltimoPonto(sumiu, comAvistamento, AGORA) === 1);
+
+const r24 = areaDeBusca({ especie: 'cao', horas: horasDesdeUltimoPonto(sumiu, [], AGORA) });
+const r1  = areaDeBusca({ especie: 'cao', horas: horasDesdeUltimoPonto(sumiu, comAvistamento, AGORA) });
+conferir('e o CÍRCULO encolhe junto',
+  r1.zonas[0].raio < r24.zonas[0].raio,
+  `${r24.zonas[0].raio} m sem avistamento → ${r1.zonas[0].raio} m com`);
+conferir('  └ encolhe muito: de 1.609 m para menos de 400 m',
+  r24.zonas[0].raio === 1609 && r1.zonas[0].raio < 400, `${r24.zonas[0].raio} → ${r1.zonas[0].raio}`);
+
+/* Dois avistamentos: vale o mais recente, não o primeiro que chegou. */
+conferir('vários avistamentos: vale o mais recente',
+  horasDesdeUltimoPonto(sumiu, [em(2), em(9), sumiu], AGORA) === 2);
+
+/* Alguém que registra "eu vi ONTEM" num caso de hoje não pode fazer o relógio
+   ANDAR PARA TRÁS e inflar o círculo. */
+conferir('avistamento mais ANTIGO que o sumiço não reinicia nada',
+  horasDesdeUltimoPonto(em(3), [em(30), em(3)], AGORA) === 3, 'o relógio andou para trás');
+
+/* E a ordem recebida não é fé: se um dia a consulta devolver em outra ordem,
+   a conta tem de continuar certa. */
+conferir('ordem trocada no rastro não muda o resultado',
+  horasDesdeUltimoPonto(sumiu, [sumiu, em(2)], AGORA) === 2);
+
+conferir('data futura não vira hora negativa',
+  horasDesdeUltimoPonto(em(-5), [], AGORA) === 0);
+conferir('rastro vazio ou nulo não quebra',
+  horasDesdeUltimoPonto(sumiu, null, AGORA) === 24 && horasDesdeUltimoPonto(sumiu, [], AGORA) === 24);
 
 console.log('\n— O CONSELHO CITA A FONTE —');
 conferir('gato cita Huang', conselho('gato').fonte.curto === 'Huang 2018');

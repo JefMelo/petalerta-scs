@@ -536,6 +536,22 @@ fora**.
 geodésia e GeoJSON da proposta original seriam reescrever o que a biblioteca já
 faz certo.
 
+### O relógio reinicia a cada avistamento
+
+É a regra que separa o Faro de qualquer estimativa feita a partir dos estudos —
+porque eles medem "onde o pet foi achado", sem rastro pelo caminho.
+
+Quando alguém registra um avistamento, a contagem recomeça **dali**, e o
+círculo encolhe junto. Um cão sumido há 24 h tem anel interno de 1.609 m; se
+alguém o viu há uma hora, o anel vira **330 m** e passa a estar centrado no
+avistamento, não no sumiço. O mesmo vale no mapa da cidade: `mapa_perdidos`
+devolve sempre a **última localização informada**, e o alfinete fica ali.
+
+A regra mora em `horasDesdeUltimoPonto()`, dentro de `area-busca.js` — de
+propósito, porque lá o teste alcança. Ela usa o **maior** carimbo de tempo do
+rastro, não o primeiro da lista: quem registra "eu vi ontem" num caso de hoje
+não faz o relógio andar para trás e inflar o círculo.
+
 > **Armadilha do Leaflet que custou uma depuração:** o mapa do detalhe é criado
 > sem vista inicial. Adicionar um `L.circle` antes de existir centro e zoom faz
 > o cálculo dos próprios limites estourar — e derruba o resto da função **em

@@ -9,13 +9,14 @@ import { ORIGEM, feedPorRaio, reencontros, postPorId, rastroDoPost, contatoDoPos
          registrarCompartilhamento, minhasNovidades,
          novidadesVistasEm, marcarNovidadesVistas, CENTRO,
          aoRecuperarSenha, meuPapel, recadosAtivos, recadosLidos,
-         marcarRecadoLido } from './dados.js?v=58';
-import * as form from './formularios.js?v=58';
-import * as mapaTela from './mapa.js?v=58';
-import * as perfilTela from './perfil.js?v=58';
-import * as pwa from './pwa.js?v=58';
-import * as adminTela from './admin.js?v=58';
-import { areaDeBusca, conselho, FONTES } from './area-busca.js?v=58';
+         marcarRecadoLido } from './dados.js?v=59';
+import * as form from './formularios.js?v=59';
+import * as mapaTela from './mapa.js?v=59';
+import * as perfilTela from './perfil.js?v=59';
+import * as pwa from './pwa.js?v=59';
+import * as adminTela from './admin.js?v=59';
+import { areaDeBusca, conselho, FONTES,
+         horasDesdeUltimoPonto } from './area-busca.js?v=59';
 
 // MARCA — nome de trabalho. Trocar aqui e em .marca no CSS/HTML. -------------
 export const MARCA = { nome: 'Faro', cidade: 'Santa Cruz do Sul' };
@@ -520,19 +521,10 @@ async function abrirDetalhe(id) {
    anel de busca nos dois seria mentira desenhada. */
 const temArea = (p) => p && p.tipo === 'perdido' && p.status === 'aberto';
 
-/* Horas desde o ÚLTIMO ponto conhecido — não desde o sumiço. `rastroDoPost`
-   devolve do mais novo para o mais antigo, então `rastro[0]` é o avistamento
-   mais recente. Um avistamento de 10 minutos atrás encolhe a área para o
-   tamanho real do problema, e é a vantagem que nenhum estudo tinha como dar. */
-function horasDoUltimoPonto(p, rastro) {
-  const ultimo = rastro?.[0]?.ocorrido_em || p.ocorrido_em;
-  return (Date.now() - Date.parse(ultimo)) / 3600e3;
-}
-
 function areaHTML(p, rastro) {
   if (!temArea(p)) return '';
 
-  const horas = horasDoUltimoPonto(p, rastro);
+  const horas = horasDesdeUltimoPonto(p, rastro);
   const a = areaDeBusca({ especie: p.especie, acessoRua: p.acesso_rua, horas });
   const c = conselho(p.especie, p.acesso_rua);
   const recente = (rastro?.length || 0) > 1;
@@ -609,7 +601,7 @@ function desenharMapa(pontos, post = null) {
   if (temArea(post)) {
     const a = areaDeBusca({
       especie: post.especie, acessoRua: post.acesso_rua,
-      horas: horasDoUltimoPonto(post, pontos),
+      horas: horasDesdeUltimoPonto(post, pontos),
     });
     maiorRaio = Math.max(...a.zonas.map((z) => z.raio));
     // Do maior para o menor, senão o externo tapa os internos.
