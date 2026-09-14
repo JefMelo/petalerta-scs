@@ -4,7 +4,7 @@
    ============================================================================= */
 
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-import { SUPABASE_URL, SUPABASE_ANON } from './config.js?v=60';
+import { SUPABASE_URL, SUPABASE_ANON } from './config.js?v=63';
 
 export const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
@@ -100,6 +100,17 @@ export async function reencontros({ lat, lng, raioM = 20000 } = {}) {
   });
   if (error) throw new Error(error.message);
   return data.map((r) => ({ ...normalizar(r), autor_avatar: montarFoto(r.autor_avatar) }));
+}
+
+/* A contagem por trás do pontinho na aba Reencontros. Os mesmos filtros da
+   função acima — se contasse diferente do que a aba mostra, o aviso mentiria.
+   Nunca derruba nada: sem rede, sem pontinho. */
+export async function novosReencontros({ lat, lng, desde, raioM = 20000 } = {}) {
+  const { data, error } = await sb.rpc('novos_reencontros', {
+    p_lat: lat, p_lng: lng, p_desde: desde, p_raio_m: raioM,
+  });
+  if (error) throw new Error(error.message);
+  return Number(data) || 0;
 }
 
 /** mapa_perdidos() — um ponto por caso aberto, na última localização conhecida. */

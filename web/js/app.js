@@ -2,21 +2,21 @@
    Faro — interface
    ============================================================================= */
 
-import { ORIGEM, feedPorRaio, reencontros, postPorId, rastroDoPost, contatoDoPost,
+import { ORIGEM, feedPorRaio, reencontros, novosReencontros, postPorId, rastroDoPost, contatoDoPost,
          aoMudarSessao, estaLogado, meuId, meuNome,
          aplicarOrigem, localGuardado, permissaoDeLocal, adotarMinhaLocalizacao,
          conviteDispensado, dispensarConvite,
          registrarCompartilhamento, minhasNovidades,
          novidadesVistasEm, marcarNovidadesVistas, CENTRO,
          aoRecuperarSenha, meuPapel, recadosAtivos, recadosLidos,
-         marcarRecadoLido } from './dados.js?v=60';
-import * as form from './formularios.js?v=60';
-import * as mapaTela from './mapa.js?v=60';
-import * as perfilTela from './perfil.js?v=60';
-import * as pwa from './pwa.js?v=60';
-import * as adminTela from './admin.js?v=60';
+         marcarRecadoLido } from './dados.js?v=63';
+import * as form from './formularios.js?v=63';
+import * as mapaTela from './mapa.js?v=63';
+import * as perfilTela from './perfil.js?v=63';
+import * as pwa from './pwa.js?v=63';
+import * as adminTela from './admin.js?v=63';
 import { areaDeBusca, conselho, FONTES,
-         horasDesdeUltimoPonto } from './area-busca.js?v=60';
+         horasDesdeUltimoPonto } from './area-busca.js?v=63';
 
 // MARCA — nome de trabalho. Trocar aqui e em .marca no CSS/HTML. -------------
 export const MARCA = { nome: 'Faro', cidade: 'Santa Cruz do Sul' };
@@ -151,8 +151,19 @@ const IC_PATA = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"
    Vai na FOTO e não no `<article>` inteiro para não sequestrar a seleção de
    texto da legenda nem os espaços vazios do card. As setas do carrossel são
    tratadas antes no delegador, então continuam virando a foto em vez de abrir. */
+/* Ícone por tipo. Rolando o feed, a forma é lida antes da palavra — e antes
+   da cor, que sozinha não serve a quem não distingue verde de vermelho. */
+const IC_SELO = {
+  perdido:    '<path d="M12 21s7-6.1 7-11a7 7 0 1 0-14 0c0 4.9 7 11 7 11Z"/><circle cx="12" cy="10" r="2.4"/>',
+  avistado:   '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
+  encontrado: '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z"/>',
+  adocao:     '<path d="M12 20.5s-7-4.4-7-9.2A4.3 4.3 0 0 1 12 8a4.3 4.3 0 0 1 7 3.3c0 4.8-7 9.2-7 9.2Z"/>',
+};
+
 function fotoHTML(p, abrivel = false) {
-  const selo = `<span class="selo">${SELO[p.tipo]}</span>`;
+  const selo = p.status === 'resolvido'
+    ? `<span class="selo selo--voltou">${svg('<path d="M20 6 9 17l-5-5"/>')}Voltou para casa</span>`
+    : `<span class="selo">${svg(IC_SELO[p.tipo] || '')}${SELO[p.tipo]}</span>`;
   const fotos = p.fotos || [];
   const porta = abrivel ? ` data-abrir="${esc(p.id)}"` : '';
 
@@ -284,6 +295,12 @@ function acoesHTML(p) {
        </span>`
     : '';
 
+  /* Num caso encerrado não há o que avisar nem com quem falar — oferecer a
+     ação seria falso. Sobra compartilhar, que é o que se faz com boa notícia,
+     e a conta de quem ajudou, que é a quem a notícia pertence. */
+  if (p.status === 'resolvido')
+    return `<div class="acoes">${partilhar}${farejadores}</div>`;
+
   if (p.tipo === 'adocao')
     return `<div class="acoes">${b('zap', p.id, 'Falar com quem está doando', IC.conversa)}${partilhar}${farejadores}</div>`;
   if (p.tipo === 'encontrado')
@@ -305,6 +322,12 @@ function linhaSocialHTML(p) {
     return `<button class="social social--fraca" type="button" data-vi="${p.id}">
       Ninguém avisou ainda · <b>avise se você viu</b></button>`;
   }
+  /* Num caso encerrado não há o que avisar nem com quem falar — oferecer a
+     ação seria falso. Sobra compartilhar, que é o que se faz com boa notícia,
+     e a conta de quem ajudou, que é a quem a notícia pertence. */
+  if (p.status === 'resolvido')
+    return `<div class="acoes">${partilhar}${farejadores}</div>`;
+
   if (p.tipo === 'adocao') {
     return `<button class="social social--fraca" type="button" data-zap="${p.id}">
       <b>Quero adotar</b></button>`;
@@ -312,6 +335,8 @@ function linhaSocialHTML(p) {
   return '';
 }
 
+/* O feed é só de quem precisa de ajuda AGORA. Caso que termina bem não entra
+   aqui (schema-22): ele acende o pontinho na aba Reencontros e espera lá. */
 function postHTML(p) {
   return `
   <article class="post" data-tipo="${p.tipo}">
@@ -418,7 +443,7 @@ function intercalar(posts, recados) {
    com o tutor" — não há nada a fazer, e oferecer ação seria falso. O que ele
    mostra é o que a pessoa quer saber: quanto tempo o pet ficou fora e quantos
    farejadores ajudaram. */
-function reencontroHTML(p) {
+function reencontroHTML(p, novo = false) {
   const dias = Math.max(0, Math.round(p.dias_fora || 0));
   const tempo = dias === 0 ? 'no mesmo dia'
     : dias === 1 ? 'depois de 1 dia'
@@ -431,7 +456,7 @@ function reencontroHTML(p) {
     : '';
 
   return `
-  <article class="post reencontro" data-tipo="${p.tipo}">
+  <article class="post reencontro ${novo ? 'reencontro--novo' : ''}" data-tipo="${p.tipo}">
     ${cabecalhoHTML(p)}
     ${fotoHTML(p, true)}
     <div class="legenda">
@@ -447,6 +472,55 @@ function reencontroHTML(p) {
   </article>`;
 }
 
+/* O AVISO NA ABA — a comemoração sem poluir o feed.
+
+   Uma versão anterior punha o caso resolvido de volta no feed por três dias.
+   Durou um dia: numa cidade com poucos casos por dia, um reencontro entre
+   cinco cards é 20% de um feed cujo trabalho é dizer "alguém aqui perto
+   precisa de você" — e nenhum peso baixo conserta isso, porque o card ocupa a
+   tela do celular inteira do mesmo jeito.
+
+   O pontinho resolve os dois lados: o feed volta a ser só ação, e a boa
+   notícia ganha o que o card nunca teve — motivo de VOLTAR. Card no feed se vê
+   passando; pontinho no ícone se toca.
+
+   A marca de "já vi" mora no navegador, não no banco: é preferência de leitura
+   de UM aparelho, não fato sobre o caso — e no banco visitante deslogado não
+   teria aviso nenhum. Quem nunca abriu a aba começa com três dias de história,
+   para a primeira visita já ter o que comemorar em vez de uma tela cinza. */
+const VISTO = 'faro:reencontros-visto';
+const ESTREIA_H = 72;
+
+function reencontrosVistosEm() {
+  try {
+    const t = Date.parse(localStorage.getItem(VISTO) || '');
+    if (Number.isFinite(t)) return new Date(t).toISOString();
+  } catch { /* navegador sem armazenamento: vale a estreia */ }
+  return new Date(Date.now() - ESTREIA_H * 3600e3).toISOString();
+}
+
+function marcarReencontrosVistos() {
+  try { localStorage.setItem(VISTO, new Date().toISOString()); } catch { /* tudo bem */ }
+}
+
+/* Nunca derruba nada: sem rede, o feed abre igual e simplesmente não há
+   pontinho. Um aviso é um enfeite; o feed é o produto. */
+async function pintarAvisoDeReencontros() {
+  const botao = $('.abas button[data-aba="reencontros"]');
+  if (!botao) return;
+  try {
+    const n = estado.aba === 'reencontros' ? 0 : await novosReencontros({
+      ...ORIGEM, raioM: ABAS.reencontros.raio, desde: reencontrosVistosEm(),
+    });
+    botao.classList.toggle('tem-novos', n > 0);
+    /* O número fica no rótulo para quem usa leitor de tela: o pontinho é
+       visual, e "Reencontros" sozinho não diria que há novidade. */
+    botao.setAttribute('aria-label', n > 0
+      ? `Reencontros — ${n} ${n === 1 ? 'novo' : 'novos'}`
+      : 'Reencontros');
+  } catch { botao.classList.remove('tem-novos'); }
+}
+
 async function pintarRecados() {
   // Nunca derruba o feed: se falhar, simplesmente não há recado.
   const lidos = recadosLidos();
@@ -460,11 +534,28 @@ async function pintarFeed() {
 
   try {
     if (estado.aba === 'reencontros') {
+      /* Lê a marca ANTES de carregar e só a atualiza depois de desenhar: se a
+         consulta falhar, a pessoa não perde os reencontros que ainda não viu. */
+      const desde = reencontrosVistosEm();
       const lista = await reencontros({ ...ORIGEM, raioM: raio });
+      /* Compara CARIMBO, não texto: o Postgres devolve "+00:00" e o navegador
+         escreve "Z" — as duas datas iguais dariam desiguais como string. */
+      const limite = Date.parse(desde);
+      const ehNovo = (p) => Date.parse(p.resolvido_em) > limite;
+      const novos = lista.filter(ehNovo).length;
+
       alvo.innerHTML = lista.length
-        ? lista.map(reencontroHTML).join('')
+        ? (novos
+            ? `<p class="feed__titulo">${novos === 1
+                 ? 'Um reencontro desde a sua última visita'
+                 : `${novos} reencontros desde a sua última visita`}</p>`
+            : '')
+          + lista.map((p) => reencontroHTML(p, ehNovo(p))).join('')
         : `<div class="vazio"><strong>Ainda não há reencontros por aqui</strong>
            Quando um caso terminar bem, ele aparece nesta página.</div>`;
+
+      marcarReencontrosVistos();
+      pintarAvisoDeReencontros();
       return;
     }
 
@@ -1119,6 +1210,7 @@ aoRecuperarSenha(() => form.abrirNovaSenha());
 
 form.configurar({ aoMudar: () => {
   pintarFeed();
+  pintarAvisoDeReencontros();
   carregarNovidades();
   if (perfilTela.estaAberto()) perfilTela.recarregar();
 } });
@@ -1160,7 +1252,9 @@ situarUsuario()
   .catch(() => {})
   .then(pintarChip)
   .then(pintarFeed)
-  .then(rotear);
+  .then(rotear)
+  // O pontinho vem depois de tudo: é o enfeite, não o produto.
+  .then(pintarAvisoDeReencontros);
 
 /* Service worker e convite de instalação. Fica por último de propósito: nada
    aqui é necessário para o feed aparecer. */

@@ -103,6 +103,8 @@ Um **feed**, não um painel. As decisões que tiram a cara de "app gerado":
 | `schema-18.sql` | o recado ganha foto (é anúncio no meio do feed, não faixa de topo) |
 | `schema-19.sql` | `acesso_rua` do gato; tabela `desfechos` — a base de calibragem local |
 | `schema-20.sql` | `mapa_perdidos` devolve `acesso_rua` (as duas telas precisam do mesmo raio) |
+| `schema-21.sql` | *(revertido pelo 22)* o reencontro voltava ao feed por 3 dias |
+| `schema-22.sql` | o reencontro sai do feed e vira pontinho na aba: `novos_reencontros()` |
 | `schema-13.sql` | avisos no celular: `push_subs` ganha o opt-in de bairro, `avisos_enviados` e `avisos_pendentes` |
 | `seed-teste.sql` | 6 casos + 3 avistamentos + 3 usuários `@teste.farejo.local` |
 
@@ -447,6 +449,46 @@ distância decide, e página vazia afasta mais que caso distante.
 um caso resolvido simplesmente sumia — some a prova de que o Faro funciona e o
 agradecimento a quem farejou. A ordem ali é cronológica, não por urgência:
 reencontro não pede ação, pede leitura.
+
+### O pontinho, em vez do card no feed
+
+Por um dia o caso encerrado voltou ao feed com prazo de três dias (`schema-21`).
+O fundador propôs melhor, e é o que está no ar (`schema-22`):
+
+> o feed é só de quem precisa de ajuda **agora**; a comemoração acende um
+> pontinho no ícone de Reencontros, e a pessoa vai vê-la quando quiser.
+
+Santa Cruz do Sul não é São Paulo: são poucos casos por dia. Um reencontro no
+meio de cinco cards é 20% de um feed cujo trabalho é dizer *"alguém aqui perto
+precisa de você"* — e nenhum peso baixo conserta isso, porque o card ocupa a
+tela do celular inteira do mesmo jeito. O pontinho ainda dá à boa notícia o que
+o card nunca teve: **motivo de voltar**. Card no feed se vê passando; pontinho
+no ícone se toca.
+
+Como funciona:
+
+- `novos_reencontros(lat, lng, desde, raio)` conta com **os mesmos filtros** de
+  `reencontros`. Contar diferente do que a aba mostra seria anunciar dois e
+  entregar um — e a próxima vez a pessoa não abre.
+- A marca de "já vi" (`faro:reencontros-visto`) mora no **navegador**, não no
+  banco: é preferência de leitura de um aparelho, não fato sobre o caso, e no
+  banco visitante deslogado não teria aviso nenhum.
+- Quem nunca abriu a aba começa com **72 h de história**, para a primeira visita
+  já ter o que comemorar em vez de uma tela cinza.
+- O pontinho **apaga ao abrir a aba**. Aviso que fica aceso para sempre vira
+  papel de parede — e depois disso nem o de verdade alguém vê.
+- Dentro da aba, os que chegaram depois da última visita ganham o card em tom
+  verde (`.reencontro--novo`) e uma linha dizendo quantos são. As duas coisas
+  somem sozinhas na visita seguinte.
+- Se a consulta falhar, não há pontinho e nada mais muda: o aviso é o enfeite, o
+  feed é o produto.
+
+### A régua de cor, e por que ela tem ícone
+
+Cada tipo pinta 3 px na borda de cima do card e colore o selo da foto. Mas cor
+sozinha nunca é a única diferença: o selo carrega um **ícone** junto da
+palavra, porque a forma chega antes da leitura quando se rola rápido — e chega
+para quem não distingue verde de vermelho, que é uma pessoa em cada doze.
 
 ### Recados do Faro — o único link externo do app
 

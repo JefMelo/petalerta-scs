@@ -186,6 +186,24 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .abas [aria-current="page"] span { font-weight: 750; }
 .abas [aria-current="page"] svg { stroke-width: 2.3; }
 
+/* O PONTINHO. Só aparece quando há reencontro que esta pessoa ainda não viu, e
+   apaga no instante em que ela abre a aba. Um aviso que fica aceso para sempre
+   deixa de ser aviso e vira papel de parede — depois disso, nem o de verdade
+   alguém vê. Verde do desfecho bom: notícia boa não pede vermelho. */
+.abas button { position: relative; }
+.abas button.tem-novos::after {
+  content: '';
+  position: absolute; top: 2px; left: calc(50% + 7px);
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--encontrado);
+  box-shadow: 0 0 0 2px var(--papel);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .abas button.tem-novos::after { animation: pontinho .5s ease-out; }
+}
+@keyframes pontinho { from { transform: scale(0); } to { transform: scale(1); } }
+
 /* Fita do reencontro: a linha que só esta aba tem. Verde do "encontrado",
    que já é a cor de desfecho bom na casa. */
 /* O selo "Perdido" na foto contradiz a fita verde logo abaixo: o caso ACABOU.
@@ -274,6 +292,45 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .post[data-tipo="avistado"]   .selo { background: var(--avistado);   color: #fff; }
 .post[data-tipo="encontrado"] .selo { background: var(--encontrado); color: #fff; }
 .post[data-tipo="adocao"]     .selo { background: var(--adocao);     color: #fff; }
+
+/* Ícone no selo. Rolando, a FORMA chega antes da palavra — e chega para quem
+   não distingue verde de vermelho, que é uma em cada doze pessoas. Cor sozinha
+   nunca é a única diferença entre os tipos. */
+.selo { display: inline-flex; align-items: center; gap: 5px; }
+.selo svg { width: 13px; height: 13px; flex: none; }
+
+/* A régua de cor na borda de cima do card. Discreta de perto, mas rolando ela
+   dá o ritmo: o olho sabe o que vem antes de ler. */
+.post { border-top: 3px solid transparent; }
+.post[data-tipo="perdido"]    { border-top-color: var(--perdido); }
+.post[data-tipo="avistado"]   { border-top-color: var(--avistado); }
+.post[data-tipo="encontrado"] { border-top-color: var(--encontrado); }
+.post[data-tipo="adocao"]     { border-top-color: var(--adocao); }
+
+/* =============================================================================
+   O DESFECHO BOM — o selo verde, e o destaque na aba Reencontros
+
+   O caso encerrado NÃO vive no feed (schema-22): ele acende o pontinho na aba
+   e espera lá. Aqui ficam as duas marcas visuais que sobram dele — o selo da
+   foto, no detalhe do caso, e o tom inteiro do card para os reencontros que a
+   pessoa ainda não tinha visto.
+   ============================================================================= */
+
+/* O `[data-tipo]` não é enfeite: sem ele a regra de cor por tipo, lá em cima,
+   tem mais peso e o selo do caso encerrado sai vermelho de "Perdido". */
+.selo.selo--voltou,
+.post[data-tipo] .selo.selo--voltou { background: var(--encontrado); color: #fff; }
+
+/* Chegou depois da última visita. O card muda de tom inteiro, não só de
+   etiqueta — é a resposta ao pontinho, e some sozinho na visita seguinte. */
+.reencontro--novo { border-top-color: var(--encontrado) !important; background: #F4FAF6; }
+
+/* A linha que diz quantos chegaram. Também some na visita seguinte. */
+.feed__titulo {
+  max-width: var(--coluna);
+  margin: 0 auto; padding: 14px 16px 4px;
+  font-size: .95rem; font-weight: 700; color: var(--encontrado);
+}
 
 /* Ações: só ícone. O que cada uma faz está na linha social, logo abaixo. */
 .acoes { display: flex; align-items: center; gap: 14px; padding: 9px 16px 4px; }
