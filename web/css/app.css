@@ -189,20 +189,46 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 /* O PONTINHO. Só aparece quando há reencontro que esta pessoa ainda não viu, e
    apaga no instante em que ela abre a aba. Um aviso que fica aceso para sempre
    deixa de ser aviso e vira papel de parede — depois disso, nem o de verdade
-   alguém vê. Verde do desfecho bom: notícia boa não pede vermelho. */
+   alguém vê.
+
+   Ele PULSA de propósito. O pontinho parado é a gramática de "você tem coisa
+   pendente"; o que está do outro lado aqui não é tarefa, é festa — um cachorro
+   dormindo na casa dele de novo. A pulsação é a diferença entre o app cobrar
+   alguma coisa e o app ter uma boa notícia guardada.
+
+   Verde do desfecho bom, nunca vermelho: vermelho é a cor de urgência no resto
+   do app, e aqui não há nada de urgente. O halo se expande e some (não fica
+   piscando ligado/desligado, que vira alarme); o ponto respira junto. */
 .abas button { position: relative; }
-.abas button.tem-novos::after {
+.abas button.tem-novos::after,
+.abas button.tem-novos::before {
   content: '';
-  position: absolute; top: 2px; left: calc(50% + 7px);
-  width: 8px; height: 8px;
+  position: absolute; top: 1px; left: calc(50% + 6px);
+  width: 10px; height: 10px;
   border-radius: 50%;
+  pointer-events: none;
+}
+.abas button.tem-novos::after {
   background: var(--encontrado);
   box-shadow: 0 0 0 2px var(--papel);
 }
+/* O halo fica ATRÁS do ponto e da barra de abas não recortar: é só tinta. */
+.abas button.tem-novos::before { background: var(--encontrado); opacity: .45; }
+
 @media (prefers-reduced-motion: no-preference) {
-  .abas button.tem-novos::after { animation: pontinho .5s ease-out; }
+  .abas button.tem-novos::after  { animation: pontinho-respira 2.2s ease-in-out infinite; }
+  .abas button.tem-novos::before { animation: pontinho-halo    2.2s ease-out     infinite; }
 }
-@keyframes pontinho { from { transform: scale(0); } to { transform: scale(1); } }
+
+@keyframes pontinho-respira {
+  0%, 62%, 100% { transform: scale(1); }
+  20%           { transform: scale(1.32); }
+}
+/* Some antes de voltar ao começo: uma onda que sai, não uma luz que apaga. */
+@keyframes pontinho-halo {
+  0%        { transform: scale(1);   opacity: .45; }
+  70%, 100% { transform: scale(2.6); opacity: 0; }
+}
 
 /* Fita do reencontro: a linha que só esta aba tem. Verde do "encontrado",
    que já é a cor de desfecho bom na casa. */

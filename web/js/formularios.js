@@ -3,7 +3,7 @@
    Uma folha por vez, sobe de baixo. Toda a escrita no banco passa por aqui.
    ============================================================================= */
 
-import * as dados from './dados.js?v=63';
+import * as dados from './dados.js?v=64';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) =>
