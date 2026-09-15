@@ -15,8 +15,8 @@
 
 import { adminPendentes, adminDecidir, adminContas, adminMudarPapel,
          adminRecados, desligarRecado, apagarRecado, meuPapel,
-         padroesLocais } from './dados.js?v=66';
-import { abrirRecado, abrirNovoRecado } from './formularios.js?v=66';
+         padroesLocais, farejadoresAtivos, PISO_COMUNIDADE } from './dados.js?v=69';
+import { abrirRecado, abrirNovoRecado } from './formularios.js?v=69';
 
 const $  = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -206,10 +206,36 @@ const rosa = (g) => {
 };
 
 async function pintarPadroes(alvo) {
-  const linhas = await padroesLocais().catch(() => []);
+  const [linhas, ativos] = await Promise.all([
+    padroesLocais().catch(() => []),
+    farejadoresAtivos(),
+  ]);
   const total = linhas.reduce((a, l) => a + Number(l.n), 0);
 
+  /* O número REAL, sem o piso — porque medir é justamente ver o que ainda não
+     dá para mostrar. A tela pública cala abaixo de PISO_COMUNIDADE; esta aqui
+     diz quanto falta para ela falar. */
+  const comunidade = ativos == null
+    ? '<p class="admin__vazio">Não consegui contar os farejadores agora.</p>'
+    : `<article class="padrao">
+        <header class="padrao__topo">
+          <strong>Farejadores ativos</strong>
+          <span class="etiqueta">últimos 30 dias</span>
+        </header>
+        <dl class="padrao__numeros">
+          <div><dt>pessoas que agiram</dt><dd>${ativos.toLocaleString('pt-BR')}</dd></div>
+          <div><dt>aparece no app a partir de</dt><dd>${PISO_COMUNIDADE}</dd></div>
+        </dl>
+        <p class="padrao__aviso">${ativos >= PISO_COMUNIDADE
+          ? 'Já está visível no feed e na tela de criar conta.'
+          : `Ainda escondido do público — faltam ${PISO_COMUNIDADE - ativos}.
+             Contador pequeno não passa credibilidade, passa o contrário.`}</p>
+      </article>`;
+
   alvo.innerHTML = `
+    <p class="admin__rotulo">O tamanho da comunidade</p>
+    ${comunidade}
+
     <p class="admin__rotulo">O que os nossos casos já dizem</p>
     <p class="admin__vazio">
       ${total === 0

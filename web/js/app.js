@@ -9,14 +9,14 @@ import { ORIGEM, feedPorRaio, reencontros, novosReencontros, postPorId, rastroDo
          registrarCompartilhamento, minhasNovidades,
          novidadesVistasEm, marcarNovidadesVistas, CENTRO,
          aoRecuperarSenha, meuPapel, recadosAtivos, recadosLidos,
-         marcarRecadoLido } from './dados.js?v=66';
-import * as form from './formularios.js?v=66';
-import * as mapaTela from './mapa.js?v=66';
-import * as perfilTela from './perfil.js?v=66';
-import * as pwa from './pwa.js?v=66';
-import * as adminTela from './admin.js?v=66';
+         marcarRecadoLido, farejadoresAtivos, PISO_COMUNIDADE } from './dados.js?v=69';
+import * as form from './formularios.js?v=69';
+import * as mapaTela from './mapa.js?v=69';
+import * as perfilTela from './perfil.js?v=69';
+import * as pwa from './pwa.js?v=69';
+import * as adminTela from './admin.js?v=69';
 import { areaDeBusca, conselho, FONTES,
-         horasDesdeUltimoPonto } from './area-busca.js?v=66';
+         horasDesdeUltimoPonto } from './area-busca.js?v=69';
 
 // MARCA — nome de trabalho. Trocar aqui e em .marca no CSS/HTML. -------------
 export const MARCA = { nome: 'Faro', cidade: 'Santa Cruz do Sul' };
@@ -470,6 +470,22 @@ function reencontroHTML(p, novo = false) {
       ${ajuda}
     </div>
   </article>`;
+}
+
+/* O TAMANHO DA COMUNIDADE — e o silêncio abaixo do piso.
+
+   O banco devolve o número inteiro e honesto (schema-23); é esta linha que
+   decide calar quando ele ainda é pequeno demais para ajudar. O porquê do piso,
+   e o seu valor, ficam em dados.js — um lugar só, para a porta de entrada e o
+   feed nunca discordarem. */
+async function pintarComunidade() {
+  const alvo = $('#comunidade');
+  if (!alvo) return;
+  const n = await farejadoresAtivos();
+  if (!(n >= PISO_COMUNIDADE)) { alvo.hidden = true; return; }
+  alvo.innerHTML = `${IC_PATA}<span><b>${n.toLocaleString('pt-BR')} farejadores ativos</b>
+    em ${esc(MARCA.cidade)} no último mês</span>`;
+  alvo.hidden = false;
 }
 
 /* O AVISO NA ABA — a comemoração sem poluir o feed.
@@ -1266,8 +1282,9 @@ situarUsuario()
   .then(pintarChip)
   .then(pintarFeed)
   .then(rotear)
-  // O pontinho vem depois de tudo: é o enfeite, não o produto.
-  .then(pintarAvisoDeReencontros);
+  // O pontinho e o contador vêm depois de tudo: são o enfeite, não o produto.
+  .then(pintarAvisoDeReencontros)
+  .then(pintarComunidade);
 
 /* Service worker e convite de instalação. Fica por último de propósito: nada
    aqui é necessário para o feed aparecer. */

@@ -4,7 +4,7 @@
    ============================================================================= */
 
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-import { SUPABASE_URL, SUPABASE_ANON } from './config.js?v=66';
+import { SUPABASE_URL, SUPABASE_ANON } from './config.js?v=69';
 
 export const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
@@ -100,6 +100,36 @@ export async function reencontros({ lat, lng, raioM = 20000 } = {}) {
   });
   if (error) throw new Error(error.message);
   return data.map((r) => ({ ...normalizar(r), autor_avatar: montarFoto(r.autor_avatar) }));
+}
+
+/* QUANTOS FAREJADORES A CIDADE TEM — pessoas distintas que agiram nos últimos
+   30 dias (ver o cabeçalho do schema-23).
+
+   Guardado pela sessão inteira: é um número de credibilidade, não de urgência.
+   Ninguém precisa que ele mude no meio da rolagem, e refazer a conta a cada
+   repintura do feed seria pagar uma consulta por nada.
+
+   Devolve `null` — não zero — quando a consulta falha. Zero é uma afirmação
+   ("não há ninguém aqui"); null é a ausência de resposta, e é o que deixa a
+   tela simplesmente não mostrar nada em vez de mentir. */
+/* O PISO. Contador de comunidade só constrói credibilidade acima de um certo
+   número: abaixo dele, "4 farejadores em Santa Cruz do Sul" não diz "entre para
+   o grupo", diz "aqui não tem ninguém" — e quem lê isso na primeira visita não
+   volta. 50 é escolha do fundador; não é estatística, é onde um número deixa de
+   parecer sala vazia e passa a parecer bairro.
+
+   Mora aqui, e não em cada tela, porque duas cópias viram dois valores: o app
+   dizendo uma coisa na porta de entrada e outra no feed. */
+export const PISO_COMUNIDADE = 50;
+
+let comunidade = null;
+export function farejadoresAtivos() {
+  if (!comunidade) {
+    comunidade = sb.rpc('farejadores_ativos', {})
+      .then(({ data, error }) => (error ? null : Number(data)))
+      .catch(() => null);
+  }
+  return comunidade;
 }
 
 /* A contagem por trás do pontinho na aba Reencontros. Os mesmos filtros da

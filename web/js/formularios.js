@@ -3,8 +3,8 @@
    Uma folha por vez, sobe de baixo. Toda a escrita no banco passa por aqui.
    ============================================================================= */
 
-import * as dados from './dados.js?v=66';
-import { recortar, recortarVarias } from './recortar.js?v=66';
+import * as dados from './dados.js?v=69';
+import { recortar, recortarVarias } from './recortar.js?v=69';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) =>
@@ -291,6 +291,7 @@ export function abrirConta(modo = 'entrar') {
           seu pet</strong> e mostrar o seu WhatsApp a quem encontrar.
           Para só olhar o mural, não precisa de conta.
         </p>
+        <p class="porta__comunidade" data-comunidade hidden></p>
       </div>
 
       ${entrando ? '' : PAPEIS_HTML}
@@ -313,6 +314,18 @@ export function abrirConta(modo = 'entrar') {
       </button>
       ${entrando ? '<button class="elo" type="button" data-esqueci>Esqueci minha senha</button>' : ''}`,
     aoAbrir: (f) => {
+      /* Quantos já estão aqui. É a única tela em que este número decide algo:
+         a pessoa está escolhendo confiar no app. Chega DEPOIS que a folha
+         abriu, e nunca a segura esperando — credibilidade é bom, formulário
+         travado é ruim. O piso é o mesmo do feed (dados.js). */
+      dados.farejadoresAtivos().then((n) => {
+        const linha = $('[data-comunidade]', f);
+        if (!linha || !(n >= dados.PISO_COMUNIDADE)) return;
+        linha.textContent = `${n.toLocaleString('pt-BR')} pessoas ajudaram a procurar `
+                          + 'um pet em Santa Cruz do Sul no último mês.';
+        linha.hidden = false;
+      });
+
       // "Conte sobre o seu trabalho" só faz sentido para quem vai ser avaliado.
       const caixa = $('[data-so-doador]', f);
       if (caixa) {

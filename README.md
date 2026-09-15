@@ -105,6 +105,7 @@ Um **feed**, não um painel. As decisões que tiram a cara de "app gerado":
 | `schema-20.sql` | `mapa_perdidos` devolve `acesso_rua` (as duas telas precisam do mesmo raio) |
 | `schema-21.sql` | *(revertido pelo 22)* o reencontro voltava ao feed por 3 dias |
 | `schema-22.sql` | o reencontro sai do feed e vira pontinho na aba: `novos_reencontros()` |
+| `schema-23.sql` | `farejadores_ativos()` — o tamanho da comunidade, medido por quem agiu |
 | `schema-13.sql` | avisos no celular: `push_subs` ganha o opt-in de bairro, `avisos_enviados` e `avisos_pendentes` |
 | `seed-teste.sql` | 6 casos + 3 avistamentos + 3 usuários `@teste.farejo.local` |
 
@@ -537,6 +538,45 @@ Cada tipo pinta 3 px na borda de cima do card e colore o selo da foto. Mas cor
 sozinha nunca é a única diferença: o selo carrega um **ícone** junto da
 palavra, porque a forma chega antes da leitura quando se rola rápido — e chega
 para quem não distingue verde de vermelho, que é uma pessoa em cada doze.
+
+### Farejadores ativos — e o piso de silêncio
+
+Um contador de comunidade, para passar credibilidade a quem chega. Com uma
+regra que mudou o desenho todo: **abaixo de 50 ele não aparece.**
+
+Um contador que diz "4 farejadores em Santa Cruz do Sul" prova o contrário do
+que se quer provar. Não diz *entre para o grupo*, diz *aqui não tem ninguém* —
+e quem lê isso na primeira visita não volta. Então o banco devolve o número
+inteiro e honesto, e é a **tela** que sabe calar (`PISO_COMUNIDADE`, em
+`dados.js`, um lugar só para o feed e a porta de entrada nunca discordarem).
+
+**O que é "ativo":** quem **agiu** nos últimos 30 dias — publicou um caso,
+avisou um avistamento, comentou ou compartilhou. Não é quem tem conta, e não é
+quem abriu o app. Duas razões:
+
+1. **A palavra já tem dono.** "Farejador" significa, em toda a interface, a
+   pessoa que *ajudou* um caso — é o que `farejadores_do_post` conta desde o
+   `schema-10`. Se aqui passasse a significar "quem se cadastrou", a mesma
+   palavra teria dois sentidos na mesma tela, e o maior dos dois seria o menos
+   verdadeiro.
+2. **Cadastro acumulado é o número que toda rede social infla.** Ele só sobe,
+   inclusive quando a cidade inteira parou de usar o app. A janela de 30 dias
+   pode **encolher** — e é por poder encolher que ela mede alguma coisa.
+
+Onde aparece: uma linha no topo do feed (fora do `<header>` sticky, porque
+tarja permanente na dobra é espaço tirado do primeiro caso) e na tela de criar
+conta, que é onde o número decide algo. O **administrador vê o número real
+sempre**, mesmo abaixo do piso, com quanto falta para ele ficar visível — medir
+é justamente ver o que ainda não dá para mostrar.
+
+`tools/testar-comunidade.js` prova as três coisas que podem apodrecer em
+silêncio: pessoa é pessoa (três ações da mesma pessoa contam **uma** vez — um
+`union all` no lugar do `union` infla o número sem quebrar nada), a janela
+fecha, e o que sai pela API é um agregado e nunca uma lista de nomes.
+
+`farejadoresAtivos()` guarda o valor pela sessão inteira e devolve **`null`** —
+não zero — quando falha. Zero é uma afirmação ("não há ninguém"); `null` é a
+ausência de resposta, e é o que deixa a tela não mostrar nada em vez de mentir.
 
 ### Recados do Faro — o único link externo do app
 

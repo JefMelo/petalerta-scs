@@ -19,7 +19,7 @@
 <!-- Uma família só. Duas fontes + uma mono era o que dava cara de painel. -->
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400..800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="css/app.css?v=66">
+<link rel="stylesheet" href="css/app.css?v=69">
 </head>
 <body>
 
@@ -111,6 +111,13 @@
     <button type="button" class="convite__nao" data-acao="dispensar-instalar">Agora não</button>
   </div>
 </div>
+
+<!-- Quantos farejadores a cidade tem. Fica FORA do <header> sticky de
+     propósito: uma tarja permanente na dobra é espaço tirado do primeiro caso,
+     e o primeiro caso é o produto. Aqui ele é a primeira coisa que se lê e sai
+     de cena ao rolar, como uma apresentação. Nasce escondido: só aparece
+     quando o número passa do piso (ver PISO_COMUNIDADE em app.js). -->
+<p class="comunidade" id="comunidade" hidden></p>
 
 <main id="feed" class="feed" aria-live="polite"></main>
 
@@ -255,6 +262,6 @@
 </nav>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script type="module" src="js/app.js?v=66"></script>
+<script type="module" src="js/app.js?v=69"></script>
 </body>
 </html>

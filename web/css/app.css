@@ -442,6 +442,34 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .folha--form { z-index: 60; }
 
 /* =============================================================================
+   O TAMANHO DA COMUNIDADE
+
+   Uma linha, não um cartão. É uma apresentação — se lê uma vez, na chegada, e
+   sai de cena ao rolar. Cartão com borda e sombra pediria a atenção que
+   pertence ao primeiro caso logo abaixo.
+   ============================================================================= */
+.comunidade {
+  max-width: var(--coluna);
+  margin: 0 auto;
+  padding: 11px 16px;
+  display: flex; align-items: center; gap: 8px;
+  color: var(--tinta-2);
+  font-size: .84rem; line-height: 1.4;
+  border-bottom: 1px solid var(--fio);
+}
+.comunidade svg { width: 15px; height: 15px; flex: none; color: var(--acento); }
+.comunidade b { color: var(--tinta); font-weight: 700; }
+
+/* Na porta de entrada o número é argumento, não rodapé: ganha o tom do texto
+   normal e um fio acima para não colar no parágrafo anterior. */
+.porta__comunidade {
+  margin: 14px 0 0; padding-top: 14px;
+  border-top: 1px solid var(--fio);
+  font-size: .88rem; line-height: 1.5; color: var(--tinta);
+  text-align: center;
+}
+
+/* =============================================================================
    RECORTAR A FOTO
 
    Fica ACIMA da folha de formulário (z-index 70): é uma etapa dentro dela, e a
