@@ -106,6 +106,7 @@ Um **feed**, não um painel. As decisões que tiram a cara de "app gerado":
 | `schema-21.sql` | *(revertido pelo 22)* o reencontro voltava ao feed por 3 dias |
 | `schema-22.sql` | o reencontro sai do feed e vira pontinho na aba: `novos_reencontros()` |
 | `schema-23.sql` | `farejadores_ativos()` — o tamanho da comunidade, medido por quem agiu |
+| `schema-24.sql` | varredura de 15/09: telefone com registro, fila de fotos órfãs, feed sem contador morto |
 | `schema-13.sql` | avisos no celular: `push_subs` ganha o opt-in de bairro, `avisos_enviados` e `avisos_pendentes` |
 | `seed-teste.sql` | 6 casos + 3 avistamentos + 3 usuários `@teste.farejo.local` |
 
@@ -538,6 +539,59 @@ Cada tipo pinta 3 px na borda de cima do card e colore o selo da foto. Mas cor
 sozinha nunca é a única diferença: o selo carrega um **ícone** junto da
 palavra, porque a forma chega antes da leitura quando se rola rápido — e chega
 para quem não distingue verde de vermelho, que é uma pessoa em cada doze.
+
+### O telefone é pedido, não entregue
+
+`admin_pendentes` devolvia o `whatsapp` de **todo mundo** na fila, de uma vez, e
+o botão era um link pronto: abrir a aba Pedidos entregava todos os números sem
+deixar rastro. `admin_contato` existe justamente para isso — devolve **um**
+número e grava em `admin_log` quem olhou o telefone de quem — e **nunca era
+chamada**. A trilha de auditoria estava escrita e morta; `admin_log` estava
+vazio.
+
+Hoje "Falar antes" é um botão que pede o número na hora. Não é desconfiança de
+quem administra agora, que é o fundador: é que um dia haverá outra pessoa, e
+*quem viu o telefone de quem* é a única pergunta que não se responde depois, se
+ninguém guardou.
+
+### A rede de segurança da limpeza de fotos
+
+O nome de um arquivo no Storage existe em **um** lugar: uma linha de
+`post_fotos`. Apagar o caso mata essa linha, e a remoção do arquivo roda no
+navegador **depois** disso. Se o aparelho perder a rede naquele segundo, o
+arquivo fica no bucket para sempre e ninguém consegue mais descobrir que ele
+existe. A varredura de 15/09/2026 achou um assim.
+
+Agora o nome **sobrevive ao caso**: `apagar_post` o copia para `fotos_orfas` —
+incluindo as fotos dos avistamentos que o cascade leva junto — antes de apagar.
+O app limpa o bucket e só então esquece a linha. O que sobra de uma tentativa
+que falhou é varrido na próxima vez que a pessoa abre o app. Sem cron e sem
+serviço extra: quem criou a sobra é exatamente quem volta.
+
+Duas coisas que o `tools/testar-fotos-orfas.js` guarda:
+
+- **A fila é de cada um.** Ninguém vê nem esvazia a fila alheia — o caminho do
+  arquivo diria em que pasta a pessoa pode mexer.
+- **Esquecer só apaga o que foi pedido.** Se a remoção falhar, a linha fica. É
+  isso que faz a rede ser rede em vez de enfeite.
+
+O teste também pegou, antes do deploy, uma regressão que este mesmo trabalho
+criou: com a fila protegida por RLS, o `insert` direto dentro de `apagar_post`
+— que roda como quem chama — derrubava o apagar inteiro com *permission
+denied*. A anotação passa por `marcar_fotos_orfas`, que é `security definer`,
+para emprestar o privilégio só a ela e deixar o RLS em cima do `delete`.
+
+### Alvo de toque de 44 px
+
+Os três botões do feed — "vi o pet", "falar com o tutor", "compartilhar" —
+mediam 25×25. A WCAG 2.2 pede 24 no mínimo, então passavam raspando; mas o
+mínimo da norma não é a medida do polegar de quem está na rua com o celular
+numa mão só, e estes são os controles mais usados do app.
+
+O desenho não mudou: o ícone continua com 25 px e só a área clicável cresceu. O
+`padding` da linha recuou para 6 px porque cada botão já traz 9,5 px próprios de
+cada lado — somados, o primeiro ícone cai na mesma coluna do texto da legenda,
+que é onde ele estava. O mesmo vale para o "···" do dono e para o sino.
 
 ### Farejadores ativos — e o piso de silêncio
 

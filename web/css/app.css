@@ -67,13 +67,16 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
   padding: 0 16px;
   display: flex; align-items: center; gap: 8px;
 }
-.topo__faixa .marca { margin-right: auto; }
+.topo__faixa .marca-h1 { margin-right: auto; }
 
 /* Alinhamento ÓTICO, não geométrico.
    Medido nos arquivos: o centro do pino cai a 53,0% da altura da marca; o
    centro das letras, a 62,9% da altura do wordmark. Centralizando as caixas,
    o nome fica visivelmente baixo. O empurrão corrige a diferença:
        0,129 × 21px  −  0,030 × 34px  ≈  1,7px  */
+/* O <h1> é só semântica: nada nele deve aparecer na tela. */
+.marca-h1 { margin: 0; margin-right: auto; font-size: 0; line-height: 0; }
+
 .marca { display: flex; align-items: center; gap: 9px; text-decoration: none; }
 .marca__simbolo { height: 34px; width: auto; flex: none; }
 .marca__nome {
@@ -359,15 +362,32 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 }
 
 /* Ações: só ícone. O que cada uma faz está na linha social, logo abaixo. */
-.acoes { display: flex; align-items: center; gap: 14px; padding: 9px 16px 4px; }
+/* ALVO DE TOQUE DE 44 px.
+
+   Estes três botões — "vi o pet", "falar com o tutor", "compartilhar" — são o
+   que mais se usa no app inteiro, e mediam 25×25. A WCAG 2.2 pede 24 no
+   mínimo, então passavam raspando; mas o mínimo da norma não é a medida do
+   polegar de alguém andando na rua com o celular numa mão só.
+
+   O DESENHO NÃO MUDA: o ícone continua com 25 px. O que cresce é a área
+   clicável em volta dele. O `padding` da linha recua para 6 px porque cada
+   botão já traz 9,5 px próprios de cada lado — somados, o primeiro ícone cai
+   quase na mesma coluna do texto da legenda, que é onde ele estava. */
+.acoes {
+  display: flex; align-items: center;
+  gap: 2px;
+  padding: 0 6px;
+}
 
 .acao {
-  width: 25px; height: 25px;
+  width: 44px; height: 44px; flex: none;
+  display: grid; place-items: center;
+  border-radius: 50%;
   color: var(--tinta);
   transition: opacity .12s ease;
 }
 .acao:hover { opacity: .55; }
-.acao svg { width: 100%; height: 100%; }
+.acao svg { width: 25px; height: 25px; }
 
 /* --- LEGENDA ---------------------------------------------------------------- */
 
@@ -1045,7 +1065,7 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
   .carrossel__seta {
     position: absolute; top: 50%; transform: translateY(-50%);
     display: grid; place-items: center;
-    width: 28px; height: 28px;
+    width: 34px; height: 34px;
     border-radius: 50%;
     background: rgba(255,255,255,.92);
     color: var(--tinta);
@@ -1072,7 +1092,7 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .post__autor-link:hover .post__autor { text-decoration: underline; }
 
 .post__menu {
-  width: 32px; height: 32px; flex: none;
+  width: 44px; height: 44px; flex: none;   /* alvo de toque; o ícone segue com 19 */
   display: grid; place-items: center;
   border-radius: 50%;
   color: var(--tinta);
@@ -1532,7 +1552,7 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 /* Quantas PESSOAS ajudam o caso. Fica na ponta da linha de ações, discreto:
    é prova social, não botão. */
 .farejadores {
-  margin-left: auto;
+  margin-left: auto; margin-right: 10px;   /* a linha das ações recuou para 6 px */
   display: flex; align-items: center; gap: 5px;
   font-size: .78rem;
   color: var(--tinta-2);
@@ -1544,7 +1564,7 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 /* Sino: novidades nos seus casos. Ícone diferente da pata de propósito. */
 .sino {
   position: relative;
-  width: 34px; height: 34px;
+  width: 44px; height: 44px;               /* alvo de toque; o ícone não muda */
   display: grid; place-items: center;
   border-radius: 50%;
   color: var(--tinta);

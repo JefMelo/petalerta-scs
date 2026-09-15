@@ -9,14 +9,15 @@ import { ORIGEM, feedPorRaio, reencontros, novosReencontros, postPorId, rastroDo
          registrarCompartilhamento, minhasNovidades,
          novidadesVistasEm, marcarNovidadesVistas, CENTRO,
          aoRecuperarSenha, meuPapel, recadosAtivos, recadosLidos,
-         marcarRecadoLido, farejadoresAtivos, PISO_COMUNIDADE } from './dados.js?v=69';
-import * as form from './formularios.js?v=69';
-import * as mapaTela from './mapa.js?v=69';
-import * as perfilTela from './perfil.js?v=69';
-import * as pwa from './pwa.js?v=69';
-import * as adminTela from './admin.js?v=69';
+         marcarRecadoLido, farejadoresAtivos, PISO_COMUNIDADE,
+         varrerFotosOrfas } from './dados.js?v=70';
+import * as form from './formularios.js?v=70';
+import * as mapaTela from './mapa.js?v=70';
+import * as perfilTela from './perfil.js?v=70';
+import * as pwa from './pwa.js?v=70';
+import * as adminTela from './admin.js?v=70';
 import { areaDeBusca, conselho, FONTES,
-         horasDesdeUltimoPonto } from './area-busca.js?v=69';
+         horasDesdeUltimoPonto } from './area-busca.js?v=70';
 
 // MARCA — nome de trabalho. Trocar aqui e em .marca no CSS/HTML. -------------
 export const MARCA = { nome: 'Faro', cidade: 'Santa Cruz do Sul' };
@@ -1251,6 +1252,12 @@ aoMudarSessao(() => {
 
   souAdmin = false;
   if (estaLogado()) {
+    /* Faxina do que ficou para trás numa tentativa anterior de apagar foto.
+       Aqui, e não na abertura do app, porque a fila é por pessoa: antes da
+       sessão existir não há o que varrer. Silenciosa por natureza — se falhar
+       de novo, a fila continua e a próxima sessão tenta. */
+    varrerFotosOrfas();
+
     meuPapel().then((p) => {
       souAdmin = !!p?.eh_admin;
       // Repinta só se mudou algo: quem não modera não paga por isto.

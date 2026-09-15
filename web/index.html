@@ -19,7 +19,7 @@
 <!-- Uma família só. Duas fontes + uma mono era o que dava cara de painel. -->
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400..800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="css/app.css?v=69">
+<link rel="stylesheet" href="css/app.css?v=70">
 </head>
 <body>
 
@@ -27,11 +27,17 @@
 
 <header class="topo">
   <div class="topo__faixa">
-    <!-- MARCA provisória: preenchida por js/app.js (constante MARCA). -->
-    <a class="marca" href="#/" aria-label="Faro, página inicial">
-      <img class="marca__simbolo" src="img/faro-marca.png" alt="" width="600" height="668">
-      <img class="marca__nome" src="img/faro-texto.png" alt="Faro" width="600" height="249">
-    </a>
+    <!-- MARCA provisória: preenchida por js/app.js (constante MARCA).
+         O <h1> existe para quem usa leitor de tela: sem ele a página não tinha
+         nenhum cabeçalho de primeiro nível, e navegar por títulos — que é como
+         se percorre uma página sem ver — começava do nada. Não muda um pixel:
+         o CSS zera margem e tamanho, e o desenho continua sendo o logo. -->
+    <h1 class="marca-h1">
+      <a class="marca" href="#/" aria-label="Faro, página inicial">
+        <img class="marca__simbolo" src="img/faro-marca.png" alt="" width="600" height="668">
+        <img class="marca__nome" src="img/faro-texto.png" alt="Faro" width="600" height="249">
+      </a>
+    </h1>
     <!-- Novidades nos seus casos. Só aparece para quem tem conta. -->
     <button class="sino" type="button" data-acao="novidades" aria-label="Novidades nos seus casos" hidden>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
@@ -262,6 +268,6 @@
 </nav>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script type="module" src="js/app.js?v=69"></script>
+<script type="module" src="js/app.js?v=70"></script>
 </body>
 </html>

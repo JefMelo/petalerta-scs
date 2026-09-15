@@ -4,7 +4,7 @@
    ============================================================================= */
 
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-import { SUPABASE_URL, SUPABASE_ANON } from './config.js?v=69';
+import { SUPABASE_URL, SUPABASE_ANON } from './config.js?v=70';
 
 export const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
@@ -100,6 +100,14 @@ export async function reencontros({ lat, lng, raioM = 20000 } = {}) {
   });
   if (error) throw new Error(error.message);
   return data.map((r) => ({ ...normalizar(r), autor_avatar: montarFoto(r.autor_avatar) }));
+}
+
+/* Quantas fotos ficaram para trás na base inteira — só para o administrador.
+   Número, nunca a lista: o caminho do arquivo já diz de quem é a pasta. */
+export async function fotosOrfasPendentes() {
+  const { data, error } = await sb.rpc('fotos_orfas_pendentes', {});
+  if (error) return null;
+  return data == null ? null : Number(data);
 }
 
 /* QUANTOS FAREJADORES A CIDADE TEM — pessoas distintas que agiram nos últimos
@@ -346,17 +354,13 @@ export async function avistamentosLigados(id) {
 }
 
 export async function apagarPost(id) {
-  // Tira as imagens do bucket antes: depois do delete não dá mais para saber
-  // quais eram, e elas ficariam ocupando espaço para sempre.
-  let paths = [];
-  try {
-    const { data } = await sb.from('post_fotos').select('path').eq('post_id', id);
-    paths = (data || []).map((f) => f.path);
-  } catch { /* sem as fotos ainda dá para apagar o post */ }
-
+  /* `apagar_post` copia os nomes dos arquivos para a fila de órfãs ANTES de
+     apagar o caso (schema-24) — é o que faz o nome sobreviver à linha que o
+     guardava. A limpeza do bucket vem depois e pode falhar sem prejuízo: o que
+     ficar para trás é varrido na próxima abertura do app. */
   const { error } = await sb.rpc('apagar_post', { p_id: id });
   if (error) throw new Error(error.message);
-  await apagarFotosDoBucket(paths);
+  await varrerFotosOrfas();
 }
 
 export async function resolverPost(id) {
@@ -369,11 +373,41 @@ export async function reabrirPost(id) {
   if (error) throw new Error(error.message);
 }
 
-/** Só apaga o que está no bucket; URL externa (dado de teste) não é nossa. */
+/* A LIMPEZA DO BUCKET, COM REDE.
+
+   O problema que isto resolve: o nome do arquivo no Storage só existe em uma
+   linha do banco. Apagar o caso (ou trocar a foto do perfil) mata essa linha, e
+   se a remoção do arquivo falhar naquele exato segundo — sem rede, app fechado,
+   aba morta — ninguém nunca mais descobre que o arquivo existe. A varredura de
+   15/09/2026 achou um assim.
+
+   Então o nome é ANOTADO antes, apagado depois, e só esquecido quando o arquivo
+   de fato saiu. Uma tentativa que falha deixa a linha na fila, e a próxima
+   abertura do app tenta de novo. Sem cron e sem serviço extra: quem criou a
+   sobra é exatamente quem volta.
+
+   Só cuida do que é nosso; URL externa (dado de teste) não entra. */
 export async function apagarFotosDoBucket(paths = []) {
-  const nossas = paths.filter((p) => p && !/^https?:\/\//.test(p));
+  const nossas = (paths || []).filter((p) => p && !/^https?:\/\//.test(p));
   if (!nossas.length) return;
-  try { await sb.storage.from('fotos').remove(nossas); } catch { /* não bloqueia */ }
+  try { await sb.rpc('marcar_fotos_orfas', { p_paths: nossas }); } catch { /* segue */ }
+  await varrerFotosOrfas();
+}
+
+/* Tira do bucket tudo o que está na fila desta pessoa e só então esquece.
+   Nunca lança: é faxina, não pode atrapalhar o que a pessoa veio fazer. */
+export async function varrerFotosOrfas() {
+  if (!sessao) return 0;
+  try {
+    const { data, error } = await sb.rpc('minhas_fotos_orfas', {});
+    if (error || !data?.length) return 0;
+
+    const { error: falhou } = await sb.storage.from('fotos').remove(data);
+    if (falhou) return 0;                 // fica na fila para a próxima vez
+
+    await sb.rpc('esquecer_fotos_orfas', { p_paths: data });
+    return data.length;
+  } catch { return 0; }
 }
 
 // --- sessão -------------------------------------------------------------------

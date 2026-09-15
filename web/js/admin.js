@@ -15,8 +15,9 @@
 
 import { adminPendentes, adminDecidir, adminContas, adminMudarPapel,
          adminRecados, desligarRecado, apagarRecado, meuPapel,
-         padroesLocais, farejadoresAtivos, PISO_COMUNIDADE } from './dados.js?v=69';
-import { abrirRecado, abrirNovoRecado } from './formularios.js?v=69';
+         padroesLocais, farejadoresAtivos, PISO_COMUNIDADE,
+         adminContato, fotosOrfasPendentes } from './dados.js?v=70';
+import { abrirRecado, abrirNovoRecado } from './formularios.js?v=70';
 
 const $  = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -132,8 +133,7 @@ function pedidoHTML(p) {
     <div class="pedido__acoes">
       <button class="botao-fraco" type="button" data-decidir="sim" data-id="${esc(p.id)}">Aprovar</button>
       <button class="botao-fraco" type="button" data-decidir="nao" data-id="${esc(p.id)}">Recusar</button>
-      ${p.whatsapp ? `<a class="elo" href="https://wa.me/55${esc(p.whatsapp)}"
-           target="_blank" rel="noopener noreferrer">Falar antes</a>` : ''}
+      <button class="elo" type="button" data-contato="${esc(p.id)}">Falar antes</button>
     </div>
   </article>`;
 }
@@ -206,9 +206,10 @@ const rosa = (g) => {
 };
 
 async function pintarPadroes(alvo) {
-  const [linhas, ativos] = await Promise.all([
+  const [linhas, ativos, orfas] = await Promise.all([
     padroesLocais().catch(() => []),
     farejadoresAtivos(),
+    fotosOrfasPendentes().catch(() => null),
   ]);
   const total = linhas.reduce((a, l) => a + Number(l.n), 0);
 
@@ -232,9 +233,26 @@ async function pintarPadroes(alvo) {
              Contador pequeno não passa credibilidade, passa o contrário.`}</p>
       </article>`;
 
+  /* Fotos que ficaram para trás. Em dia normal é zero e some da tela: um
+     contador de faxina aceso o tempo todo vira papel de parede. Aparece quando
+     há o que ver — e "some sozinho" é justamente o sinal de que a rede de
+     segurança funcionou. */
+  const faxina = orfas > 0
+    ? `<article class="padrao">
+        <header class="padrao__topo">
+          <strong>Fotos para apagar</strong>
+          <span class="etiqueta">faxina</span>
+        </header>
+        <p class="padrao__aviso">${orfas} ${orfas === 1 ? 'arquivo ficou' : 'arquivos ficaram'}
+          no armazenamento depois que o caso foi apagado. Cada dono limpa os seus
+          na próxima vez que abrir o app — não é preciso fazer nada.</p>
+      </article>`
+    : '';
+
   alvo.innerHTML = `
     <p class="admin__rotulo">O tamanho da comunidade</p>
     ${comunidade}
+    ${faxina}
 
     <p class="admin__rotulo">O que os nossos casos já dizem</p>
     <p class="admin__vazio">
@@ -310,6 +328,40 @@ document.addEventListener('click', async (ev) => {
 
   const d = ev.target.closest('[data-decidir]');
   if (d) { decidir(d); return; }
+
+  /* O TELEFONE É PEDIDO, NÃO ENTREGUE.
+
+     Antes, `admin_pendentes` já trazia o whatsapp de todo mundo na fila, e o
+     botão era um link pronto — abrir a aba entregava todos os números de uma
+     vez, sem registro. Agora vem um de cada vez, por `admin_contato`, que
+     grava em `admin_log` quem olhou o telefone de quem.
+
+     Não é desconfiança de quem administra hoje. É que um dia haverá outra
+     pessoa, e "quem viu o telefone de quem" é a única pergunta que não se
+     responde depois, se ninguém guardou. */
+  const contato = ev.target.closest('[data-contato]');
+  if (contato) {
+    contato.disabled = true;
+    const antes = contato.textContent;
+    contato.textContent = 'Buscando…';
+    try {
+      const tel = await adminContato(contato.dataset.contato);
+      if (!tel) {
+        contato.textContent = 'Sem telefone';
+        return;
+      }
+      /* Abre numa aba nova, como o link fazia. `noopener` porque a página de
+         destino não tem nada a saber sobre esta. */
+      window.open(`https://wa.me/55${tel}`, '_blank', 'noopener');
+      contato.textContent = antes;
+    } catch (erro) {
+      abrirRecado('Não consegui', erro.message);
+      contato.textContent = antes;
+    } finally {
+      contato.disabled = false;
+    }
+    return;
+  }
 
   if (ev.target.closest('[data-novo-recado]')) {
     abrirNovoRecado({ aoSalvar: () => { aba = 'recados'; pintarConteudo(); } });

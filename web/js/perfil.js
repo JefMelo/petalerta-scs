@@ -5,10 +5,10 @@
    ============================================================================= */
 
 import { ORIGEM, adotarMinhaLocalizacao, perfilPublico, postsDoPerfil,
-         meuId, sair, meuPerfil, meuPapel } from './dados.js?v=69';
-import { abrirEditarPerfil, abrirRecado } from './formularios.js?v=69';
-import * as pwa from './pwa.js?v=69';
-import { RAIO_AVISO_PADRAO } from './pwa.js?v=69';
+         meuId, sair, meuPerfil, meuPapel } from './dados.js?v=70';
+import { abrirEditarPerfil, abrirRecado } from './formularios.js?v=70';
+import * as pwa from './pwa.js?v=70';
+import { RAIO_AVISO_PADRAO } from './pwa.js?v=70';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) =>
