@@ -798,22 +798,35 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 }
 .grupo__conta { order: 2; font-weight: 550; color: var(--tinta-2); letter-spacing: 0; }
 
-/* Tipo do caso: quatro escolhas em linguagem de gente. */
-.tipos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+/* Tipo do caso: quatro escolhas em linguagem de gente.
+
+   Eram quatro quadrados 2×2, com o escolhido pintado de preto sólido. Ficava
+   pesado e, depois que os campos perderam as caixas, virou a única coisa
+   emoldurada da tela — e a mais berrante, logo no alto.
+
+   Agora são quatro LINHAS, o mesmo desenho que a escolha de tipo de conta já
+   usa: fio entre elas e um traço âmbar marcando a escolhida. Mesma decisão,
+   mesma gramática, e o alto da tela deixa de brigar com o resto dela. */
+.tipos { display: block; }
 
 .tipo input { position: absolute; opacity: 0; width: 0; height: 0; }
-.tipo span {
-  display: grid; place-items: center; text-align: center;
-  min-height: 54px; padding: 10px;
-  border: 1px solid var(--risco-2);
-  border-radius: 10px;
-  font-size: .86rem; font-weight: 600;
+.tipo__corpo {
+  display: block;
+  padding: 13px 0 13px 14px;
+  border-left: 2px solid transparent;
+  border-bottom: 1px solid var(--risco-2);
   cursor: pointer;
-  transition: border-color .12s ease;
+  transition: border-left-color .12s ease;
 }
-.tipo span:hover { border-color: var(--risco); }
-.tipo input:checked + span { border-color: var(--tinta); background: var(--tinta); color: var(--papel); }
-.tipo input:focus-visible + span { outline: 2px solid var(--acento); outline-offset: 2px; }
+.tipos label:last-child .tipo__corpo { border-bottom: 0; }
+.tipo__corpo strong { display: block; font-size: .96rem; font-weight: 600; color: var(--tinta); }
+.tipo__corpo em {
+  display: block; margin-top: 3px;
+  font-style: normal; font-size: .8rem; line-height: 1.45; color: var(--tinta-2);
+}
+.tipo input:checked + .tipo__corpo { border-left-color: var(--perdido); }
+.tipo input:checked + .tipo__corpo strong { font-weight: 750; }
+.tipo input:focus-visible + .tipo__corpo { outline: 2px solid var(--acento); outline-offset: 2px; }
 
 /* Tipo de conta, no cadastro. Empilhado e não em grade como .tipos: cada
    opção carrega uma frase explicando o que muda, e frase não cabe em pílula. */
@@ -849,13 +862,15 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .papel input:focus-visible + .papel__corpo { outline: 2px solid var(--acento); outline-offset: 2px; }
 
 /* Opção desligada: continua visível de propósito. Sumir com "Quero doar" faria
-   a pessoa achar que o app não serve para isso; mostrar desbotado e explicar o
-   porquê é o que a leva ao caminho certo. */
-.tipo input:disabled + span {
-  opacity: .45;
-  cursor: default;
-  border-style: dashed;
-}
+   a pessoa achar que o app não serve para isso. A regra inteira cabe na linha
+   dela — antes era um parágrafo de quatro linhas embaixo dos quadrados, que
+   ninguém leria de qualquer jeito. */
+.tipo input:disabled + .tipo__corpo { cursor: default; }
+.tipo input:disabled + .tipo__corpo strong { color: var(--tinta-3); font-weight: 550; }
+
+/* O elo de cadastro pertence à linha travada logo acima — encostá-lo nela é o
+   que faz um dizer respeito ao outro. */
+.tipos + .elo { margin-top: -2px; }
 
 /* Seletor de fotos: lado a lado, com a capa marcada. */
 /* A capa ocupa quatro vezes as outras. Numa lista de três quadrados iguais

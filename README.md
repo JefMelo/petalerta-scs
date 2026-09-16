@@ -582,6 +582,18 @@ de informação que o olho aprende a pular — e os três tipos de conta viraram
 linhas separadas por fio, com um traço âmbar marcando a escolhida. Cartão
 empilhado vira "escolha um plano"; ali a pessoa está só dizendo quem ela é.
 
+**O que aconteceu** — a primeira escolha da tela de publicar — eram quatro
+quadrados 2×2 com o escolhido pintado de preto sólido. Depois que os campos
+perderam as caixas, aquilo virou a única coisa emoldurada da tela e a mais
+berrante, logo no alto. Agora são quatro linhas, a mesma gramática da escolha
+de tipo de conta.
+
+Junto saiu o parágrafo de quatro linhas que explicava a regra da adoção. A
+regra continua dita, mas cabe na própria opção travada — *"Só para ONGs e
+protetores cadastrados."* —, e o botão de largura inteira que vinha embaixo
+virou um elo discreto encostado nela. Um parágrafo que ninguém lê não protege
+regra nenhuma.
+
 Duas decisões de cor: a ação do topo ("Publicar", "Criar") passou de azul para
 o âmbar da marca, e o elo que recebe essa cor depende da tela — em *Entrar*, o
 caminho de quem ainda não tem conta; em *Criar conta*, nenhum, porque o caminho

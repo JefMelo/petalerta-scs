@@ -20,7 +20,7 @@
    outra conta. Passam direto, sem tocar aqui.
    ============================================================================= */
 
-const VERSAO = '78';                       // carimbada por tools/versionar.js
+const VERSAO = '80';                       // carimbada por tools/versionar.js
 const CASCA  = `faro-casca-${VERSAO}`;     // html, css, js, ícones, Leaflet
 const FOTOS  = 'faro-fotos';               // fotos dos casos, com teto
 const FOTOS_TETO = 60;

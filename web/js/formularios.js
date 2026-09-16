@@ -3,8 +3,8 @@
    Uma folha por vez, sobe de baixo. Toda a escrita no banco passa por aqui.
    ============================================================================= */
 
-import * as dados from './dados.js?v=78';
-import { recortar, recortarVarias } from './recortar.js?v=78';
+import * as dados from './dados.js?v=80';
+import { recortar, recortarVarias } from './recortar.js?v=80';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) =>
@@ -759,23 +759,24 @@ async function abrirCaso(centro, post) {
     acao: editando ? 'Salvar' : 'Publicar',
     corpo: `
       ${ehAvistamentoLigado ? '' : `
+      ${grupo('O que aconteceu')}
       <div class="tipos" role="radiogroup" aria-label="O que aconteceu">
-        ${TIPOS.map(([v, t]) => `
+        ${TIPOS.map(([v, t]) => {
+          const travado = v === 'adocao' && !podeDoar;
+          return `
           <label class="tipo">
             <input type="radio" name="tipo" value="${v}"
-              ${v === 'adocao' && !podeDoar ? 'disabled' : ''}
+              ${travado ? 'disabled' : ''}
               ${(editando ? post.tipo === v : v === 'perdido') ? 'checked' : ''}>
-            <span>${esc(t)}</span>
-          </label>`).join('')}
+            <span class="tipo__corpo">
+              <strong>${esc(t)}</strong>
+              ${travado ? '<em>Só para ONGs e protetores cadastrados.</em>' : ''}
+            </span>
+          </label>`;
+        }).join('')}
       </div>
       ${podeDoar ? '' : `
-      <p class="folha__ajuda">
-        <strong>A adoção é publicada por ONGs e protetores cadastrados.</strong>
-        É o que evita que um anúncio vire abandono com etiqueta.<br>
-        Se o pet está com você e você não sabe de quem é, use
-        <em>“Encontrei e está comigo”</em> — o tutor pode estar procurando agora.
-      </p>
-      <button class="botao-fraco" type="button" data-quero-doar>
+      <button class="elo elo--quieto" type="button" data-quero-doar>
         ${papel?.papel && papel.papel !== 'farejador' && !papel.aprovado
           ? 'Seu pedido está em análise — ver'
           : 'Quero me cadastrar para doar'}
