@@ -107,6 +107,7 @@ Um **feed**, não um painel. As decisões que tiram a cara de "app gerado":
 | `schema-22.sql` | o reencontro sai do feed e vira pontinho na aba: `novos_reencontros()` |
 | `schema-23.sql` | `farejadores_ativos()` — o tamanho da comunidade, medido por quem agiu |
 | `schema-24.sql` | varredura de 15/09: telefone com registro, fila de fotos órfãs, feed sem contador morto |
+| `schema-25.sql` | a fila de faxina não entrega o que ainda está em uso (foto de caso, avatar, recado) |
 | `schema-13.sql` | avisos no celular: `push_subs` ganha o opt-in de bairro, `avisos_enviados` e `avisos_pendentes` |
 | `seed-teste.sql` | 6 casos + 3 avistamentos + 3 usuários `@teste.farejo.local` |
 
@@ -539,6 +540,52 @@ Cada tipo pinta 3 px na borda de cima do card e colore o selo da foto. Mas cor
 sozinha nunca é a única diferença: o selo carrega um **ícone** junto da
 palavra, porque a forma chega antes da leitura quando se rola rápido — e chega
 para quem não distingue verde de vermelho, que é uma pessoa em cada doze.
+
+### Os formulários: uma ficha, não um cadastro
+
+As duas telas onde se digita — criar conta e publicar um caso — eram doze
+retângulos cinza-azulados empilhados, com rótulo em negrito por cima de cada
+um. É o formulário que qualquer site tem; num app que existe para substituir o
+cartaz do poste, parecia uma repartição.
+
+**O campo virou uma linha de ficha:** rótulo à esquerda, o que se escreve à
+direita, um traço por baixo dos dois. O texto passa a ser mais forte que o
+rótulo — era o contrário — e a marca finalmente aparece na interação: o traço
+engrossa e fica âmbar no foco, e o rótulo muda de cor junto.
+
+Uma primeira versão pôs o rótulo em cima e o traço embaixo. Ficou bonita e
+ambígua: sobravam trinta pixels de nada entre o rótulo e o seu traço, e a linha
+podia ser lida como pertencendo ao rótulo de cima ou ao de baixo. Empurrar tudo
+para a mesma linha acabou com o vazio e encurtou a tela de publicar, que tem
+doze campos e é preenchida por alguém com pressa.
+
+O preço da troca é que, sem caixa, é o traço sozinho que diz onde se escreve.
+Ele é pago: o traço é mais escuro que os outros fios do app (`--risco`), a linha
+tem 48 px de altura e o rótulo nunca vira placeholder.
+
+**O nome do pet é a assinatura.** Num cartaz de poste, depois da foto a coisa
+maior é o nome — então é o único campo em corpo de display, usando o eixo de
+**largura** do Archivo (`wdth 112`), que o app passou a carregar. Quem digita
+"Bidu" vê o tamanho que aquilo vai ter. Um campo só recebe esse tratamento; o
+resto fica quieto, e é isso que o faz funcionar. O exemplo no campo vazio muda
+com o tipo do caso: "Bidu" para um pet perdido, "Cão caramelo" para um
+avistamento — porque quem viu um cão na rua não sabe o nome dele.
+
+**Os doze campos viraram três perguntas** — *A foto*, *Quem é*, *Onde e
+quando*. São as perguntas que um cartaz responde, não etapas numeradas:
+numerar sugeriria uma ordem obrigatória, e não há. A capa ocupa quatro vezes as
+outras fotos, porque numa fileira de três quadrados iguais ninguém percebe qual
+é a capa.
+
+Na tela de criar conta saiu a caixa cinza de "por que ter conta" — o quadrinho
+de informação que o olho aprende a pular — e os três tipos de conta viraram
+linhas separadas por fio, com um traço âmbar marcando a escolhida. Cartão
+empilhado vira "escolha um plano"; ali a pessoa está só dizendo quem ela é.
+
+Duas decisões de cor: a ação do topo ("Publicar", "Criar") passou de azul para
+o âmbar da marca, e o elo que recebe essa cor depende da tela — em *Entrar*, o
+caminho de quem ainda não tem conta; em *Criar conta*, nenhum, porque o caminho
+já é o botão do topo.
 
 ### O telefone é pedido, não entregue
 

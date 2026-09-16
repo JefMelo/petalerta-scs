@@ -140,6 +140,32 @@ try {
   conferir('marcar duas vezes não duplica nem quebra',
     (await fila(JEF)).filter((p) => p === `${MARCA}/avatar.jpg`).length === 1);
 
+  console.log('\n— A FILA NÃO ENTREGA O QUE AINDA ESTÁ EM USO —');
+  /* O erro que deu origem a esta trava: varri o bucket cruzando só com
+     `post_fotos` e apaguei o que era a foto de PERFIL de alguém. A fila é uma
+     lista de candidatos, não uma ordem de execução. */
+  await rpc(JEF, 'marcar_fotos_orfas', { p_paths: [`${MARCA}/em-uso.jpg`] });
+  conferir('entra na fila como candidata', (await fila(JEF)).includes(`${MARCA}/em-uso.jpg`));
+
+  await sql(`update profiles set avatar_path = '${MARCA}/em-uso.jpg' where id = '${JEF.id}'`);
+  conferir('mas NÃO é entregue enquanto for a foto de perfil de alguém',
+    !(await fila(JEF)).includes(`${MARCA}/em-uso.jpg`),
+    'a fila mandaria apagar o avatar de uma pessoa');
+
+  await sql(`update profiles set avatar_path = null where id = '${JEF.id}'`);
+  conferir('  └ e volta a ser entregue quando ninguém mais aponta para ela',
+    (await fila(JEF)).includes(`${MARCA}/em-uso.jpg`));
+
+  const [{ id: outro }] = await sql(`
+    insert into posts (autor_id, tipo, titulo, especie, local, ocorrido_em)
+    values ('${JEF.id}', 'perdido', '${MARCA} guarda', 'cao',
+            st_setsrid(st_makepoint(-52.4306, -29.7182), 4326)::geography, now())
+    returning id;`);
+  await sql(`insert into post_fotos (post_id, path, ordem)
+               values ('${outro}', '${MARCA}/em-uso.jpg', 0)`);
+  conferir('o mesmo vale para a foto de um caso',
+    !(await fila(JEF)).includes(`${MARCA}/em-uso.jpg`));
+
   console.log('\n— NINGUÉM LÊ A TABELA PELA API —');
   const anon = await fetch(`${U}/rest/v1/fotos_orfas?select=*`, { headers: { apikey: AN } });
   conferir('deslogado não lê', anon.status === 401, String(anon.status));

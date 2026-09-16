@@ -17,9 +17,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- Uma família só. Duas fontes + uma mono era o que dava cara de painel. -->
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400..800&display=swap" rel="stylesheet">
+<!-- O eixo de LARGURA (wdth) entra junto do peso. É o que dá à marca uma voz de
+     letreiro sem trazer uma segunda família para dentro do app: o nome do pet e as
+     frases de abertura usam Archivo alargado. Se o eixo não carregar, tudo volta à
+     largura normal e nada quebra. -->
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,400..800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="css/app.css?v=70">
+<link rel="stylesheet" href="css/app.css?v=78">
 </head>
 <body>
 
@@ -268,6 +272,6 @@
 </nav>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script type="module" src="js/app.js?v=70"></script>
+<script type="module" src="js/app.js?v=78"></script>
 </body>
 </html>

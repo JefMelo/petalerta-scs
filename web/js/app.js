@@ -10,14 +10,14 @@ import { ORIGEM, feedPorRaio, reencontros, novosReencontros, postPorId, rastroDo
          novidadesVistasEm, marcarNovidadesVistas, CENTRO,
          aoRecuperarSenha, meuPapel, recadosAtivos, recadosLidos,
          marcarRecadoLido, farejadoresAtivos, PISO_COMUNIDADE,
-         varrerFotosOrfas } from './dados.js?v=70';
-import * as form from './formularios.js?v=70';
-import * as mapaTela from './mapa.js?v=70';
-import * as perfilTela from './perfil.js?v=70';
-import * as pwa from './pwa.js?v=70';
-import * as adminTela from './admin.js?v=70';
+         varrerFotosOrfas } from './dados.js?v=78';
+import * as form from './formularios.js?v=78';
+import * as mapaTela from './mapa.js?v=78';
+import * as perfilTela from './perfil.js?v=78';
+import * as pwa from './pwa.js?v=78';
+import * as adminTela from './admin.js?v=78';
 import { areaDeBusca, conselho, FONTES,
-         horasDesdeUltimoPonto } from './area-busca.js?v=70';
+         horasDesdeUltimoPonto } from './area-busca.js?v=78';
 
 // MARCA — nome de trabalho. Trocar aqui e em .marca no CSS/HTML. -------------
 export const MARCA = { nome: 'Faro', cidade: 'Santa Cruz do Sul' };

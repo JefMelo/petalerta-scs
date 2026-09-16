@@ -3,8 +3,8 @@
    Uma folha por vez, sobe de baixo. Toda a escrita no banco passa por aqui.
    ============================================================================= */
 
-import * as dados from './dados.js?v=70';
-import { recortar, recortarVarias } from './recortar.js?v=70';
+import * as dados from './dados.js?v=78';
+import { recortar, recortarVarias } from './recortar.js?v=78';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) =>
@@ -99,15 +99,21 @@ export function fechar() {
 
 // --- peças reutilizáveis ------------------------------------------------------
 
-const campo = (nome, rotulo, attrs = '', dica = '') => `
-  <label class="campo">
+const campo = (nome, rotulo, attrs = '', dica = '', extra = '') => `
+  <label class="campo ${extra}">
     <span class="campo__rotulo">${esc(rotulo)}</span>
     <input name="${nome}" ${attrs}>
     ${dica ? `<span class="campo__dica">${esc(dica)}</span>` : ''}
   </label>`;
 
+/* As três perguntas que um cartaz de poste responde. Não são etapas numeradas:
+   numerar sugeriria uma ordem obrigatória, e não há — a pessoa preenche o que
+   sabe, na ordem que quiser. */
+const grupo = (nome, aoLado = '') =>
+  `<p class="grupo__nome">${esc(nome)}${aoLado}</p>`;
+
 const area = (nome, rotulo, ph = '') => `
-  <label class="campo">
+  <label class="campo campo--bloco">
     <span class="campo__rotulo">${esc(rotulo)}</span>
     <textarea name="${nome}" rows="4" placeholder="${esc(ph)}"></textarea>
   </label>`;
@@ -127,17 +133,20 @@ const ICONE_FOTO = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" s
 
 /* Uma foto (avistamento) ou até três (caso novo). Três ajudam a reconhecer o
    pet — de frente, de lado, a marca particular. Num avistamento seria poluição. */
+/* Com várias fotos o contador sobe para a linha do grupo ("A foto ——— 0 de 3"):
+   repetir a palavra "Fotos" logo abaixo de um título que já diz isso é o tipo
+   de ruído que faz um formulário parecer longo antes de ser lido. */
 const fotosHTML = (max = 1) => `
-  <div class="campo">
-    <span class="campo__rotulo">${max > 1 ? `Fotos <span class="campo__contador" data-contador>0 de ${max}</span>` : 'Foto'}</span>
+  <div class="campo campo--bloco">
+    ${max > 1 ? '' : '<span class="campo__rotulo">Foto</span>'}
     <input type="file" name="foto" accept="image/*" ${max > 1 ? 'multiple' : ''} hidden>
     <div class="fotos" data-fotos data-max="${max}"></div>
     ${max > 1 ? '<span class="campo__dica">De frente, de lado e a marca que identifica. A primeira vira a capa.</span>' : ''}
   </div>`;
 
 const mapaHTML = `
-  <div class="campo">
-    <span class="campo__rotulo">Onde foi</span>
+  <div class="campo campo--bloco">
+    <span class="campo__rotulo">No mapa</span>
     <div class="mapa-escolha">
       <div id="mapa-form"></div>
       <div class="mapa-escolha__pino" aria-hidden="true">
@@ -260,7 +269,7 @@ const PAPEIS = [
 ];
 
 const PAPEIS_HTML = `
-  <div class="campo">
+  <div class="campo campo--bloco">
     <span class="campo__rotulo">Que tipo de conta é a sua</span>
     <div class="papeis" role="radiogroup" aria-label="Tipo de conta">
       ${PAPEIS.map(([v, t, d], i) => `
@@ -309,10 +318,18 @@ export function abrirConta(modo = 'entrar') {
       </div>`}
       ${campo('email', 'E-mail', 'type="email" required autocomplete="email"')}
       ${campo('senha', 'Senha', `type="password" required autocomplete="${entrando ? 'current' : 'new'}-password"`)}
-      <button class="botao-fraco" type="button" data-trocar>
+      <!-- Trocar entre entrar e criar conta é NAVEGAÇÃO, não ação: numa tela
+           sem caixa nenhuma, uma caixa aqui viraria o elemento mais forte da
+           página — e ela não é a coisa mais importante que se faz aqui.
+
+           Qual dos dois elos recebe a cor da marca depende de onde a pessoa
+           está. Em "Entrar", quem não tem conta precisa de um caminho, e
+           esquecer a senha é o caso raro; em "Criar conta", o caminho já é o
+           botão do topo, e voltar para entrar é que é o desvio. -->
+      <button class="elo ${entrando ? '' : 'elo--quieto'}" type="button" data-trocar>
         ${entrando ? 'Ainda não tenho conta' : 'Já tenho conta'}
       </button>
-      ${entrando ? '<button class="elo" type="button" data-esqueci>Esqueci minha senha</button>' : ''}`,
+      ${entrando ? '<button class="elo elo--quieto" type="button" data-esqueci>Esqueci minha senha</button>' : ''}`,
     aoAbrir: (f) => {
       /* Quantos já estão aqui. É a única tela em que este número decide algo:
          a pessoa está escolhendo confiar no app. Chega DEPOIS que a folha
@@ -763,8 +780,13 @@ async function abrirCaso(centro, post) {
           ? 'Seu pedido está em análise — ver'
           : 'Quero me cadastrar para doar'}
       </button>`}`}
+      ${grupo('A foto', ehAvistamentoLigado ? ''
+        : '<span class="grupo__conta" data-contador>0 de 3</span>')}
       ${fotosHTML(ehAvistamentoLigado ? 1 : 3)}
-      ${campo('titulo', 'Nome do pet', 'required maxlength="60"')}
+
+      ${grupo('Quem é')}
+      ${campo('titulo', 'Nome do pet',
+        'required maxlength="60" placeholder="Bidu"', '', 'campo--bloco campo--nome')}
       ${escolha('especie', 'Espécie', [['cao', 'Cão'], ['gato', 'Gato'], ['outro', 'Outro']])}
       ${campo('raca', 'Raça', 'maxlength="60"', 'Se não souber, escreva "sem raça definida".')}
       ${campo('cor', 'Cor', 'maxlength="40"')}
@@ -773,6 +795,8 @@ async function abrirCaso(centro, post) {
       ${escolha('castrado', 'Castrado', [['', 'Não sei'], ['sim', 'Sim'], ['nao', 'Não']])}
       ${area('sinais', 'Sinais que identificam', 'Coleira, cicatriz, falha de pelo, jeito de andar…')}
       ${area('texto', 'Conte o que aconteceu', 'Quanto mais detalhe, mais fácil alguém reconhecer.')}
+
+      ${grupo('Onde e quando')}
       ${mapaHTML}
       ${campo('quando', 'Quando foi', 'type="datetime-local"')}`,
 
@@ -815,7 +839,11 @@ async function abrirCaso(centro, post) {
         const rotulo = campoTitulo.closest('.campo').querySelector('.campo__rotulo');
         const nomeavel = t === 'perdido' || t === 'adocao';
         rotulo.textContent = nomeavel ? 'Nome do pet' : 'Como era o pet';
-        campoTitulo.placeholder = nomeavel ? '' : 'Ex.: cão preto, porte médio';
+        /* O exemplo nunca fica vazio: este campo é o maior da tela, e vazio ele
+           vira um buraco entre o rótulo e o traço. Vazio também não ensina — e
+           num avistamento a pessoa precisa saber que pode descrever em vez de
+           nomear. */
+        campoTitulo.placeholder = nomeavel ? 'Bidu' : 'Cão caramelo';
         const mostrar = (nome, sim) => {
           const el = $(`[name=${nome}]`, f);
           if (el) el.closest('.campo').hidden = !sim;

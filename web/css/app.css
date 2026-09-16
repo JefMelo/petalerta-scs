@@ -13,6 +13,11 @@
   --toque:      #F4F6F7;
   --campo-fundo:#FAFBFC;
 
+  /* O traço sob um campo. Mais escuro que --fio porque, sem caixa em volta, é
+     ele sozinho que diz "aqui se escreve". */
+  --risco:      #C9CED3;
+  --risco-2:    #EDEFF1;   /* fio entre fatos, dentro de um formulário */
+
   --perdido:    #DD8C18;   /* âmbar do logo Faro — texto sobre ele: --tinta (6,9:1) */
   --avistado:   #15719F;
   --encontrado: #0E7A52;
@@ -592,13 +597,18 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 
 .folha__nome {
   margin: 0;
-  font-size: .95rem; font-weight: 700;
+  font-size: 1rem; font-weight: 700;
+  font-variation-settings: 'wdth' 108;
+  letter-spacing: -.008em;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+/* Âmbar, não azul: é a ação principal da tela e a única cor da marca que
+   aparecia por aqui era a do logo. --acento é o âmbar escurecido, o mais claro
+   que ainda passa AA como texto no branco. */
 .folha__acao {
   margin-left: auto; padding: 8px 12px;
-  font-size: .88rem; font-weight: 700;
-  color: var(--avistado);
+  font-size: .9rem; font-weight: 750;
+  color: var(--acento);
   border-radius: 6px;
 }
 .folha__acao:hover { background: var(--toque); }
@@ -658,35 +668,135 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .formulario {
   max-width: var(--coluna);
   margin: 0 auto;
-  padding: 16px 16px 60px;
-  display: flex; flex-direction: column; gap: 16px;
+  padding: 12px 16px 60px;
+  display: flex; flex-direction: column; gap: 14px;
 }
 
-.campo { display: block; }
+/* =============================================================================
+   OS CAMPOS: UM TRAÇO, NÃO UMA CAIXA
+
+   Antes, cada campo era um retângulo cinza-azulado de cantos arredondados —
+   doze deles empilhados na tela de publicar. É o formulário que qualquer site
+   tem, e num app que existe para um cartaz de poste ele parecia um cadastro de
+   repartição.
+
+   Agora o campo é um TRAÇO, como numa ficha que se preenche à mão. O que se lê
+   passa a ser o texto e não a moldura, e a marca finalmente aparece: o traço
+   engrossa e fica âmbar quando o campo está em foco, e o rótulo acima muda de
+   cor junto.
+
+   A troca tem um preço que precisa ser pago: sem caixa, é o traço sozinho que
+   diz onde se escreve. Por isso ele é mais escuro que os outros fios do app
+   (--risco), o campo mantém 48 px de altura para o dedo, e o rótulo nunca vira
+   placeholder — continua visível acima, sempre.
+   ============================================================================= */
+
+/* Uma LINHA de ficha: rótulo à esquerda, o que se escreve à direita, e um só
+   traço por baixo dos dois.
+
+   A primeira tentativa foi rótulo em cima e traço embaixo. Ficou bonito e
+   ambíguo: entre o rótulo e o seu traço sobravam trinta pixels de nada, e a
+   linha podia ser lida como pertencendo ao rótulo de cima ou ao de baixo.
+   Empurrar o traço para a mesma linha do rótulo acabou com o vazio e, de
+   quebra, encurtou a tela de publicar — que tem doze campos e é preenchida por
+   alguém com pressa. */
+.campo {
+  display: grid;
+  grid-template-columns: minmax(78px, max-content) 1fr;
+  align-items: center;
+  column-gap: 16px;
+  border-bottom: 1px solid var(--risco);
+}
 .campo[hidden] { display: none; }
 
 .campo__rotulo {
-  display: block;
-  margin-bottom: 5px;
-  font-size: .82rem; font-weight: 650;
+  font-size: .82rem; font-weight: 550;
+  color: var(--tinta-2);
+  transition: color .12s ease;
 }
-.campo__dica { display: block; margin-top: 5px; font-size: .78rem; color: var(--tinta-2); }
+.campo__dica {
+  grid-column: 1 / -1;
+  margin: -4px 0 8px;
+  font-size: .77rem; color: var(--tinta-2);
+}
 
 .campo input, .campo select, .campo textarea {
   width: 100%;
+  min-height: 48px;
   font: inherit;
+  /* Maior que o rótulo, de propósito: o que a pessoa escreveu importa mais do
+     que o nome do campo. Era o contrário. */
+  font-size: 1.06rem;
   color: var(--tinta);
-  background: var(--campo-fundo);
-  border: 1px solid var(--fio);
-  border-radius: 8px;
-  padding: 11px 12px;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
 }
-.campo textarea { resize: vertical; min-height: 72px; }
 .campo input::placeholder, .campo textarea::placeholder { color: var(--tinta-3); }
-.campo input:focus, .campo select:focus, .campo textarea:focus {
-  outline: none; border-color: var(--tinta-2); background: var(--papel);
+
+/* O foco pinta a LINHA inteira, não só o campo: é a linha que é a unidade. */
+.campo:focus-within { border-bottom-color: var(--perdido); box-shadow: 0 1px 0 var(--perdido); }
+.campo:focus-within .campo__rotulo { color: var(--acento); }
+.campo input:focus, .campo select:focus, .campo textarea:focus { outline: none; }
+
+/* Bloco: rótulo em cima e o conteúdo ocupando a largura toda. Para o que não
+   cabe ao lado de um rótulo — texto longo, mapa, fotos, lista de opções. */
+.campo--bloco {
+  display: block;
+  border-bottom: 0;
 }
-.campo select { appearance: none; background-image: none; }
+.campo--bloco .campo__rotulo { display: block; margin-bottom: 6px; }
+.campo--bloco .campo__dica { margin: 6px 0 0; }
+.campo--bloco textarea {
+  min-height: 84px; line-height: 1.5; resize: vertical;
+  padding: 8px 0 10px;
+  border-bottom: 1px solid var(--risco);
+}
+.campo--bloco:focus-within { box-shadow: none; }
+.campo--bloco textarea:focus { border-bottom: 2px solid var(--perdido); padding-bottom: 9px; }
+
+/* Sem caixa, um select sem seta é indistinguível de um campo de digitar. */
+.campo select {
+  appearance: none;
+  padding-right: 22px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236B7580' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+    no-repeat right 0 center / 15px 15px;
+}
+
+/* O NOME DO PET — a assinatura destas telas.
+
+   Num cartaz de poste, depois da foto a coisa maior é o nome. Aqui ele é o
+   único campo em corpo de display, com o eixo de largura do Archivo aberto:
+   quem digita "Bidu" vê o tamanho que aquilo vai ter. Um campo só recebe este
+   tratamento; o resto fica quieto, que é o que o faz funcionar. */
+.campo--nome input {
+  font-size: 1.7rem; font-weight: 700;
+  font-variation-settings: 'wdth' 112;
+  letter-spacing: -.015em;
+  min-height: 54px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--risco);
+}
+.campo--nome input:focus { border-bottom: 2px solid var(--perdido); padding-bottom: 5px; }
+/* O exemplo ocupa o corpo do campo enquanto ele está vazio. Sem isso o campo
+   grande vira um buraco entre o rótulo e o traço — e ainda ensina o que
+   escrever quando não se sabe o nome. */
+.campo--nome input::placeholder { color: #D3D7DB; font-weight: 700; }
+
+/* Os três grupos da tela de publicar. Não são etapas numeradas: são as três
+   perguntas que um cartaz responde — quem é, como era, onde e quando. */
+.grupo__nome {
+  display: flex; align-items: center; gap: 10px;
+  margin: 14px 0 -4px;
+  font-size: .76rem; font-weight: 700; letter-spacing: .03em;
+  color: var(--acento);
+}
+.grupo__nome::after {
+  content: ''; flex: 1; height: 1px; background: var(--risco-2);
+  order: 1;
+}
+.grupo__conta { order: 2; font-weight: 550; color: var(--tinta-2); letter-spacing: 0; }
 
 /* Tipo do caso: quatro escolhas em linguagem de gente. */
 .tipos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -694,12 +804,14 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .tipo input { position: absolute; opacity: 0; width: 0; height: 0; }
 .tipo span {
   display: grid; place-items: center; text-align: center;
-  min-height: 52px; padding: 10px;
-  border: 1px solid var(--fio);
+  min-height: 54px; padding: 10px;
+  border: 1px solid var(--risco-2);
   border-radius: 10px;
-  font-size: .84rem; font-weight: 600;
+  font-size: .86rem; font-weight: 600;
   cursor: pointer;
+  transition: border-color .12s ease;
 }
+.tipo span:hover { border-color: var(--risco); }
 .tipo input:checked + span { border-color: var(--tinta); background: var(--tinta); color: var(--papel); }
 .tipo input:focus-visible + span { outline: 2px solid var(--acento); outline-offset: 2px; }
 
@@ -715,17 +827,24 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .mapa-escolha[hidden] { display: none; }
 
 .papel input { position: absolute; opacity: 0; width: 0; height: 0; }
+/* Três linhas separadas por fio, não três cartões. Cartão empilhado vira
+   "escolha um plano"; aqui a pessoa está só dizendo quem ela é. A escolhida
+   ganha um traço âmbar à esquerda — a mesma marca que o campo em foco usa. */
 .papel__corpo {
   display: block;
-  padding: 11px 13px;
-  border: 1px solid var(--fio);
-  border-radius: 10px;
+  padding: 13px 0 13px 14px;
+  border: 0;
+  border-left: 2px solid transparent;
+  border-bottom: 1px solid var(--risco-2);
+  border-radius: 0;
   cursor: pointer;
+  transition: border-left-color .12s ease;
 }
-.papel__corpo strong { display: block; font-size: .87rem; font-weight: 650; color: var(--tinta); }
-.papel__corpo em { display: block; margin-top: 2px; font-style: normal;
-                   font-size: .78rem; line-height: 1.35; color: var(--tinta-2); }
-.papel input:checked + .papel__corpo { border-color: var(--tinta); background: var(--toque); }
+.papel:last-child .papel__corpo { border-bottom: 0; }
+.papel__corpo strong { display: block; font-size: .93rem; font-weight: 650; color: var(--tinta); }
+.papel__corpo em { display: block; margin-top: 3px; font-style: normal;
+                   font-size: .81rem; line-height: 1.45; color: var(--tinta-2); }
+.papel input:checked + .papel__corpo { border-left-color: var(--perdido); background: none; }
 .papel input:checked + .papel__corpo strong { font-weight: 750; }
 .papel input:focus-visible + .papel__corpo { outline: 2px solid var(--acento); outline-offset: 2px; }
 
@@ -739,7 +858,10 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 }
 
 /* Seletor de fotos: lado a lado, com a capa marcada. */
+/* A capa ocupa quatro vezes as outras. Numa lista de três quadrados iguais
+   ninguém percebe qual é a capa; assim a hierarquia do cartaz aparece já aqui. */
 .fotos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.fotos[data-max="3"] > .foto-item:first-child { grid-column: span 2; grid-row: span 2; }
 
 .foto-item { position: relative; }
 .foto-item img {
@@ -1646,20 +1768,25 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 
 .porta__frase {
   margin: 0 auto;
-  max-width: 34ch;
-  font-size: 1.02rem;
-  line-height: 1.45;
+  max-width: 30ch;
+  font-size: 1.2rem;
+  font-variation-settings: 'wdth' 106;
+  letter-spacing: -.012em;
+  line-height: 1.34;
 }
 
+/* Era uma caixa cinza de cantos arredondados — o "quadrinho de informação" que
+   todo site tem e que o olho aprende a pular. Sem a caixa, vira o que sempre
+   foi: uma frase explicando por que vale a pena ter conta. */
 .porta__porque {
-  margin: 14px auto 0;
-  max-width: 38ch;
-  padding: 12px 14px;
-  border-radius: 10px;
-  background: var(--toque);
-  font-size: .85rem;
+  margin: 18px auto 0;
+  max-width: 34ch;
+  padding: 0;
+  background: none;
+  font-size: .87rem;
+  line-height: 1.6;
   color: var(--tinta-2);
-  text-align: left;
+  text-align: center;
 }
 .porta__porque strong { color: var(--tinta); font-weight: 650; }
 
@@ -1693,9 +1820,12 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 /* Link discreto dentro de formulário (esqueci a senha, voltar para entrar). */
 .elo {
   display: block; width: 100%;
-  margin-top: 2px; padding: 10px;
+  margin-top: 8px; padding: 10px;
   font-size: .85rem; font-weight: 600;
   color: var(--acento);
   text-align: center;
 }
 .elo:hover { text-decoration: underline; }
+/* O elo secundário da tela: tinta comum, sem a cor da marca. */
+.elo--quieto { color: var(--tinta-2); font-weight: 600; }
+.elo--quieto:hover { color: var(--tinta); }
