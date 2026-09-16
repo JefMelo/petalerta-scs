@@ -10,14 +10,14 @@ import { ORIGEM, feedPorRaio, reencontros, novosReencontros, postPorId, rastroDo
          novidadesVistasEm, marcarNovidadesVistas, CENTRO,
          aoRecuperarSenha, meuPapel, recadosAtivos, recadosLidos,
          marcarRecadoLido, farejadoresAtivos, PISO_COMUNIDADE,
-         varrerFotosOrfas } from './dados.js?v=90';
-import * as form from './formularios.js?v=90';
-import * as mapaTela from './mapa.js?v=90';
-import * as perfilTela from './perfil.js?v=90';
-import * as pwa from './pwa.js?v=90';
-import * as adminTela from './admin.js?v=90';
+         varrerFotosOrfas } from './dados.js?v=92';
+import * as form from './formularios.js?v=92';
+import * as mapaTela from './mapa.js?v=92';
+import * as perfilTela from './perfil.js?v=92';
+import * as pwa from './pwa.js?v=92';
+import * as adminTela from './admin.js?v=92';
 import { areaDeBusca, conselho, FONTES,
-         horasDesdeUltimoPonto } from './area-busca.js?v=90';
+         horasDesdeUltimoPonto } from './area-busca.js?v=92';
 
 // MARCA — nome de trabalho. Trocar aqui e em .marca no CSS/HTML. -------------
 export const MARCA = { nome: 'Faro', cidade: 'Santa Cruz do Sul' };
@@ -1043,14 +1043,12 @@ document.addEventListener('click', (ev) => {
                           history.replaceState(null, '', mapaTela.estaAberto() ? '#/mapa' : '#/');
                           marcarAba(mapaTela.estaAberto() ? 'ir-mapa' : 'ir-feed'); return;
     case 'publicar':    form.abrirPublicar(ORIGEM); return;
-    case 'ir-mapa':     location.hash = '#/mapa'; return;
+    case 'ir-mapa':     irPara('#/mapa'); return;
     case 'centralizar':  mapaTela.centralizarEmMim(alvo); return;
     case 'camada-area': mapaTela.alternarArea(alvo); return;
-    case 'ir-feed':     if (!$('#detalhe').hidden) fecharDetalhe();
-                        if (mapaTela.estaAberto()) { mapaTela.fechar(); history.replaceState(null, '', '#/'); }
-                        marcarAba('ir-feed');
+    case 'ir-feed':     irPara('#/');
                         window.scrollTo({ top: 0, behavior: 'smooth' }); return;
-    case 'conta':     estaLogado() ? (location.hash = `#/perfil/${meuId()}`) : form.abrirConta('entrar'); return;
+    case 'conta':     estaLogado() ? irPara(`#/perfil/${meuId()}`) : form.abrirConta('entrar'); return;
     case 'ir-admin':  location.hash = '#/admin'; return;
     case 'fontes':    form.abrirFontes(FONTES); return;
     case 'instalar':           pwa.instalar(alvo); return;
@@ -1258,7 +1256,40 @@ function marcarAba(acao) {
   });
 }
 
+/* A BARRA DE BAIXO NAVEGA SEMPRE, inclusive para onde já se está.
+
+   Trocar o endereço só dispara o roteador quando o endereço MUDA. Com uma
+   folha aberta por cima do perfil, tocar em "conta" escrevia o mesmo hash que
+   já estava lá, nada acontecia, e a folha continuava na frente — a barra
+   parecia morta justamente quando era mais necessária.
+
+   Chamar `rotear()` na mão resolve os dois casos com uma linha. Ele é
+   idempotente: pergunta o que está aberto antes de fechar qualquer coisa.
+   Quando o endereço muda de verdade, o `hashchange` chama de novo e a segunda
+   passada não acha mais nada para fazer.
+
+   Fechar pelo ROTEADOR e não botão a botão também acaba com a causa raiz: a
+   versão anterior de "início" fechava o detalhe e o mapa e esquecia o perfil,
+   a administração e o formulário. Duas listas de telas para manter em dia
+   sempre terminam assim. */
+function irPara(hash) {
+  location.hash = hash;
+  rotear();
+}
+
 function rotear() {
+  /* NAVEGAR FECHA O FORMULÁRIO.
+
+     Faltava isto, e era o que fazia a barra de baixo parecer morta: tocar em
+     "mapa" ou em "conta" com o formulário aberto trocava a rota e abria a tela
+     nova ATRÁS dele (a folha de formulário é z-index 60; o mapa, 45). Nada
+     acontecia na tela, e a barra levava a culpa.
+
+     O lugar certo é aqui e não em cada botão: qualquer mudança de rota, venha
+     de onde vier — barra, botão voltar do aparelho, link — dispensa a folha
+     que estava por cima. */
+  form.fechar();
+
   const m = location.hash.match(/^#\/post\/(.+)$/);
   if (m) { abrirDetalhe(m[1]); return; }
 

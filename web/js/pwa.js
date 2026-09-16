@@ -12,8 +12,8 @@
    O convite aparece uma vez, é dispensável, e nunca volta se for dispensado.
    ============================================================================= */
 
-import { VAPID_PUBLICA } from './config.js?v=90';
-import { salvarPush, apagarPush, meuPush, ORIGEM, estaLogado } from './dados.js?v=90';
+import { VAPID_PUBLICA } from './config.js?v=92';
+import { salvarPush, apagarPush, meuPush, ORIGEM, estaLogado } from './dados.js?v=92';
 
 const DISPENSADO = 'faro:instalar-dispensado';
 const VISITAS    = 'faro:visitas';
