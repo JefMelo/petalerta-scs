@@ -3,8 +3,8 @@
    Uma folha por vez, sobe de baixo. Toda a escrita no banco passa por aqui.
    ============================================================================= */
 
-import * as dados from './dados.js?v=84';
-import { recortar, recortarVarias } from './recortar.js?v=84';
+import * as dados from './dados.js?v=90';
+import { recortar, recortarVarias } from './recortar.js?v=90';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) =>
@@ -27,7 +27,12 @@ let controle = null;
    aberta e derrubada no mesmo instante — e a mensagem nunca aparecia. */
 let numeroDaFolha = 0;
 
-function abrir({ titulo, corpo, acao, aoConfirmar, aoAbrir }) {
+/* `porta` = as telas de entrar / criar conta / recuperar senha. Só elas cobrem
+   a barra de atalhos de baixo: três dos quatro atalhos levam a lugares que
+   pedem exatamente a conta que a pessoa está criando, e oferecer saída para
+   eles no meio do cadastro é oferecer um beco. Em todas as outras folhas a
+   barra fica à vista e funcionando. */
+function abrir({ titulo, corpo, acao, aoConfirmar, aoAbrir, porta = false }) {
   fechar();
   const minhaFolha = ++numeroDaFolha;
   controle = new AbortController();
@@ -49,6 +54,7 @@ function abrir({ titulo, corpo, acao, aoConfirmar, aoAbrir }) {
       <p class="erro" hidden></p>
     </form>`;
 
+  f.classList.toggle('folha--porta', porta);
   f.hidden = false;
   document.body.style.overflow = 'hidden';
 
@@ -286,6 +292,7 @@ const PAPEIS_HTML = `
 export function abrirConta(modo = 'entrar') {
   const entrando = modo === 'entrar';
   abrir({
+    porta: true,
     titulo: entrando ? 'Entrar' : 'Criar conta',
     acao: entrando ? 'Entrar' : 'Criar',
     corpo: `
@@ -383,6 +390,7 @@ export function abrirConta(modo = 'entrar') {
    existe — dizer "não achamos essa conta" entrega a estranhos quem tem cadastro. */
 export function abrirEsqueci(email = '') {
   abrir({
+    porta: true,
     titulo: 'Recuperar senha',
     acao: 'Enviar link',
     corpo: `
@@ -409,6 +417,7 @@ export function abrirEsqueci(email = '') {
    sessão temporária, então basta gravar a senha nova. */
 export function abrirNovaSenha() {
   abrir({
+    porta: true,
     titulo: 'Nova senha',
     acao: 'Salvar',
     corpo: `

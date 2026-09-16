@@ -10,14 +10,14 @@ import { ORIGEM, feedPorRaio, reencontros, novosReencontros, postPorId, rastroDo
          novidadesVistasEm, marcarNovidadesVistas, CENTRO,
          aoRecuperarSenha, meuPapel, recadosAtivos, recadosLidos,
          marcarRecadoLido, farejadoresAtivos, PISO_COMUNIDADE,
-         varrerFotosOrfas } from './dados.js?v=84';
-import * as form from './formularios.js?v=84';
-import * as mapaTela from './mapa.js?v=84';
-import * as perfilTela from './perfil.js?v=84';
-import * as pwa from './pwa.js?v=84';
-import * as adminTela from './admin.js?v=84';
+         varrerFotosOrfas } from './dados.js?v=90';
+import * as form from './formularios.js?v=90';
+import * as mapaTela from './mapa.js?v=90';
+import * as perfilTela from './perfil.js?v=90';
+import * as pwa from './pwa.js?v=90';
+import * as adminTela from './admin.js?v=90';
 import { areaDeBusca, conselho, FONTES,
-         horasDesdeUltimoPonto } from './area-busca.js?v=84';
+         horasDesdeUltimoPonto } from './area-busca.js?v=90';
 
 // MARCA — nome de trabalho. Trocar aqui e em .marca no CSS/HTML. -------------
 export const MARCA = { nome: 'Faro', cidade: 'Santa Cruz do Sul' };
@@ -45,7 +45,10 @@ const ABAS = {
   },
 };
 
-const estado = { raioM: 3000, aba: 'buscas' };
+/* `pintado` existia como `!$('#feed').children.length` — ler o DOM para saber
+   se o feed já foi pintado. Com o esqueleto ocupando o lugar, o feed nunca
+   mais está vazio, e aquela pergunta passaria a responder errado. */
+const estado = { raioM: 3000, aba: 'buscas', pintado: false };
 
 /* Se ESTA conta modera. Só muda o que a tela oferece — a autorização de
    verdade está no RLS e nas RPCs, que recusam mesmo com o botão na mão. */
@@ -538,6 +541,55 @@ async function pintarAvisoDeReencontros() {
   } catch { botao.classList.remove('tem-novos'); }
 }
 
+/* O ESQUELETO DO FEED.
+
+   O feed nascia vazio e a abertura do app espera a geolocalização antes de
+   pintar qualquer coisa — em rede ruim, que é a condição de quem está na rua
+   procurando um cachorro, a tela ficava branca sem explicação.
+
+   Reaproveita a marcação do card de verdade em vez de inventar alturas: o
+   `.post__foto` vazio já é `aspect-ratio: 1/1` com fundo cinza, então a
+   silhueta tem a altura exata de um card sem uma linha de CSS nova para isso.
+
+   DOIS, não cinco. Num celular um card sozinho já passa da dobra; o segundo
+   cortado ao meio é o que diz "tem mais embaixo".
+
+   `aria-hidden` porque `#feed` é uma região `aria-live`: sem isso, o leitor de
+   tela anuncia as barras cinzas e depois anuncia o conteúdo de novo. */
+const ESQUELETO = `
+  <article class="post post--esqueleto" aria-hidden="true">
+    <header class="post__quem">
+      <span class="avatar"></span>
+      <span class="osso osso--nome"></span>
+    </header>
+    <div class="post__foto"></div>
+    <div class="legenda">
+      <span class="osso"></span>
+      <span class="osso osso--curta"></span>
+    </div>
+  </article>`.repeat(2);
+
+/* Mostra o esqueleto SÓ se a espera passar de 120 ms, e o segura por pelo menos
+   300 ms depois disso. Sem a primeira trava ele pisca com o service worker
+   quente; sem a segunda, pisca ao sair. */
+function esqueletoDoFeed(alvo) {
+  let nasceu = 0;
+  const marcado = setTimeout(() => {
+    nasceu = Date.now();
+    alvo.setAttribute('aria-busy', 'true');
+    alvo.innerHTML = ESQUELETO;
+  }, 120);
+
+  return async () => {
+    clearTimeout(marcado);
+    if (nasceu) {
+      const falta = 300 - (Date.now() - nasceu);
+      if (falta > 0) await new Promise((r) => setTimeout(r, falta));
+    }
+    alvo.removeAttribute('aria-busy');
+  };
+}
+
 async function pintarRecados() {
   // Nunca derruba o feed: se falhar, simplesmente não há recado.
   const lidos = recadosLidos();
@@ -548,6 +600,16 @@ async function pintarFeed() {
   const alvo = $('#feed');
   const aba = ABAS[estado.aba] || ABAS.buscas;
   const raio = aba.raio || estado.raioM;
+
+  /* Na troca de aba, o topo primeiro. Sem isto a lista nova nasce no meio (a
+     rolagem da lista anterior fica onde estava), e trocar cinco cards por dois
+     de esqueleto encolhe o documento e dá um segundo salto. Em rolagem zero,
+     encolher não desloca nada. */
+  if (estado.pintado) window.scrollTo(0, 0);
+
+  const esqueletoPronto = esqueletoDoFeed(alvo);
+  const pintar = async (html) => { await esqueletoPronto(); alvo.innerHTML = html; };
+  estado.pintado = true;
 
   try {
     if (estado.aba === 'reencontros') {
@@ -561,7 +623,7 @@ async function pintarFeed() {
       const ehNovo = (p) => Date.parse(p.resolvido_em) > limite;
       const novos = lista.filter(ehNovo).length;
 
-      alvo.innerHTML = lista.length
+      await pintar(lista.length
         ? (novos
             ? `<p class="feed__titulo">${novos === 1
                  ? 'Um reencontro desde a sua última visita'
@@ -569,7 +631,7 @@ async function pintarFeed() {
             : '')
           + lista.map((p) => reencontroHTML(p, ehNovo(p))).join('')
         : `<div class="vazio"><strong>Ainda não há reencontros por aqui</strong>
-           Quando um caso terminar bem, ele aparece nesta página.</div>`;
+           Quando um caso terminar bem, ele aparece nesta página.</div>`);
 
       marcarReencontrosVistos();
       pintarAvisoDeReencontros();
@@ -580,7 +642,7 @@ async function pintarFeed() {
       feedPorRaio({ ...ORIGEM, raioM: raio, tipos: aba.tipos }),
       pintarRecados(),
     ]);
-    alvo.innerHTML = (posts.length
+    await pintar(posts.length
       ? intercalar(posts, recados)
       : estado.aba === 'adocao'
         ? `<div class="vazio"><strong>Nenhum pet para adoção agora</strong>
@@ -590,7 +652,7 @@ async function pintarFeed() {
            Nenhum caso aberto nesta área. Aumente a distância no seu perfil.</div>`
          + recados.map(recadoHTML).join(''));
   } catch (e) {
-    alvo.innerHTML = `<div class="vazio"><strong>Não consegui carregar</strong>${esc(e.message)}</div>`;
+    await pintar(`<div class="vazio"><strong>Não consegui carregar</strong>${esc(e.message)}</div>`);
   }
 }
 
@@ -599,7 +661,10 @@ async function pintarFeed() {
 let mapa = null;
 let postAberto = null;
 
-async function abrirDetalhe(id) {
+/* `renovando` = a tela já está aberta e só o conteúdo mudou (chegou um
+   avistamento). Nesse caso não se mexe no foco nem na rolagem de quem está
+   lendo — só o miolo é reescrito. */
+async function abrirDetalhe(id, renovando = false) {
   const p = await postPorId(id);
   if (!p) return;
   postAberto = p;
@@ -663,7 +728,7 @@ async function abrirDetalhe(id) {
 
   $('#detalhe').hidden = false;
   document.body.style.overflow = 'hidden';
-  $('#detalhe .icone-botao').focus();
+  if (!renovando) $('#detalhe .icone-botao').focus();
   desenharMapa(rastro.length ? rastro : [p], p);
 }
 
@@ -885,7 +950,28 @@ function pintarFarejadores(id, total) {
   if (!total) return;
   const html = `${IC_PATA} <b>${total}</b> ${total === 1 ? 'farejador' : 'farejadores'}`;
   const existentes = document.querySelectorAll(`[data-farejadores="${id}"]`);
-  if (existentes.length) { existentes.forEach((el) => { el.innerHTML = html; }); return; }
+  if (existentes.length) {
+    existentes.forEach((el) => {
+      /* Bate só quando o número SOBE. Esta função é chamada em toda repintura,
+         e pulsar sempre faria o feed espasmar no carregamento. O valor anterior
+         mora no próprio elemento porque o `innerHTML` abaixo o destrói. */
+      const subiu = Number(el.dataset.total || 0) < total;
+      el.innerHTML = html;
+      el.dataset.total = String(total);
+      /* `animation` e não `transition`: o <b> acabou de ser recriado, não há
+         valor anterior para interpolar — transição nasceria morta.
+
+         Tirar a classe, ler o layout e pôr de volta é o que faz a animação
+         RECOMEÇAR. Só acrescentar não adianta na segunda vez: a classe já está
+         lá, e para o navegador nada mudou. */
+      if (subiu) {
+        el.classList.remove('farejadores--subiu');
+        void el.offsetWidth;
+        el.classList.add('farejadores--subiu');
+      }
+    });
+    return;
+  }
 
   document.querySelectorAll(`.acoes [data-partilhar="${id}"]`).forEach((botao) => {
     const span = document.createElement('span');
@@ -1216,7 +1302,7 @@ function rotear() {
 
   // As três seções do topo. Todas são "feed" para a barra de baixo.
   const nova = Object.keys(ABAS).find((a) => ABAS[a].hash === (location.hash || '#/')) || 'buscas';
-  if (nova !== estado.aba || !$('#feed').children.length) {
+  if (nova !== estado.aba || !estado.pintado) {
     estado.aba = nova;
     marcarSecao();
     pintarFeed();
@@ -1243,6 +1329,13 @@ form.configurar({ aoMudar: () => {
   pintarAvisoDeReencontros();
   carregarNovidades();
   if (perfilTela.estaAberto()) perfilTela.recarregar();
+
+  /* O DETALHE TAMBÉM. Quem registrava um avistamento a partir da tela do caso
+     voltava para ela com o rastro e o contador VELHOS — e só descobria fechando
+     e abrindo de novo. A tela nunca era repintada: `aoMudar` cuidava do feed,
+     das novidades e do perfil, e esquecia justamente a tela de onde a pessoa
+     tinha acabado de agir. */
+  if (!$('#detalhe').hidden && postAberto) abrirDetalhe(postAberto.id, true);
 } });
 
 aoMudarSessao(() => {
@@ -1281,6 +1374,13 @@ async function situarUsuario() {
 
   if (!guardado && !conviteDispensado()) $('#convite-local').hidden = false;
 }
+
+/* O esqueleto vai para a tela ANTES de tudo. A cadeia abaixo espera
+   `situarUsuario()`, que pode esperar a permissão de localização — e é essa a
+   espera que deixava a tela branca. Pôr o esqueleto dentro de `pintarFeed()`
+   não alcançaria, porque `pintarFeed()` ainda nem foi chamada. */
+$('#feed').setAttribute('aria-busy', 'true');
+$('#feed').innerHTML = ESQUELETO;
 
 situarUsuario()
   // Nada aqui pode impedir o feed de aparecer: sem localização o app funciona,

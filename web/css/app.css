@@ -28,6 +28,23 @@
   --barra-h:    52px;
 
   --fonte: 'Archivo', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  /* MOVIMENTO. Antes destes tokens havia nove durações e cinco curvas
+     espalhadas pelo arquivo, com .12s, .13s e .15s fazendo o mesmo trabalho em
+     lugares diferentes. Movimento consistente lê como intenção; movimento
+     acumulado lê como descuido — e é o que faz uma interface parecer montada
+     em vez de desenhada.
+
+     Três durações bastam para tudo o que este app faz. As animações de VIDA
+     (o pulso do chip, o giro do spinner, a respiração do pontinho de aba) não
+     entram aqui de propósito: são ritmos, não transições. */
+  --t-toque: 120ms;   /* resposta ao dedo: cor, opacidade, marca de escolha */
+  --t-entra: 220ms;   /* algo entra ou sai de cena */
+  --t-calmo: 320ms;   /* uma tela inteira viajando, ou um estado que se nota */
+
+  /* Entra rápido e assenta devagar — é como coisa com peso se move. */
+  --e-saida: cubic-bezier(.2, .7, .3, 1);
+  --e-suave: ease;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -133,7 +150,7 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
   border: 1px solid var(--fio);
   border-radius: 14px;
   box-shadow: 0 8px 28px rgba(21,23,28,.16);
-  animation: abreParaBaixo .13s ease-out;
+  animation: abreParaBaixo var(--t-toque) var(--e-saida);
 }
 @keyframes abreParaBaixo { from { opacity: 0; transform: translateY(-5px); } }
 
@@ -312,6 +329,35 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 }
 .post__foto img { width: 100%; height: 100%; object-fit: cover; }
 
+/* =============================================================================
+   O ESQUELETO DO FEED
+
+   Sem brilho passando. Um gradiente correndo por cima é enfeite colocado em
+   cima de uma espera — e é o detalhe que mais denuncia interface montada de
+   fora. Aqui o esqueleto só ocupa o lugar e cala.
+
+   A silhueta reaproveita o card de verdade: `.post__foto` vazio já é um
+   quadrado cinza da altura certa (regra logo acima), e `.avatar` vazio já é um
+   círculo cinza. Só os dois traços de texto são novos.
+   ============================================================================= */
+/* Um tom abaixo de `--toque`. O cinza mais claro do app é quase branco: usado
+   aqui, a silhueta some no papel e a tela continua parecendo vazia — que é
+   exatamente o problema que o esqueleto existe para resolver. */
+.post--esqueleto { pointer-events: none; --osso: #E8EBED; }
+.post--esqueleto .post__foto,
+.post--esqueleto .avatar { background: var(--osso); }
+
+.osso {
+  display: block;
+  height: 11px;
+  border-radius: 3px;
+  background: var(--osso);
+}
+.osso--nome { width: 42%; }
+.osso--curta { width: 58%; }
+.post--esqueleto .legenda { padding-top: 12px; padding-bottom: 14px; }
+.post--esqueleto .legenda .osso + .osso { margin-top: 8px; }
+
 /* A foto é a porta de entrada do caso — e era inerte até aqui. É o maior alvo
    do card, e quem toca nela espera ver o pet maior e o resto da história. */
 .post__foto[data-abrir], .carrossel__foto[data-abrir] { cursor: pointer; }
@@ -389,7 +435,7 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
   display: grid; place-items: center;
   border-radius: 50%;
   color: var(--tinta);
-  transition: opacity .12s ease;
+  transition: opacity var(--t-toque) var(--e-suave);
 }
 .acao:hover { opacity: .55; }
 .acao svg { width: 25px; height: 25px; }
@@ -458,13 +504,59 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 
 /* --- FOLHAS (detalhe e formulários) ----------------------------------------- */
 
+/* A BARRA DE BAIXO NÃO É COBERTA.
+
+   As folhas paravam em `inset: 0` e tapavam os quatro atalhos, então abrir um
+   caso ou um formulário deixava a pessoa sem saída a não ser o "x" do topo.
+   Agora elas terminam onde a barra começa — o mesmo que a tela do mapa já
+   fazia desde sempre (`.mapa-tela`, mais abaixo).
+
+   A exceção é a PORTA (entrar e criar conta): ali a barra não faz sentido,
+   porque três dos quatro atalhos levam a lugares que pedem justamente a conta
+   que a pessoa está criando. Essa folha vai até embaixo. */
 .folha {
-  position: fixed; inset: 0; z-index: 50;
+  position: fixed; left: 0; right: 0; top: 0;
+  bottom: calc(var(--barra-h) + env(safe-area-inset-bottom));
+  z-index: 50;
   background: var(--papel);
   overflow-y: auto;
   overscroll-behavior: contain;
 }
 .folha--form { z-index: 60; }
+.folha--porta { bottom: 0; }
+
+/* AS TELAS SOBEM DE BAIXO.
+
+   O comentário no topo de `formularios.js` sempre disse "uma folha por vez,
+   sobe de baixo" — e isso nunca existiu: toda tela cheia aparecia com
+   `hidden = false`, num quadro, sem dizer de onde vinha.
+
+   É `animation` e não `transition` de propósito. O navegador dispara uma
+   animação sozinho quando o elemento deixa de ser `display: none`, então isto
+   funciona SEM UMA LINHA DE JS — se algum módulo falhar em carregar, a tela
+   ainda abre, só não desliza. Movimento nunca pode decidir se a tela aparece.
+
+   E, por não ter `forwards`, o `transform` não sobra depois: passados os
+   240 ms a folha não tem transformação nenhuma, e não vira bloco de contenção
+   para nada que seja `position: fixed` lá dentro.
+
+   A SAÍDA não está aqui. Ela exigiria adiar o `hidden = true`, e `hidden` é a
+   máquina de estados deste app — dezessete lugares perguntam `.hidden` para
+   saber o que está aberto. Adiar faria todos mentirem durante a descida. Fica
+   para uma mudança própria, com a migração desses leitores junto. */
+@keyframes folhaSobe { from { transform: translateY(100%); } }
+
+.folha:not([hidden]),
+.mapa-tela:not([hidden]) {
+  animation: folhaSobe var(--t-calmo) var(--e-saida);
+}
+
+/* O detalhe de um caso vem do card que a pessoa tocou, não do rodapé: sobe
+   menos e mais rápido, como coisa que já estava ali perto. */
+#detalhe:not([hidden]) { animation-name: folhaAproxima; }
+@keyframes folhaAproxima {
+  from { transform: translateY(26px); opacity: 0; }
+}
 
 /* =============================================================================
    O TAMANHO DA COMUNIDADE
@@ -501,7 +593,13 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
    folha continua viva por baixo com tudo o que já foi digitado. Fundo escuro
    porque aqui só existe a foto — é a única tela do app que não é sobre ler.
    ============================================================================= */
+/* Entra por opacidade, não deslizando: é a única tela do app que inverte o
+   esquema de cor (papel claro → quase preto), e um retângulo escuro varrendo a
+   tela de baixo para cima é agressivo demais para "ajuste a sua foto". */
+@keyframes recorteEntra { from { opacity: 0; } }
+
 .recorte {
+  animation: recorteEntra var(--t-entra) var(--e-suave);
   position: fixed; inset: 0; z-index: 70;
   display: flex; flex-direction: column;
   background: #0E1013;
@@ -712,7 +810,7 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .campo__rotulo {
   font-size: .82rem; font-weight: 550;
   color: var(--tinta-2);
-  transition: color .12s ease;
+  transition: color var(--t-toque) var(--e-suave);
 }
 .campo__dica {
   grid-column: 1 / -1;
@@ -816,7 +914,7 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
   border-left: 2px solid transparent;
   border-bottom: 1px solid var(--risco-2);
   cursor: pointer;
-  transition: border-left-color .12s ease;
+  transition: border-left-color var(--t-toque) var(--e-suave);
 }
 .tipos label:last-child .tipo__corpo { border-bottom: 0; }
 .tipo__corpo strong { display: block; font-size: .96rem; font-weight: 600; color: var(--tinta); }
@@ -851,7 +949,7 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
   border-bottom: 1px solid var(--risco-2);
   border-radius: 0;
   cursor: pointer;
-  transition: border-left-color .12s ease;
+  transition: border-left-color var(--t-toque) var(--e-suave);
 }
 .papel:last-child .papel__corpo { border-bottom: 0; }
 .papel__corpo strong { display: block; font-size: .93rem; font-weight: 650; color: var(--tinta); }
@@ -967,7 +1065,13 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+  *, *::before, *::after {
+    animation-duration: .001ms !important; transition-duration: .001ms !important;
+    /* Os ATRASOS também: sem isto, uma animação de duração zero ainda espera o
+       seu delay antes de "terminar", e quem pediu menos movimento recebe uma
+       tela parada esperando. */
+    animation-delay: .001ms !important; transition-delay: .001ms !important;
+  }
 }
 
 /* Post sem foto: assume a ausência em vez de mostrar um quadrado cinza vazio. */
@@ -1093,7 +1197,7 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
   background: var(--papel);
   border-radius: 14px;
   box-shadow: 0 6px 24px rgba(13,20,24,.24);
-  animation: sobe .18s cubic-bezier(.2,.7,.3,1);
+  animation: sobe var(--t-entra) var(--e-saida);
 }
 @keyframes sobe { from { transform: translateY(12px); opacity: 0; } }
 
@@ -1191,7 +1295,7 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .carrossel__pontos i {
   width: 6px; height: 6px; border-radius: 50%;
   background: #C9D0D6;
-  transition: background-color .15s ease;
+  transition: background-color var(--t-toque) var(--e-suave);
 }
 .carrossel__pontos i[data-ativo] { background: var(--avistado); }
 
@@ -1207,7 +1311,7 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
     background: rgba(255,255,255,.92);
     color: var(--tinta);
     box-shadow: 0 1px 4px rgba(13,20,24,.28);
-    opacity: 0; transition: opacity .15s ease;
+    opacity: 0; transition: opacity var(--t-toque) var(--e-suave);
   }
   .carrossel__seta svg { width: 17px; height: 17px; }
   .carrossel__seta--tras   { left: 10px; }
@@ -1306,7 +1410,7 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
   padding: 3px;
   border-radius: 999px;
   background: var(--fio);
-  transition: background .18s ease;
+  transition: background var(--t-entra) var(--e-suave);
 }
 .interruptor i {
   display: block;
@@ -1314,15 +1418,12 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
   border-radius: 50%;
   background: var(--papel);
   box-shadow: 0 1px 3px rgba(0, 0, 0, .22);
-  transition: transform .18s ease;
+  transition: transform var(--t-entra) var(--e-saida);
 }
 .interruptor[aria-checked="true"] { background: var(--perdido); }
 .interruptor[aria-checked="true"] i { transform: translateX(18px); }
 .interruptor:disabled { opacity: .45; cursor: default; }
 
-@media (prefers-reduced-motion: reduce) {
-  .interruptor, .interruptor i { transition: none; }
-}
 
 /* =============================================================================
    RECADO DO FARO — o anúncio no meio do feed
@@ -1605,7 +1706,7 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .celula__foto {
   position: absolute; inset: 0;
   background-size: cover; background-position: center;
-  transition: transform .2s ease;
+  transition: transform var(--t-entra) var(--e-suave);
 }
 .celula:hover .celula__foto { transform: scale(1.04); }
 .celula__foto--sem { display: grid; place-items: center; color: var(--tinta-3); }
@@ -1708,6 +1809,25 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .farejadores svg { width: 16px; height: 16px; color: var(--perdido); flex: none; }
 .farejadores b { color: var(--tinta); font-weight: 700; }
 
+/* UMA BATIDA quando alguém entra na busca. Uma, não um laço: é um aviso de que
+   chegou gente, não um alarme. E nada de contar de 2 para 3 — compartilhamento
+   entra de um em um, então "contar" seria um passo só, animação para nada.
+
+   `inline-block` não é enfeite: `transform` em elemento inline não faz nada, e
+   <b> é inline por padrão. Nunca animar `font-size` aqui — mudaria a largura e
+   empurraria a linha de ações inteira, que é flex. */
+.farejadores b { display: inline-block; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .farejadores--subiu b,
+  .farejadores--subiu svg { animation: pataBate var(--t-calmo) var(--e-saida); }
+}
+@keyframes pataBate {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.22); }
+  100% { transform: scale(1); }
+}
+
 /* Sino: novidades nos seus casos. Ícone diferente da pata de propósito. */
 .sino {
   position: relative;
@@ -1774,7 +1894,7 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
   text-align: center;
   word-break: break-all;
   opacity: 0; pointer-events: none;
-  transition: opacity .18s ease, transform .18s ease;
+  transition: opacity var(--t-entra) var(--e-suave), transform var(--t-entra) var(--e-saida);
 }
 .recado--visivel { opacity: 1; transform: translate(-50%, 0); }
 

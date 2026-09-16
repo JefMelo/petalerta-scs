@@ -4,8 +4,8 @@
    alfinete abre um cartão; tocar no cartão abre o caso inteiro.
    ============================================================================= */
 
-import { ORIGEM, mapaPerdidos, adotarMinhaLocalizacao } from './dados.js?v=84';
-import { areaDeBusca } from './area-busca.js?v=84';
+import { ORIGEM, mapaPerdidos, adotarMinhaLocalizacao } from './dados.js?v=90';
+import { areaDeBusca } from './area-busca.js?v=90';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) =>
