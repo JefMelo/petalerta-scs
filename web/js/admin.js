@@ -16,8 +16,8 @@
 import { adminPendentes, adminDecidir, adminContas, adminMudarPapel,
          adminRecados, desligarRecado, apagarRecado, meuPapel,
          padroesLocais, farejadoresAtivos, PISO_COMUNIDADE,
-         adminContato, fotosOrfasPendentes } from './dados.js?v=80';
-import { abrirRecado, abrirNovoRecado } from './formularios.js?v=80';
+         adminContato, fotosOrfasPendentes } from './dados.js?v=84';
+import { abrirRecado, abrirNovoRecado } from './formularios.js?v=84';
 
 const $  = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];

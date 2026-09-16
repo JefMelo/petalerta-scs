@@ -883,6 +883,24 @@ de assets do Cloudflare. O `wrangler.jsonc` diz tudo:
 O comando de deploy do projeto é `npx wrangler deploy`, o padrão dos Workers
 Builds. Não mexer nele.
 
+**O interruptor nunca funcionou, e nada avisava.** `.mapa-topo` é
+`pointer-events: none` para que arrastar o mapa funcione através dela; cada
+botão precisa se reinscrever com `pointer-events: auto`. O botão "Área" não
+tinha essa linha, então o clique atravessava e ia parar no Leaflet. Nem no
+celular nem no computador — e o console ficava limpo, porque nada falhava:
+o clique simplesmente ia para outro elemento. `document.elementFromPoint` no
+centro do próprio botão é o que revela isso em um segundo.
+
+O enquadramento também mudou, pelo mesmo motivo do mapa do caso: segue o anel
+**interno**. Seguindo o externo, os círculos apareciam e o mapa debaixo deles
+virava inútil — 8 km de raio fazem de Santa Cruz do Sul um borrão sem nome de
+rua, e quem liga a camada quer saber por onde andar.
+
+E a chapa do topo passou a dizer *"Toque num pet para ver a área"* enquanto a
+camada está ligada sem ninguém selecionado. Antes, ligar o interruptor sem ter
+tocado num alfinete não fazia nada — o que é correto (não há área sem pet) e
+parece defeito.
+
 ### Onde vivem as credenciais (nenhuma no repositório)
 
 `~/.config/farejo/`, modo 600:

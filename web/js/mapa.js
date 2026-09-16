@@ -4,8 +4,8 @@
    alfinete abre um cartão; tocar no cartão abre o caso inteiro.
    ============================================================================= */
 
-import { ORIGEM, mapaPerdidos, adotarMinhaLocalizacao } from './dados.js?v=80';
-import { areaDeBusca } from './area-busca.js?v=80';
+import { ORIGEM, mapaPerdidos, adotarMinhaLocalizacao } from './dados.js?v=84';
+import { areaDeBusca } from './area-busca.js?v=84';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) =>
@@ -96,15 +96,37 @@ function desenharArea(p) {
     }).addTo(camadaArea);
   });
 
-  /* Enquadrar é o que torna a camada legível. No zoom da cidade, o anel de um
-     cão sumido há dois dias tem raio MAIOR que a tela — e o que se vê não são
-     anéis, é um banho de cor sem informação nenhuma. `toBounds` faz a conta com
-     o raio em metros, sem depender de camada já projetada. */
-  const maior = Math.max(...a.zonas.map((z) => z.raio));
-  mapa.fitBounds(L.latLng(p.lat, p.lng).toBounds(maior * 2.3), {
+  /* Enquadra o anel INTERNO, não o externo.
+
+     A primeira versão seguia o maior anel. Os círculos apareciam — e o mapa
+     debaixo deles virava inútil: o anel externo de um cão é de 8 km, e a essa
+     altura Santa Cruz do Sul é um borrão sem nome de rua. Quem liga esta
+     camada quer saber POR ONDE ANDAR, e isso se lê na escala da rua.
+
+     O anel externo continua desenhado para quem afastar, e a legenda do caso
+     diz os raios em palavras — que é onde um número grande se lê melhor do que
+     num círculo. Mesma decisão do mapa do caso. */
+  const menor = Math.min(...a.zonas.map((z) => z.raio));
+  mapa.fitBounds(L.latLng(p.lat, p.lng).toBounds(menor * 2.4), {
     paddingBottomRight: [0, 150],    // o cartão do pet ocupa o rodapé
+    maxZoom: 16,                     // sem isto, um gato de 137 m cola na rua
     animate: true,
   });
+}
+
+/* A CHAPA DO TOPO diz o estado do mapa, e isso mudou de significado quando a
+   camada existe: com ela ligada e nenhum pet escolhido, não há área nenhuma
+   para desenhar — e um interruptor que acende sem nada acontecer parece
+   quebrado. Nessa hora a chapa deixa de contar pets e passa a dizer o que
+   falta fazer. */
+let contagem = '';
+
+function dizerNoTopo() {
+  const chapa = $('#mapa-conta');
+  if (!chapa) return;
+  if (querArea() && !selecionado) { chapa.textContent = 'Toque num pet para ver a área'; return; }
+  // Antes de os pets chegarem, `contagem` está vazia: não apagar o "Carregando…".
+  if (contagem) chapa.textContent = contagem;
 }
 
 /** O interruptor da camada, no topo do mapa. */
@@ -113,6 +135,7 @@ export function alternarArea(botao) {
   guardarArea(ligando);
   botao.setAttribute('aria-checked', String(ligando));
   desenharArea(ligando ? pets.find((x) => x.id === selecionado) : null);
+  dizerNoTopo();
 }
 
 // --- cartão de baixo ----------------------------------------------------------
@@ -120,6 +143,7 @@ export function alternarArea(botao) {
 function mostrarCartao(p) {
   selecionado = p.id;
   desenharArea(p);
+  dizerNoTopo();
   const c = $('#cartao-mapa');
   const quando = p.desde_tutor
     ? `Sumiu ${fmtTempo(p.visto_em)}`
@@ -154,6 +178,7 @@ export function esconderCartao() {
   if (c) { c.hidden = true; c.innerHTML = ''; }
   selecionado = null;
   camadaArea?.clearLayers();      // sem pet escolhido, não há área que desenhar
+  dizerNoTopo();
 }
 
 // --- montagem -----------------------------------------------------------------
@@ -183,9 +208,10 @@ async function carregarPets() {
       .on('click', () => { mostrarCartao(p); mapa.panTo([p.lat, p.lng]); });
   });
 
-  $('#mapa-conta').textContent = pets.length === 1
+  contagem = pets.length === 1
     ? '1 pet procurado por aqui'
     : `${pets.length} pets procurados por aqui`;
+  dizerNoTopo();
 
   if (pets.length) {
     const pontos = pets.map((p) => [p.lat, p.lng]).concat([[ORIGEM.lat, ORIGEM.lng]]);
